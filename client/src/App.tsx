@@ -6,6 +6,8 @@ import Outsourcing from './pages/Outsourcing';
 import Payroll from './pages/Payroll';
 import Attendance from './pages/Attendance';
 import HRHub from './pages/HRHub';
+import EmployeeDirectory from './pages/EmployeeDirectory';
+import LeaveManagement from './pages/LeaveManagement';
 import UserManagement from './pages/UserManagement';
 import Profile from './pages/Profile';
 import Support from './pages/Support';
@@ -36,6 +38,8 @@ function App() {
                   <Route path="/payroll" element={<Payroll user={user} />} />
                   <Route path="/attendance" element={<Attendance user={user} />} />
                   <Route path="/hr-hub" element={<HRHub user={user} />} />
+                  <Route path="/directory" element={<EmployeeDirectory user={user} />} />
+                  <Route path="/leave" element={<LeaveManagement user={user} />} />
                   <Route path="/profile" element={<Profile user={user} />} />
                   <Route path="/support" element={<Support />} />
                   <Route path="/products" element={<div className="p-6 bg-white rounded-xl shadow-sm border border-slate-200"><h1 className="text-2xl font-bold">Product Development</h1><p className="mt-4 text-slate-600">This module is coming soon...</p></div>} />

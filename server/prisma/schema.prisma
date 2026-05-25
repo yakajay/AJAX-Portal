@@ -1,0 +1,93 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  engineType = "binary"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            Int            @id @default(autoincrement())
+  email         String         @unique
+  name          String
+  department    String         @default("Engineering")
+  role          String         @default("USER")
+  permissions   String         @default("read")
+  locked        Boolean        @default(false)
+  password      String?        // In a real app, this would store hashed password
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  
+  attendance    Attendance[]
+  documents     HRDocument[]
+  leaves        LeaveRequest[]
+}
+
+model Contractor {
+  id        Int      @id @default(autoincrement())
+  name      String
+  role      String
+  company   String
+  status    String   // Active, On Bench, Pending
+  country   String
+  rating    Float    @default(0.0)
+  createdAt DateTime @default(now())
+}
+
+model Transaction {
+  id        Int      @id @default(autoincrement())
+  recipient String
+  date      String   // Using String to match existing mock data format, or DateTime
+  amount    String   // Storing as string with currency for now
+  status    String   // Success, Processing, Failed
+  method    String
+  createdAt DateTime @default(now())
+}
+
+model Attendance {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  date      String
+  checkIn   String
+  checkOut  String?
+  status    String   @default("Present")
+  createdAt DateTime @default(now())
+}
+
+model HRDocument {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  name      String
+  type      String   // Letter, Payslip, Tax
+  date      String
+  createdAt DateTime @default(now())
+}
+
+model Holiday {
+  id        Int      @id @default(autoincrement())
+  date      String
+  name      String
+}
+
+model LeaveRequest {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  type      String   // Annual, Sick, Casual
+  startDate String
+  endDate   String
+  days      Int
+  status    String   @default("Pending") // Pending, Approved, Rejected
+  reason    String?
+  createdAt DateTime @default(now())
+}

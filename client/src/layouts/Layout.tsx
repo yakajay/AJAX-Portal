@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Users, 
+  UserCheck,
   CreditCard, 
   Briefcase, 
   Settings,
@@ -14,17 +15,32 @@ import {
   ChevronDown,
   Clock,
   FileText,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  Search
 } from 'lucide-react';
 
-const UserDropdown = ({ user, onLogout }) => {
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  department?: string;
+}
+
+interface LayoutProps {
+  children: React.ReactNode;
+  user: User | null;
+  onLogout: () => void;
+}
+
+const UserDropdown = ({ user, onLogout }: { user: User | null; onLogout: () => void }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     };
@@ -32,7 +48,7 @@ const UserDropdown = ({ user, onLogout }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleAction = (path) => {
+  const handleAction = (path: string) => {
     setIsOpen(false);
     navigate(path);
   };
@@ -41,23 +57,19 @@ const UserDropdown = ({ user, onLogout }) => {
     <div className="relative" ref={dropdownRef}>
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center space-x-3 p-1 rounded-lg hover:bg-slate-100 transition-colors focus:outline-none"
+        className="flex items-center space-x-2 p-1.5 rounded-full hover:bg-slate-100 transition-colors focus:outline-none"
       >
-        <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold border-2 border-white shadow-sm">
+        <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold shadow-sm">
           {user?.name?.substring(0, 2).toUpperCase() || 'U'}
         </div>
-        <div className="hidden md:block text-left mr-1">
-          <p className="text-sm font-bold text-slate-900 leading-none">{user?.name || 'User'}</p>
-          <p className="text-[10px] text-slate-500 uppercase font-bold mt-1 tracking-wider">{user?.role?.replace('_', ' ')}</p>
-        </div>
-        <ChevronDown size={16} className={`text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-[100] animate-in fade-in slide-in-from-top-2">
+        <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-slate-100 py-2 z-[100] animate-in fade-in zoom-in-95 duration-200">
           <div className="px-4 py-3 border-b border-slate-50">
             <p className="text-sm font-bold text-slate-900">{user?.name}</p>
-            <p className="text-xs text-slate-500 truncate">{user?.email}</p>
+            <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest mt-0.5">{user?.role?.replace('_', ' ')}</p>
           </div>
           
           <div className="py-1">
@@ -65,25 +77,25 @@ const UserDropdown = ({ user, onLogout }) => {
               onClick={() => handleAction('/profile')}
               className="flex items-center w-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
             >
-              <UserIcon size={18} className="mr-3 text-slate-400" />
-              Update Profile
+              <UserIcon size={16} className="mr-3 text-slate-400" />
+              My Profile
             </button>
             <button 
               onClick={() => handleAction('/support')}
               className="flex items-center w-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
             >
-              <HelpCircle size={18} className="mr-3 text-slate-400" />
-              Support Page
+              <HelpCircle size={16} className="mr-3 text-slate-400" />
+              Help & Support
             </button>
           </div>
 
           <div className="border-t border-slate-50 mt-1 pt-1">
             <button 
               onClick={onLogout}
-              className="flex items-center w-full px-4 py-2 text-sm text-rose-600 hover:bg-rose-50 transition-colors font-medium"
+              className="flex items-center w-full px-4 py-2 text-sm text-rose-600 hover:bg-rose-50 transition-colors font-semibold"
             >
-              <LogOut size={18} className="mr-3" />
-              Logout
+              <LogOut size={16} className="mr-3" />
+              Sign Out
             </button>
           </div>
         </div>
@@ -92,40 +104,49 @@ const UserDropdown = ({ user, onLogout }) => {
   );
 };
 
-const Sidebar = ({ isOpen, toggleSidebar, user }) => {
+const Sidebar = ({ isOpen, toggleSidebar, user }: { isOpen: boolean; toggleSidebar: () => void; user: User | null }) => {
   const location = useLocation();
 
   const menuItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { name: 'Outsourcing', path: '/outsourcing', icon: Users },
+    { name: 'Directory', path: '/directory', icon: Users },
+    { name: 'Leave', path: '/leave', icon: CalendarIcon },
+    { name: 'Outsourcing', path: '/outsourcing', icon: UserCheck },
     { name: 'Payroll', path: '/payroll', icon: CreditCard },
     { name: 'Attendance', path: '/attendance', icon: Clock },
     { name: 'HR Hub', path: '/hr-hub', icon: FileText },
     { name: 'Products', path: '/products', icon: Briefcase },
   ];
 
-  // Only Super Admin can see Settings/User Management
+  // Restrict Outsourcing and Payroll to Admin/Super Admin
+  const filteredMenuItems = menuItems.filter(item => {
+    if (item.name === 'Outsourcing' || item.name === 'Payroll') {
+      return user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
+    }
+    return true;
+  });
+
   if (user?.role === 'SUPER_ADMIN') {
-    menuItems.push({ name: 'User Management', path: '/settings', icon: Settings });
+    filteredMenuItems.push({ name: 'User Management', path: '/settings', icon: Settings });
   }
 
   return (
     <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white transform ${isOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0`}>
       <div className="flex items-center justify-between h-16 px-6 bg-slate-900 border-b border-slate-800">
-        <span className="text-xl font-bold tracking-wider text-emerald-400">YAKFLOW</span>
+        <span className="text-xl font-bold tracking-wider text-blue-400">DARWINBOX</span>
         <button className="lg:hidden" onClick={toggleSidebar}>
           <X size={24} />
         </button>
       </div>
       <nav className="mt-6">
-        {menuItems.map((item) => {
+        {filteredMenuItems.map((item) => {
           const isActive = location.pathname === item.path;
           return (
             <Link
               key={item.name}
               to={item.path}
               className={`flex items-center px-6 py-3 mt-2 text-sm transition-colors duration-200 ${
-                isActive ? 'bg-slate-800 text-emerald-400 border-r-4 border-emerald-400' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                isActive ? 'bg-slate-800 text-blue-400 border-r-4 border-blue-400' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
               }`}
             >
               <item.icon size={20} className="mr-3" />
@@ -138,25 +159,34 @@ const Sidebar = ({ isOpen, toggleSidebar, user }) => {
   );
 };
 
-const Header = ({ toggleSidebar, user, onLogout }) => {
+const Header = ({ toggleSidebar, user, onLogout }: { toggleSidebar: () => void; user: User | null; onLogout: () => void }) => {
   return (
     <header className="flex items-center justify-between h-16 px-6 bg-white border-b border-slate-200">
-      <button className="text-slate-500 lg:hidden" onClick={toggleSidebar}>
-        <Menu size={24} />
-      </button>
-      <div className="flex-1 px-4 hidden md:block">
-        <div className="text-sm font-medium text-slate-500">
-          Yaksofts / <span className="text-slate-900 font-bold">YakFlow Portal</span>
+      <div className="flex items-center">
+        <button className="text-slate-500 lg:hidden mr-4" onClick={toggleSidebar}>
+          <Menu size={24} />
+        </button>
+        <div className="hidden md:flex items-center bg-slate-100 rounded-lg px-3 py-1.5 w-64 lg:w-96 transition-all focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:bg-white border border-transparent focus-within:border-slate-200">
+          <Search size={18} className="text-slate-400 mr-2" />
+          <input 
+            type="text" 
+            placeholder="Search employees, tasks, or files..." 
+            className="bg-transparent border-none focus:outline-none text-sm w-full text-slate-600 placeholder:text-slate-400"
+          />
         </div>
       </div>
-      <div className="flex items-center">
+      
+      <div className="flex items-center space-x-4">
+        <div className="hidden lg:flex items-center text-xs font-bold text-slate-400 tracking-widest uppercase border-r border-slate-200 pr-4 h-8">
+          <span className="text-blue-600 mr-1">YAK SOFTWARE SOLUTIONS</span>
+        </div>
         <UserDropdown user={user} onLogout={onLogout} />
       </div>
     </header>
   );
 };
 
-const Layout = ({ children, user, onLogout }) => {
+const Layout = ({ children, user, onLogout }: LayoutProps) => {
   const [isOpen, setIsOpen] = React.useState(false);
 
   const toggleSidebar = () => setIsOpen(!isOpen);

@@ -1,10 +1,12 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { PrismaClient } from '@prisma/client';
 
 dotenv.config();
 
 const app = express();
+const prisma = new PrismaClient();
 const PORT = process.env.PORT || 5000;
 
 app.use(cors({
@@ -21,214 +23,233 @@ app.use((req, res, next) => {
   next();
 });
 
-
-// Role Definitions
-const ROLES = {
-  SUPER_ADMIN: 'SUPER_ADMIN',
-  ADMIN: 'ADMIN',
-  USER: 'USER'
-};
-
-// Initial Users
-let users = [
-  { 
-    id: 1, 
-    email: 'admin@yaksofts.com', 
-    name: 'Super Admin', 
-    role: ROLES.SUPER_ADMIN,
-    permissions: ['all'] 
-  }
-];
-
 // --- User Management Endpoints ---
-app.get('/api/users', (req, res) => {
-  res.json(users);
-});
-
-app.post('/api/users', (req, res) => {
-  const newUser = { 
-    ...req.body, 
-    id: users.length + 1,
-    permissions: req.body.role === ROLES.USER ? ['read'] : req.body.permissions || ['read', 'write']
-  };
-  users.push(newUser);
-  res.status(201).json(newUser);
-});
-
-app.put('/api/users/:id', (req, res) => {
-  const { id } = req.params;
-  const index = users.findIndex(u => u.id === parseInt(id));
-  if (index !== -1) {
-    users[index] = { ...users[index], ...req.body };
-    res.json(users[index]);
-  } else {
-    res.status(404).json({ message: 'User not found' });
+app.get('/api/users', async (req, res) => {
+  try {
+    const users = await prisma.user.findMany();
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
-app.delete('/api/users/:id', (req, res) => {
-  const { id } = req.params;
-  const index = users.findIndex(u => u.id === parseInt(id));
-  if (index !== -1) {
-    const deletedUser = users.splice(index, 1);
-    res.json(deletedUser[0]);
-  } else {
-    res.status(404).json({ message: 'User not found' });
+app.post('/api/users', async (req, res) => {
+  try {
+    const { email, name, role, permissions, department } = req.body;
+    const user = await prisma.user.create({
+      data: {
+        email,
+        name,
+        department: department || 'Engineering',
+        role: role || 'USER',
+        permissions: permissions || (role === 'USER' ? ['read'] : ['read', 'write'])
+      }
+    });
+    res.status(201).json(user);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/users/:id/reset-password', (req, res) => {
-  const { id } = req.params;
-  const user = users.find(u => u.id === parseInt(id));
-  if (user) {
-    // In a real app, you'd send an email or set a temp password
-    res.json({ message: `Password reset link sent to ${user.email}` });
-  } else {
-    res.status(404).json({ message: 'User not found' });
-  }
-});
-
-app.patch('/api/users/:id/lock', (req, res) => {
-  const { id } = req.params;
-  const { locked } = req.body;
-  const index = users.findIndex(u => u.id === parseInt(id));
-  if (index !== -1) {
-    users[index].locked = locked;
-    res.json(users[index]);
-  } else {
-    res.status(404).json({ message: 'User not found' });
-  }
-});
-
-app.post('/api/auth/login', (req, res) => {
-  const { email } = req.body;
-  const user = users.find(u => u.email === email);
-  if (user) {
-    if (user.locked) {
-      return res.status(403).json({ message: 'Account is locked. Please contact support.' });
-    }
+app.put('/api/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await prisma.user.update({
+      where: { id: parseInt(id) },
+      data: req.body
+    });
     res.json(user);
-  } else {
-    res.status(401).json({ message: 'User not found' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
-// Mock Data
-let contractors = [
-  { id: 1, name: 'Alex Rivera', role: 'Sr. Backend Developer', company: 'Digital Solutions Inc.', status: 'Active', country: 'Spain', rating: 4.9 },
-  { id: 2, name: 'Priya Sharma', role: 'UI/UX Designer', company: 'Creative Labs', status: 'On Bench', country: 'India', rating: 4.8 },
-  { id: 3, name: 'Marcus Chen', role: 'DevOps Engineer', company: 'CloudWorks', status: 'Active', country: 'Singapore', rating: 4.7 },
-  { id: 4, name: 'Elena Petrova', role: 'QA Automation', company: 'TechSquad', status: 'Pending', country: 'Poland', rating: 4.5 },
-];
+app.delete('/api/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await prisma.user.delete({
+      where: { id: parseInt(id) }
+    });
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
-let transactions = [
-  { id: 1, recipient: 'Digital Solutions Inc.', date: 'May 20, 2026', amount: '$12,400.00', status: 'Success', method: 'Bank Transfer' },
-  { id: 2, recipient: 'Priya Sharma', date: 'May 18, 2026', amount: '$3,200.00', status: 'Processing', method: 'PayPal' },
-  { id: 3, recipient: 'CloudWorks', date: 'May 15, 2026', amount: '$8,950.00', status: 'Success', method: 'Wire Transfer' },
-  { id: 4, recipient: 'Alex Rivera', date: 'May 12, 2026', amount: '$4,100.00', status: 'Failed', method: 'Stripe' },
-  { id: 5, recipient: 'Marcus Chen', date: 'May 10, 2026', amount: '$2,800.00', status: 'Success', method: 'Bank Transfer' },
-];
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await prisma.user.findUnique({
+      where: { email }
+    });
+    if (user) {
+      if (user.locked) {
+        return res.status(403).json({ message: 'Account is locked. Please contact support.' });
+      }
+      res.json(user);
+    } else {
+      res.status(401).json({ message: 'User not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // --- Outsourcing Endpoints ---
-app.get('/api/contractors', (req, res) => {
-  res.json(contractors);
+app.get('/api/contractors', async (req, res) => {
+  try {
+    const contractors = await prisma.contractor.findMany();
+    res.json(contractors);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-app.post('/api/contractors', (req, res) => {
-  const newContractor = { ...req.body, id: contractors.length + 1 };
-  contractors.push(newContractor);
-  res.status(201).json(newContractor);
+app.post('/api/contractors', async (req, res) => {
+  try {
+    const contractor = await prisma.contractor.create({
+      data: req.body
+    });
+    res.status(201).json(contractor);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // --- Payroll Endpoints ---
-app.get('/api/transactions', (req, res) => {
-  res.json(transactions);
+app.get('/api/transactions', async (req, res) => {
+  try {
+    const transactions = await prisma.transaction.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(transactions);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-app.post('/api/payroll/run', (req, res) => {
-  const { company, amount, method } = req.body;
-  const newTx = {
-    id: Date.now(),
-    recipient: company,
-    date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-    amount: `$${parseFloat(amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
-    status: 'Success',
-    method: method
-  };
-  transactions = [newTx, ...transactions];
-  res.status(201).json(newTx);
+app.post('/api/payroll/run', async (req, res) => {
+  try {
+    const { company, amount, method } = req.body;
+    const transaction = await prisma.transaction.create({
+      data: {
+        recipient: company,
+        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        amount: `$${parseFloat(amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+        status: 'Success',
+        method: method
+      }
+    });
+    res.status(201).json(transaction);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
-
-app.post('/api/payroll/bulk', (req, res) => {
-  const { ids } = req.body;
-  transactions = transactions.map(t => 
-    ids.includes(t.id) ? { ...t, status: 'Success' } : t
-  );
-  res.json({ message: 'Bulk payroll processed' });
-});
-
-let attendance = [
-  { id: 1, userId: 1, date: 'May 24, 2026', checkIn: '09:05 AM', checkOut: '06:15 PM', status: 'Present' },
-  { id: 2, userId: 1, date: 'May 23, 2026', checkIn: '08:55 AM', checkOut: '06:05 PM', status: 'Present' },
-];
-
-let hrDocuments = [
-  { id: 1, userId: 1, name: 'Offer Letter.pdf', type: 'Letter', date: 'Jan 15, 2026' },
-  { id: 2, userId: 1, name: 'Appointment Letter.pdf', type: 'Letter', date: 'Feb 01, 2026' },
-  { id: 3, userId: 1, name: 'Payslip_April_2026.pdf', type: 'Payslip', date: 'May 01, 2026' },
-  { id: 4, userId: 1, name: 'Form_16_Tax.pdf', type: 'Tax', date: 'April 15, 2026' },
-];
-
-let holidays = [
-  { id: 1, date: '2026-01-01', name: 'New Year\'s Day' },
-  { id: 2, date: '2026-05-25', name: 'Memorial Day' },
-  { id: 3, date: '2026-07-04', name: 'Independence Day' },
-  { id: 4, date: '2026-12-25', name: 'Christmas Day' },
-];
 
 // --- Attendance Endpoints ---
-app.get('/api/attendance/:userId', (req, res) => {
-  const { userId } = req.params;
-  const userAttendance = attendance.filter(a => a.userId === parseInt(userId));
-  res.json(userAttendance);
+app.get('/api/attendance/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const attendance = await prisma.attendance.findMany({
+      where: { userId: parseInt(userId) },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(attendance);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-app.post('/api/attendance/check-in', (req, res) => {
-  const { userId } = req.body;
-  const newEntry = {
-    id: attendance.length + 1,
-    userId: parseInt(userId),
-    date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-    checkIn: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-    checkOut: null,
-    status: 'Present'
-  };
-  attendance.push(newEntry);
-  res.status(201).json(newEntry);
+app.post('/api/attendance/check-in', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const attendance = await prisma.attendance.create({
+      data: {
+        userId: parseInt(userId),
+        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        checkIn: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        status: 'Present'
+      }
+    });
+    res.status(201).json(attendance);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-app.post('/api/attendance/check-out', (req, res) => {
-  const { userId } = req.body;
-  const entry = attendance.find(a => a.userId === parseInt(userId) && a.checkOut === null);
-  if (entry) {
-    entry.checkOut = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-    res.json(entry);
-  } else {
-    res.status(404).json({ message: 'Active session not found' });
+app.post('/api/attendance/check-out', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const lastEntry = await prisma.attendance.findFirst({
+      where: { userId: parseInt(userId), checkOut: null },
+      orderBy: { createdAt: 'desc' }
+    });
+    if (lastEntry) {
+      const updatedEntry = await prisma.attendance.update({
+        where: { id: lastEntry.id },
+        data: {
+          checkOut: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+        }
+      });
+      res.json(updatedEntry);
+    } else {
+      res.status(404).json({ message: 'Active session not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
 // --- HR Documents Endpoints ---
-app.get('/api/documents/:userId', (req, res) => {
-  const { userId } = req.params;
-  const userDocs = hrDocuments.filter(d => d.userId === parseInt(userId));
-  res.json(userDocs);
+app.get('/api/documents/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const documents = await prisma.hrDocument.findMany({
+      where: { userId: parseInt(userId) }
+    });
+    res.json(documents);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-app.get('/api/holidays', (req, res) => {
-  res.json(holidays);
+app.get('/api/holidays', async (req, res) => {
+  try {
+    const holidays = await prisma.holiday.findMany();
+    res.json(holidays);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- Leave Management Endpoints ---
+app.get('/api/leaves/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const leaves = await prisma.leaveRequest.findMany({
+      where: { userId: parseInt(userId) },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(leaves);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/leaves', async (req, res) => {
+  try {
+    const leave = await prisma.leaveRequest.create({
+      data: {
+        ...req.body,
+        userId: parseInt(req.body.userId)
+      }
+    });
+    res.status(201).json(leave);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.listen(PORT, () => {
-  console.log(`YakFlow Backend running on port ${PORT}`);
+  console.log(`YakFlow Backend (Prisma) running on port ${PORT}`);
 });
