@@ -26,12 +26,98 @@ app.use((req, res, next) => {
 // --- User Management Endpoints ---
 app.get('/api/users', async (req, res) => {
   try {
-    const users = await prisma.user.findMany();
+    const users = await prisma.user.findMany({
+      include: {
+        manager: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      }
+    });
     res.json(users);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
+
+app.post('/api/users', async (req, res) => {
+  try {
+    const { email, name, role, permissions, department, managerId } = req.body;
+    const user = await prisma.user.create({
+      data: {
+        email,
+        name,
+        department: department || 'Engineering',
+        role: role || 'USER',
+        permissions: permissions || (role === 'USER' ? 'read' : 'read,write'),
+        managerId: managerId ? parseInt(managerId) : null
+      }
+    });
+    res.status(201).json(user);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { managerId, ...rest } = req.body;
+    
+    const updateData = { ...rest };
+    if (managerId !== undefined) {
+      updateData.managerId = managerId ? parseInt(managerId) : null;
+    }
+
+    const user = await prisma.user.update({
+      where: { id: parseInt(id) },
+      data: updateData
+    });
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- HR Documents Endpoints ---
+app.get('/api/documents', async (req, res) => {
+  try {
+    const documents = await prisma.hrDocument.findMany({
+      include: {
+        user: {
+          select: {
+            name: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(documents);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/documents', async (req, res) => {
+  try {
+    const { userId, name, type, date } = req.body;
+    const document = await prisma.hrDocument.create({
+      data: {
+        userId: parseInt(userId),
+        name,
+        type,
+        date: date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      }
+    });
+    res.status(201).json(document);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 
 app.post('/api/users', async (req, res) => {
   try {

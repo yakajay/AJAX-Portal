@@ -10,7 +10,8 @@ import {
   MoreVertical,
   Download,
   X,
-  CheckCircle2
+  CheckCircle2,
+  GitBranch
 } from 'lucide-react';
 
 interface Employee {
@@ -19,7 +20,13 @@ interface Employee {
   email: string;
   role: string;
   department: string;
-  permissions?: string[];
+  managerId?: number | null;
+  manager?: {
+    id: number;
+    name: string;
+    email: string;
+  } | null;
+  permissions?: string;
   locked?: boolean;
 }
 
@@ -31,14 +38,51 @@ interface User {
   department?: string;
 }
 
-const AddEmployeeModal = ({ isOpen, onClose, onAdd }: { isOpen: boolean; onClose: () => void; onAdd: (emp: Employee) => void }) => {
+const EmployeeModal = ({ 
+  isOpen, 
+  onClose, 
+  onSave, 
+  employee, 
+  allEmployees, 
+  mode,
+  isAdmin 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  onSave: (emp: Employee) => void; 
+  employee?: Employee | null; 
+  allEmployees: Employee[];
+  mode: 'add' | 'edit';
+  isAdmin: boolean;
+}) => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     role: 'USER',
-    department: 'Engineering'
+    department: 'Engineering',
+    managerId: '' as string | number
   });
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (mode === 'edit' && employee) {
+      setFormData({
+        name: employee.name,
+        email: employee.email,
+        role: employee.role,
+        department: employee.department,
+        managerId: employee.managerId || ''
+      });
+    } else {
+      setFormData({
+        name: '',
+        email: '',
+        role: 'USER',
+        department: 'Engineering',
+        managerId: ''
+      });
+    }
+  }, [mode, employee, isOpen]);
 
   if (!isOpen) return null;
 
@@ -46,16 +90,19 @@ const AddEmployeeModal = ({ isOpen, onClose, onAdd }: { isOpen: boolean; onClose
     e.preventDefault();
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/users', {
-        method: 'POST',
+      const url = mode === 'add' ? 'http://localhost:5000/api/users' : `http://localhost:5000/api/users/${employee?.id}`;
+      const method = mode === 'add' ? 'POST' : 'PUT';
+      
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
       const data = await response.json();
-      onAdd(data);
+      onSave(data);
       onClose();
     } catch (error) {
-      console.error("Failed to add employee", error);
+      console.error(`Failed to ${mode} employee`, error);
     } finally {
       setLoading(false);
     }
@@ -65,7 +112,7 @@ const AddEmployeeModal = ({ isOpen, onClose, onAdd }: { isOpen: boolean; onClose
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-300">
         <div className="px-6 py-5 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
-          <h2 className="text-xl font-black text-slate-900 tracking-tight">Add New Employee</h2>
+          <h2 className="text-xl font-black text-slate-900 tracking-tight">{mode === 'add' ? 'Add New Employee' : 'Edit Employee Details'}</h2>
           <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-400">
             <X size={20} />
           </button>
@@ -97,7 +144,8 @@ const AddEmployeeModal = ({ isOpen, onClose, onAdd }: { isOpen: boolean; onClose
             <div>
               <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Role</label>
               <select 
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all"
+                disabled={!isAdmin}
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all disabled:opacity-50"
                 value={formData.role}
                 onChange={(e) => setFormData({...formData, role: e.target.value})}
               >
@@ -120,12 +168,30 @@ const AddEmployeeModal = ({ isOpen, onClose, onAdd }: { isOpen: boolean; onClose
               </select>
             </div>
           </div>
+          
+          <div>
+            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center">
+              <GitBranch size={12} className="mr-1" /> Manager Tree
+            </label>
+            <select 
+              disabled={!isAdmin}
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all disabled:opacity-50"
+              value={formData.managerId}
+              onChange={(e) => setFormData({...formData, managerId: e.target.value})}
+            >
+              <option value="">No Manager (Independent)</option>
+              {allEmployees.filter(emp => emp.id !== employee?.id).map(emp => (
+                <option key={emp.id} value={emp.id}>{emp.name} ({emp.department})</option>
+              ))}
+            </select>
+          </div>
+
           <button 
             type="submit"
             disabled={loading}
             className="w-full py-3 bg-blue-600 text-white rounded-xl text-sm font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 active:scale-95 disabled:opacity-50 mt-4"
           >
-            {loading ? 'Adding...' : 'Create Employee'}
+            {loading ? 'Saving...' : mode === 'add' ? 'Create Employee' : 'Update Details'}
           </button>
         </form>
       </div>
@@ -133,7 +199,17 @@ const AddEmployeeModal = ({ isOpen, onClose, onAdd }: { isOpen: boolean; onClose
   );
 };
 
-const ProfileModal = ({ isOpen, onClose, employee }: { isOpen: boolean; onClose: () => void; employee: Employee | null }) => {
+const ProfileModal = ({ 
+  isOpen, 
+  onClose, 
+  employee, 
+  onEdit 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  employee: Employee | null; 
+  onEdit: () => void;
+}) => {
   if (!isOpen || !employee) return null;
 
   return (
@@ -153,7 +229,7 @@ const ProfileModal = ({ isOpen, onClose, employee }: { isOpen: boolean; onClose:
             </div>
           </div>
           
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h2 className="text-3xl font-black text-slate-900 tracking-tight">{employee.name}</h2>
               <div className="flex items-center gap-2 mt-1">
@@ -167,7 +243,12 @@ const ProfileModal = ({ isOpen, onClose, employee }: { isOpen: boolean; onClose:
 
             <div className="flex gap-2">
               <button className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all">Message</button>
-              <button className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-50 transition-all">Edit Details</button>
+              <button 
+                onClick={onEdit}
+                className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-50 transition-all"
+              >
+                Edit Details
+              </button>
             </div>
           </div>
 
@@ -199,17 +280,19 @@ const ProfileModal = ({ isOpen, onClose, employee }: { isOpen: boolean; onClose:
             </div>
             <div className="space-y-6">
               <div>
-                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Account Status</h3>
+                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Organization</h3>
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
                   <div className="flex items-center justify-between mb-4">
+                    <span className="text-sm font-bold text-slate-600">Reporting Manager</span>
+                    <span className="flex items-center text-xs font-bold text-blue-600">
+                      <GitBranch size={14} className="mr-1" /> {employee.manager?.name || 'Self Managed'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
                     <span className="text-sm font-bold text-slate-600">Verification</span>
                     <span className="flex items-center text-xs font-bold text-emerald-600">
                       <CheckCircle2 size={14} className="mr-1" /> Verified
                     </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-slate-600">Account Security</span>
-                    <span className="text-xs font-bold text-slate-400">2FA Enabled</span>
                   </div>
                 </div>
               </div>
@@ -226,8 +309,12 @@ const EmployeeDirectory = ({ user }: { user: User | null }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [deptFilter, setDeptFilter] = useState('All Departments');
   const [loading, setLoading] = useState(true);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
 
   useEffect(() => {
     fetchEmployees();
@@ -237,7 +324,7 @@ const EmployeeDirectory = ({ user }: { user: User | null }) => {
     try {
       const res = await fetch('http://localhost:5000/api/users');
       const data = await res.json();
-      setEmployees(data);
+      setEmployees(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Failed to fetch employees", err);
     } finally {
@@ -246,10 +333,10 @@ const EmployeeDirectory = ({ user }: { user: User | null }) => {
   };
 
   const handleExport = () => {
-    const headers = ['ID', 'Name', 'Email', 'Role'];
+    const headers = ['ID', 'Name', 'Email', 'Role', 'Department', 'Manager'];
     const csvContent = [
       headers.join(','),
-      ...employees.map(e => `${e.id},${e.name},${e.email},${e.role}`)
+      ...employees.map(e => `${e.id},${e.name},${e.email},${e.role},${e.department},${e.manager?.name || ''}`)
     ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -261,6 +348,28 @@ const EmployeeDirectory = ({ user }: { user: User | null }) => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleSave = (updatedEmp: Employee) => {
+    if (modalMode === 'add') {
+      setEmployees([...employees, updatedEmp]);
+    } else {
+      setEmployees(employees.map(e => e.id === updatedEmp.id ? updatedEmp : e));
+      setSelectedEmployee(updatedEmp);
+    }
+    fetchEmployees(); // Refetch to get updated relations (manager info)
+  };
+
+  const openAddModal = () => {
+    setModalMode('add');
+    setSelectedEmployee(null);
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = () => {
+    setModalMode('edit');
+    setIsProfileOpen(false);
+    setIsModalOpen(true);
   };
 
   const filteredEmployees = employees.filter(emp => {
@@ -289,9 +398,9 @@ const EmployeeDirectory = ({ user }: { user: User | null }) => {
             <Download size={16} />
             Export CSV
           </button>
-          {(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && (
+          {isAdmin && (
             <button 
-              onClick={() => setIsAddModalOpen(true)}
+              onClick={openAddModal}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20 active:scale-95"
             >
               <UserPlus size={16} />
@@ -366,13 +475,16 @@ const EmployeeDirectory = ({ user }: { user: User | null }) => {
                     <span>{emp.department} Department</span>
                   </div>
                   <div className="flex items-center text-sm text-slate-600">
-                    <MapPin size={14} className="mr-2 text-slate-400" />
-                    <span>Hyderabad, India</span>
+                    <GitBranch size={14} className="mr-2 text-slate-400" />
+                    <span className="truncate">Manager: {emp.manager?.name || 'Independent'}</span>
                   </div>
                 </div>
 
                 <button 
-                  onClick={() => setSelectedEmployee(emp)}
+                  onClick={() => {
+                    setSelectedEmployee(emp);
+                    setIsProfileOpen(true);
+                  }}
                   className="mt-6 w-full py-2 bg-slate-50 rounded-xl text-sm font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-all flex items-center justify-center group/btn active:scale-95"
                 >
                   View Profile
@@ -384,16 +496,21 @@ const EmployeeDirectory = ({ user }: { user: User | null }) => {
         </div>
       )}
 
-      <AddEmployeeModal 
-        isOpen={isAddModalOpen} 
-        onClose={() => setIsAddModalOpen(false)} 
-        onAdd={(newEmp) => setEmployees([...employees, newEmp])}
+      <EmployeeModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onSave={handleSave}
+        employee={selectedEmployee}
+        allEmployees={employees}
+        mode={modalMode}
+        isAdmin={isAdmin}
       />
 
       <ProfileModal 
-        isOpen={!!selectedEmployee} 
-        onClose={() => setSelectedEmployee(null)} 
-        employee={selectedEmployee} 
+        isOpen={isProfileOpen} 
+        onClose={() => setIsProfileOpen(false)} 
+        employee={selectedEmployee}
+        onEdit={openEditModal}
       />
     </div>
   );

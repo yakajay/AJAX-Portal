@@ -26,6 +26,11 @@ model User {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   
+  // Manager Relation
+  managerId     Int?
+  manager       User?          @relation("ManagerToEmployee", fields: [managerId], references: [id])
+  employees     User[]         @relation("ManagerToEmployee")
+
   attendance    Attendance[]
   documents     HRDocument[]
   leaves        LeaveRequest[]
