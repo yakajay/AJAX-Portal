@@ -24,13 +24,15 @@ const Signup = () => {
       body: JSON.stringify({
         name: formData.fullName,
         email: formData.email,
+        password: formData.password,
         role: 'USER', // Default role for self-signup
         permissions: ['read']
       })
     })
-    .then(res => {
-      if (res.ok) return res.json();
-      throw new Error('Failed to create account');
+    .then(async (res) => {
+      const body = await res.json().catch(() => ({}));
+      if (res.ok) return body;
+      throw new Error(body.message || body.error || 'Failed to create account');
     })
     .then(() => {
       alert('User has been created! You can now log in.');

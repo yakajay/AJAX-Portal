@@ -10,12 +10,24 @@ const prisma = new PrismaClient();
 const PORT = process.env.PORT || 5000;
 
 app.use(cors({
-  origin: '*',
+  origin: 'http://localhost:5173',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  credentials: true
 }));
 
 app.use(express.json());
+
+// Ensure CORS headers are present on all responses for local dev
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'http://localhost:5173');
+  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
+});
 
 // Logging middleware
 app.use((req, res, next) => {
@@ -45,17 +57,22 @@ app.get('/api/users', async (req, res) => {
 
 app.post('/api/users', async (req, res) => {
   try {
-    const { email, name, role, permissions, department, managerId } = req.body;
-    
+    const { email, name, password, role, permissions, department, managerId } = req.body;
+
+    if (!email || !name || !password) {
+      return res.status(400).json({ message: 'Name, email, and password are required.' });
+    }
+
     // Handle permissions if they are passed as an array
-    const permissionsString = Array.isArray(permissions) 
-      ? permissions.join(',') 
+    const permissionsString = Array.isArray(permissions)
+      ? permissions.join(',')
       : (permissions || (role === 'USER' ? 'read' : 'read,write'));
 
     const user = await prisma.user.create({
       data: {
         email,
         name,
+        password,
         department: department || 'Engineering',
         role: role || 'USER',
         permissions: permissionsString,
@@ -73,7 +90,10 @@ app.post('/api/users', async (req, res) => {
     });
     res.status(201).json(user);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    if (error.code === 'P2002' && error.meta?.target?.includes('email')) {
+      return res.status(409).json({ message: 'A user with that email already exists.' });
+    }
+    res.status(500).json({ message: error.message });
   }
 });
 
