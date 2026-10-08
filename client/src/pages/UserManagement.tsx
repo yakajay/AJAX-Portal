@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserPlus, Shield, User, Lock, X, Check, Search, Trash2, Key, Unlock, AlertCircle } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 const UserModal = ({ isOpen, onClose, onSave, editingUser }) => {
   const [formData, setFormData] = useState({
@@ -141,7 +142,7 @@ const UserManagement = () => {
   const [editingUser, setEditingUser] = useState(null);
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/users')
+    fetch(`${API_BASE_URL}/users`)
       .then(res => res.json())
       .then(data => setUsers(data));
   }, []);
@@ -149,7 +150,7 @@ const UserManagement = () => {
   const handleSaveUser = (userData) => {
     if (editingUser) {
       // Update existing user
-      fetch(`http://localhost:5000/api/users/${editingUser.id}`, {
+      fetch(`${API_BASE_URL}/users/${editingUser.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userData)
@@ -165,7 +166,7 @@ const UserManagement = () => {
       .catch(err => alert(err.message));
     } else {
       // Create new user
-      fetch('http://localhost:5000/api/users', {
+      fetch(`${API_BASE_URL}/users`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userData)
@@ -194,7 +195,7 @@ const UserManagement = () => {
 
   const handleDelete = (id, name) => {
     if (window.confirm(`Are you sure you want to delete user "${name}"?`)) {
-      fetch(`http://localhost:5000/api/users/${id}`, {
+      fetch(`${API_BASE_URL}/users/${id}`, {
         method: 'DELETE',
       })
       .then(res => {
@@ -207,7 +208,7 @@ const UserManagement = () => {
   };
 
   const handleResetPassword = (id, email) => {
-    fetch(`http://localhost:5000/api/users/${id}/reset-password`, {
+    fetch(`${API_BASE_URL}/users/${id}/reset-password`, {
       method: 'POST',
     })
     .then(res => res.json())
@@ -217,7 +218,7 @@ const UserManagement = () => {
 
   const handleToggleLock = (user) => {
     const newLockStatus = !user.locked;
-    fetch(`http://localhost:5000/api/users/${user.id}/lock`, {
+    fetch(`${API_BASE_URL}/users/${user.id}/lock`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ locked: newLockStatus })

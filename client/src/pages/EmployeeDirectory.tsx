@@ -13,6 +13,8 @@ import {
   CheckCircle2,
   GitBranch
 } from 'lucide-react';
+import type { User } from '../types';
+import { API_BASE_URL } from '../config';
 
 interface Employee {
   id: number;
@@ -28,14 +30,6 @@ interface Employee {
   } | null;
   permissions?: string;
   locked?: boolean;
-}
-
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
-  department?: string;
 }
 
 const EmployeeModal = ({ 
@@ -90,7 +84,7 @@ const EmployeeModal = ({
     e.preventDefault();
     setLoading(true);
     try {
-      const url = mode === 'add' ? 'http://localhost:5000/api/users' : `http://localhost:5000/api/users/${employee?.id}`;
+      const url = mode === 'add' ? `${API_BASE_URL}/users` : `${API_BASE_URL}/users/${employee?.id}`;
       const method = mode === 'add' ? 'POST' : 'PUT';
       
       const response = await fetch(url, {
@@ -322,7 +316,7 @@ const EmployeeDirectory = ({ user }: { user: User | null }) => {
 
   const fetchEmployees = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/users');
+      const res = await fetch(`${API_BASE_URL}/users`);
       const data = await res.json();
       setEmployees(Array.isArray(data) ? data : []);
     } catch (err) {

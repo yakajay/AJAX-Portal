@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, User, ShieldCheck } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -18,7 +19,7 @@ const Signup = () => {
       return;
     }
 
-    fetch('http://localhost:5000/api/users', {
+    fetch(`${API_BASE_URL}/users`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

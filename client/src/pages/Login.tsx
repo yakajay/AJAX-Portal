@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, ArrowRight } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 const Login = ({ onLogin }) => {
   const [email, setEmail] = useState('');
@@ -10,7 +11,7 @@ const Login = ({ onLogin }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    fetch('http://localhost:5000/api/auth/login', {
+    fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
       mode: 'cors',
       headers: { 

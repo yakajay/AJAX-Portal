@@ -13,6 +13,7 @@ import {
   TrendingUp,
   Receipt
 } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 const RunPayrollModal = ({ isOpen, onClose, onConfirm, companies }) => {
   const [formData, setFormData] = useState({
@@ -123,7 +124,7 @@ const Payroll = ({ user }) => {
 
   const fetchTransactions = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/transactions');
+      const res = await fetch(`${API_BASE_URL}/transactions`);
       const data = await res.json();
       setTransactions(data);
     } catch (err) {
@@ -185,7 +186,7 @@ const Payroll = ({ user }) => {
   const handleRunPayroll = async (data) => {
     setIsProcessing(true);
     try {
-      const res = await fetch('http://localhost:5000/api/payroll/run', {
+      const res = await fetch(`${API_BASE_URL}/payroll/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)

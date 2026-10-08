@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Plus, UserPlus, FileText, ExternalLink, X, Users, Star, MapPin, Briefcase } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 const AddPartnerModal = ({ isOpen, onClose, onAdd }) => {
   const [formData, setFormData] = useState({
@@ -18,7 +19,7 @@ const AddPartnerModal = ({ isOpen, onClose, onAdd }) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/contractors', {
+      const response = await fetch(`${API_BASE_URL}/contractors`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({...formData, rating: parseFloat(formData.rating)}),
@@ -140,7 +141,7 @@ const Outsourcing = ({ user }) => {
 
   const fetchContractors = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/contractors');
+      const res = await fetch(`${API_BASE_URL}/contractors`);
       const data = await res.json();
       setContractors(data);
     } catch (err) {

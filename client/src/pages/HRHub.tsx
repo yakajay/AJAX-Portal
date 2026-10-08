@@ -15,6 +15,7 @@ import {
   X,
   User as UserIcon
 } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 interface HRDocument {
   id: number;
@@ -41,7 +42,7 @@ const AddDocumentModal = ({ isOpen, onClose, onAdd, employees }: { isOpen: boole
     e.preventDefault();
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/documents', {
+      const response = await fetch(`${API_BASE_URL}/documents`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -135,10 +136,10 @@ const HRHub = ({ user }: { user: any }) => {
 
   const fetchData = async () => {
     try {
-      const endpoint = isAdmin ? 'http://localhost:5000/api/documents' : `http://localhost:5000/api/documents/${user.id}`;
+      const endpoint = isAdmin ? `${API_BASE_URL}/documents` : `${API_BASE_URL}/documents/${user.id}`;
       const [docsRes, holidaysRes] = await Promise.all([
         fetch(endpoint),
-        fetch(`http://localhost:5000/api/holidays`)
+        fetch(`${API_BASE_URL}/holidays`)
       ]);
       const docsData = await docsRes.json();
       const holidaysData = await holidaysRes.json();
@@ -151,7 +152,7 @@ const HRHub = ({ user }: { user: any }) => {
 
   const fetchEmployees = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/users');
+      const res = await fetch(`${API_BASE_URL}/users`);
       const data = await res.json();
       setEmployees(data);
     } catch (err) {

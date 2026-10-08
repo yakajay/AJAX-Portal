@@ -14,14 +14,7 @@ import Support from './pages/Support';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import ForgotPassword from './pages/ForgotPassword';
-
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
-  department?: string;
-}
+import type { User } from './types';
 
 function App() {
   const [user, setUser] = useState<User | null>(() => {
@@ -100,7 +93,6 @@ function App() {
                   <Route path="/leave" element={<LeaveManagement user={user} />} />
                   <Route path="/profile" element={<Profile user={user} />} />
                   <Route path="/support" element={<Support />} />
-                  <Route path="/products" element={<div className="p-6 bg-white rounded-xl shadow-sm border border-slate-200"><h1 className="text-2xl font-bold">Product Development</h1><p className="mt-4 text-slate-600">This module is coming soon...</p></div>} />
                   <Route path="/settings" element={<UserManagement />} />
                 </Routes>
               </Layout>

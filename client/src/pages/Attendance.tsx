@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 const CalendarView = ({ logs }: { logs: any[] }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -107,7 +108,7 @@ const Attendance = ({ user }: { user: any }) => {
 
   const fetchLogs = async () => {
     try {
-      const res = await fetch(`http://localhost:5000/api/attendance/${user.id}`);
+      const res = await fetch(`${API_BASE_URL}/attendance/${user.id}`);
       const data = await res.json();
       setLogs(data); 
       const activeSession = data.find((log: any) => !log.checkOut);
@@ -121,7 +122,7 @@ const Attendance = ({ user }: { user: any }) => {
     setIsLoading(true);
     const endpoint = isCheckedIn ? 'check-out' : 'check-in';
     
-    fetch(`http://localhost:5000/api/attendance/${endpoint}`, {
+    fetch(`${API_BASE_URL}/attendance/${endpoint}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId: user.id })

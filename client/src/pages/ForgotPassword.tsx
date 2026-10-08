@@ -8,7 +8,6 @@ const ForgotPassword = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log('Reset link sent to:', email);
     setIsSent(true);
   };
 

@@ -11,6 +11,8 @@ import {
   Check,
   Ban
 } from 'lucide-react';
+import type { User } from '../types';
+import { API_BASE_URL } from '../config';
 
 interface LeaveRequest {
   id: number;
@@ -30,13 +32,6 @@ interface Holiday {
   id: number;
   date: string;
   name: string;
-}
-
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
 }
 
 const ApplyLeaveModal = ({ isOpen, onClose, onApply, userId }: { isOpen: boolean; onClose: () => void; onApply: (leave: LeaveRequest) => void; userId?: number }) => {
@@ -59,7 +54,7 @@ const ApplyLeaveModal = ({ isOpen, onClose, onApply, userId }: { isOpen: boolean
     const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
     try {
-      const response = await fetch('http://localhost:5000/api/leaves', {
+      const response = await fetch(`${API_BASE_URL}/leaves`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -169,8 +164,8 @@ const LeaveManagement = ({ user }: { user: User | null }) => {
     try {
       setLoading(true);
       const [leavesRes, holidaysRes] = await Promise.all([
-        fetch(activeTab === 'my_leave' ? `http://localhost:5000/api/leaves/${user?.id}` : `http://localhost:5000/api/leaves`), // This endpoint might need to be fixed in backend to return ALL for admin
-        fetch(`http://localhost:5000/api/holidays`)
+        fetch(activeTab === 'my_leave' ? `${API_BASE_URL}/leaves/${user?.id}` : `${API_BASE_URL}/leaves`), // This endpoint might need to be fixed in backend to return ALL for admin
+        fetch(`${API_BASE_URL}/holidays`)
       ]);
       const leavesData = await leavesRes.json();
       const holidaysData = await holidaysRes.json();
@@ -185,7 +180,7 @@ const LeaveManagement = ({ user }: { user: User | null }) => {
 
   const handleAction = async (id: number, status: 'Approved' | 'Rejected') => {
     try {
-      await fetch(`http://localhost:5000/api/leaves/${id}`, {
+      await fetch(`${API_BASE_URL}/leaves/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })
