@@ -12,11 +12,11 @@ import {
   Ban
 } from 'lucide-react';
 import type { User } from '../types';
-import { API_BASE_URL } from '../config';
+import { apiFetch } from '../lib/api';
 
 interface LeaveRequest {
-  id: number;
-  userId: number;
+  id: string;
+  userId: string;
   type: string;
   startDate: string;
   endDate: string;
@@ -29,12 +29,12 @@ interface LeaveRequest {
 }
 
 interface Holiday {
-  id: number;
+  id: string;
   date: string;
   name: string;
 }
 
-const ApplyLeaveModal = ({ isOpen, onClose, onApply, userId }: { isOpen: boolean; onClose: () => void; onApply: (leave: LeaveRequest) => void; userId?: number }) => {
+const ApplyLeaveModal = ({ isOpen, onClose, onApply, userId }: { isOpen: boolean; onClose: () => void; onApply: (leave: LeaveRequest) => void; userId?: string }) => {
   const [formData, setFormData] = useState({
     type: 'Annual Leave',
     startDate: '',
@@ -54,20 +54,21 @@ const ApplyLeaveModal = ({ isOpen, onClose, onApply, userId }: { isOpen: boolean
     const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/leaves`, {
+      const response = await apiFetch('/user/leaves', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          userId,
           days
         }),
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || 'Failed to apply for leave');
       onApply(data);
       onClose();
     } catch (error) {
       console.error("Failed to apply for leave", error);
+      alert(error.message);
     } finally {
       setLoading(false);
     }
@@ -148,11 +149,14 @@ const LeaveManagement = ({ user }: { user: User | null }) => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'my_leave' | 'approvals'>('my_leave');
   
-  const leaveBalances = [
-    { type: 'Annual Leave', total: 15, taken: 4, remaining: 11, color: 'bg-blue-500' },
-    { type: 'Sick Leave', total: 10, taken: 2, remaining: 8, color: 'bg-rose-500' },
-    { type: 'Casual Leave', total: 7, taken: 1, remaining: 6, color: 'bg-amber-500' },
-  ];
+  const balanceColors: Record<string, string> = {
+    'Annual Leave': 'bg-blue-500',
+    'Sick Leave': 'bg-rose-500',
+    'Casual Leave': 'bg-amber-500'
+  };
+  const [leaveBalances, setLeaveBalances] = useState<
+    { type: string; total: number; taken: number; remaining: number; color: string }[]
+  >([]);
 
   useEffect(() => {
     if (user?.id) {
@@ -163,12 +167,19 @@ const LeaveManagement = ({ user }: { user: User | null }) => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [leavesRes, holidaysRes] = await Promise.all([
-        fetch(activeTab === 'my_leave' ? `${API_BASE_URL}/leaves/${user?.id}` : `${API_BASE_URL}/leaves`), // This endpoint might need to be fixed in backend to return ALL for admin
-        fetch(`${API_BASE_URL}/holidays`)
+      const [leavesRes, holidaysRes, balancesRes] = await Promise.all([
+        apiFetch(activeTab === 'my_leave' ? '/user/leaves' : '/admin/leaves'),
+        apiFetch('/user/holidays'),
+        apiFetch('/user/leaves/balance')
       ]);
       const leavesData = await leavesRes.json();
       const holidaysData = await holidaysRes.json();
+      const balancesData = await balancesRes.json();
+      setLeaveBalances(
+        Array.isArray(balancesData)
+          ? balancesData.map(b => ({ ...b, color: balanceColors[b.type] || 'bg-slate-500' }))
+          : []
+      );
       setLeaveRequests(Array.isArray(leavesData) ? leavesData : []);
       setHolidays(Array.isArray(holidaysData) ? holidaysData : []);
     } catch (err) {
@@ -178,16 +189,18 @@ const LeaveManagement = ({ user }: { user: User | null }) => {
     }
   };
 
-  const handleAction = async (id: number, status: 'Approved' | 'Rejected') => {
+  const handleAction = async (id: string, status: 'Approved' | 'Rejected') => {
     try {
-      await fetch(`${API_BASE_URL}/leaves/${id}`, {
+      const res = await apiFetch(`/admin/leaves/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })
       });
+      if (!res.ok) throw new Error('Failed to update leave status');
       fetchData();
     } catch (error) {
       console.error("Failed to update leave status", error);
+      alert(error.message);
     }
   };
 

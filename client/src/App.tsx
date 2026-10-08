@@ -15,26 +15,42 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import ForgotPassword from './pages/ForgotPassword';
 import type { User } from './types';
+import { getToken, setToken, clearToken, UNAUTHORIZED_EVENT } from './lib/api';
 
 function App() {
   const [user, setUser] = useState<User | null>(() => {
     const savedUser = sessionStorage.getItem('user');
-    return savedUser ? JSON.parse(savedUser) : null;
+    // A stored user without a token cannot call the API, so treat it as logged out
+    return savedUser && getToken() ? JSON.parse(savedUser) : null;
   });
 
   const INACTIVITY_LIMIT = 15 * 60 * 1000; // 15 minutes
 
   const handleLogout = useCallback(() => {
     setUser(null);
+    clearToken();
     sessionStorage.removeItem('user');
     sessionStorage.removeItem('lastActivity');
   }, []);
 
-  const handleLogin = (userData: User) => {
+  const handleLogin = (userData: User, token: string) => {
+    setToken(token);
     setUser(userData);
     sessionStorage.setItem('user', JSON.stringify(userData));
     sessionStorage.setItem('lastActivity', Date.now().toString());
   };
+
+  const handleUserUpdate = (userData: User) => {
+    setUser(userData);
+    sessionStorage.setItem('user', JSON.stringify(userData));
+  };
+
+  // Any protected API call that comes back 401 (expired/invalid token) ends the session
+  useEffect(() => {
+    const onUnauthorized = () => handleLogout();
+    window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
+  }, [handleLogout]);
 
   useEffect(() => {
     if (!user) return;
@@ -69,6 +85,8 @@ function App() {
     };
   }, [user, handleLogout]);
 
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
+
   return (
     <Router>
       <Routes>
@@ -85,15 +103,16 @@ function App() {
               <Layout user={user} onLogout={handleLogout}>
                 <Routes>
                   <Route path="/" element={<Dashboard user={user} />} />
-                  <Route path="/outsourcing" element={<Outsourcing user={user} />} />
-                  <Route path="/payroll" element={<Payroll user={user} />} />
+                  <Route path="/outsourcing" element={isAdmin ? <Outsourcing user={user} /> : <Navigate to="/" replace />} />
+                  <Route path="/payroll" element={isAdmin ? <Payroll user={user} /> : <Navigate to="/" replace />} />
                   <Route path="/attendance" element={<Attendance user={user} />} />
                   <Route path="/hr-hub" element={<HRHub user={user} />} />
                   <Route path="/directory" element={<EmployeeDirectory user={user} />} />
                   <Route path="/leave" element={<LeaveManagement user={user} />} />
-                  <Route path="/profile" element={<Profile user={user} />} />
-                  <Route path="/support" element={<Support />} />
-                  <Route path="/settings" element={<UserManagement />} />
+                  <Route path="/profile" element={<Profile user={user} onUserUpdate={handleUserUpdate} />} />
+                  <Route path="/support" element={<Support user={user} />} />
+                  <Route path="/settings" element={user.role === 'SUPER_ADMIN' ? <UserManagement /> : <Navigate to="/" replace />} />
+                  <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </Layout>
             ) : (

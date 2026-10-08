@@ -15,10 +15,10 @@ import {
   X,
   User as UserIcon
 } from 'lucide-react';
-import { API_BASE_URL } from '../config';
+import { apiFetch } from '../lib/api';
 
 interface HRDocument {
-  id: number;
+  id: string;
   name: string;
   type: string;
   date: string;
@@ -42,16 +42,18 @@ const AddDocumentModal = ({ isOpen, onClose, onAdd, employees }: { isOpen: boole
     e.preventDefault();
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/documents`, {
+      const response = await apiFetch('/admin/documents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || 'Failed to add document');
       onAdd(data);
       onClose();
     } catch (error) {
       console.error("Failed to add document", error);
+      alert(error.message);
     } finally {
       setLoading(false);
     }
@@ -136,10 +138,10 @@ const HRHub = ({ user }: { user: any }) => {
 
   const fetchData = async () => {
     try {
-      const endpoint = isAdmin ? `${API_BASE_URL}/documents` : `${API_BASE_URL}/documents/${user.id}`;
+      const endpoint = isAdmin ? '/admin/documents' : '/user/documents';
       const [docsRes, holidaysRes] = await Promise.all([
-        fetch(endpoint),
-        fetch(`${API_BASE_URL}/holidays`)
+        apiFetch(endpoint),
+        apiFetch('/user/holidays')
       ]);
       const docsData = await docsRes.json();
       const holidaysData = await holidaysRes.json();
@@ -152,7 +154,7 @@ const HRHub = ({ user }: { user: any }) => {
 
   const fetchEmployees = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/users`);
+      const res = await apiFetch('/admin/users');
       const data = await res.json();
       setEmployees(data);
     } catch (err) {

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { apiFetch } from '../lib/api';
 import { HelpCircle, MessageSquare, BookOpen, Send, Mail, Phone, ChevronRight, CheckCircle2 } from 'lucide-react';
 
 const SupportCard = ({ icon: Icon, title, description, color, bgColor }) => (
@@ -21,10 +22,24 @@ const Support = () => {
 
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsSubmitted(true);
-    setTimeout(() => setIsSubmitted(false), 5000);
+    try {
+      const res = await apiFetch('/user/support/tickets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || 'Failed to submit ticket');
+      }
+      setFormData({ subject: '', category: 'General Inquiry', message: '' });
+      setIsSubmitted(true);
+      setTimeout(() => setIsSubmitted(false), 5000);
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
   return (

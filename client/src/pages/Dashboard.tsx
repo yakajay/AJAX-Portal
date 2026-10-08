@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Users, 
@@ -12,6 +12,7 @@ import {
   FileText
 } from 'lucide-react';
 import type { User } from '../types';
+import { apiFetch } from '../lib/api';
 
 interface StatCardProps {
   title: string;
@@ -44,6 +45,17 @@ const StatCard = ({ title, value, icon: Icon, trend, trendValue, color, bgColor 
 const Dashboard = ({ user }: { user: User | null }) => {
   const navigate = useNavigate();
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
+  const [stats, setStats] = useState<{ workforce?: number; monthlySpend?: number; pendingLeaves: number; documents?: number; daysPresent?: number } | null>(null);
+
+  useEffect(() => {
+    apiFetch(isAdmin ? '/admin/dashboard/stats' : '/user/dashboard')
+      .then(res => (res.ok ? res.json() : Promise.reject(new Error('Failed to load stats'))))
+      .then(setStats)
+      .catch(err => console.error(err));
+  }, []);
+
+  const formatSpend = (n: number) =>
+    n >= 1000 ? `$${(n / 1000).toFixed(1)}k` : `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 
   return (
     <div className="space-y-8">
@@ -55,31 +67,55 @@ const Dashboard = ({ user }: { user: User | null }) => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <StatCard 
-          title="Total Workforce" 
-          value="1,248" 
-          icon={Users} 
-          trend="up" 
-          trendValue="12.5%" 
-          color="text-blue-600" 
-          bgColor="bg-blue-50"
-        />
-        <StatCard 
-          title="Monthly Spend" 
-          value="$128.4k" 
-          icon={CreditCard} 
-          trend="down" 
-          trendValue="3.2%" 
-          color="text-indigo-600" 
-          bgColor="bg-indigo-50"
-        />
-        <StatCard 
-          title="Open Positions" 
-          value="42" 
-          icon={Briefcase} 
-          color="text-purple-600" 
-          bgColor="bg-purple-50"
-        />
+        {isAdmin ? (
+          <>
+            <StatCard 
+              title="Total Workforce" 
+              value={stats?.workforce != null ? stats.workforce.toLocaleString() : '—'} 
+              icon={Users} 
+              color="text-blue-600" 
+              bgColor="bg-blue-50"
+            />
+            <StatCard 
+              title="Monthly Spend" 
+              value={stats?.monthlySpend != null ? formatSpend(stats.monthlySpend) : '—'} 
+              icon={CreditCard} 
+              color="text-indigo-600" 
+              bgColor="bg-indigo-50"
+            />
+            <StatCard 
+              title="Pending Leave Requests" 
+              value={stats ? String(stats.pendingLeaves) : '—'} 
+              icon={Briefcase} 
+              color="text-purple-600" 
+              bgColor="bg-purple-50"
+            />
+          </>
+        ) : (
+          <>
+            <StatCard 
+              title="Days Present This Month" 
+              value={stats?.daysPresent != null ? String(stats.daysPresent) : '—'} 
+              icon={Users} 
+              color="text-blue-600" 
+              bgColor="bg-blue-50"
+            />
+            <StatCard 
+              title="My Pending Leaves" 
+              value={stats ? String(stats.pendingLeaves) : '—'} 
+              icon={Briefcase} 
+              color="text-purple-600" 
+              bgColor="bg-purple-50"
+            />
+            <StatCard 
+              title="My HR Documents" 
+              value={stats?.documents != null ? String(stats.documents) : '—'} 
+              icon={FileText} 
+              color="text-indigo-600" 
+              bgColor="bg-indigo-50"
+            />
+          </>
+        )}
       </div>
 
       <div className="max-w-xl">

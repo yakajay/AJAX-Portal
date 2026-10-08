@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Plus, UserPlus, FileText, ExternalLink, X, Users, Star, MapPin, Briefcase } from 'lucide-react';
-import { API_BASE_URL } from '../config';
+import { apiFetch } from '../lib/api';
 
 const AddPartnerModal = ({ isOpen, onClose, onAdd }) => {
   const [formData, setFormData] = useState({
@@ -19,16 +19,18 @@ const AddPartnerModal = ({ isOpen, onClose, onAdd }) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/contractors`, {
+      const response = await apiFetch('/admin/contractors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({...formData, rating: parseFloat(formData.rating)}),
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || 'Failed to add partner');
       onAdd(data);
       onClose();
     } catch (error) {
       console.error("Failed to add partner", error);
+      alert(error.message);
     } finally {
       setLoading(false);
     }
@@ -141,7 +143,7 @@ const Outsourcing = ({ user }) => {
 
   const fetchContractors = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/contractors`);
+      const res = await apiFetch('/admin/contractors');
       const data = await res.json();
       setContractors(data);
     } catch (err) {

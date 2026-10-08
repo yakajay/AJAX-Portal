@@ -11,7 +11,7 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
-import { API_BASE_URL } from '../config';
+import { apiFetch } from '../lib/api';
 
 const CalendarView = ({ logs }: { logs: any[] }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -108,7 +108,7 @@ const Attendance = ({ user }: { user: any }) => {
 
   const fetchLogs = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/attendance/${user.id}`);
+      const res = await apiFetch('/user/attendance');
       const data = await res.json();
       setLogs(data); 
       const activeSession = data.find((log: any) => !log.checkOut);
@@ -122,12 +122,12 @@ const Attendance = ({ user }: { user: any }) => {
     setIsLoading(true);
     const endpoint = isCheckedIn ? 'check-out' : 'check-in';
     
-    fetch(`${API_BASE_URL}/attendance/${endpoint}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: user.id })
+    apiFetch(`/user/attendance/${endpoint}`, { method: 'POST' })
+    .then(async res => {
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || 'Attendance action failed');
+      return body;
     })
-    .then(res => res.json())
     .then(newLog => {
       if (isCheckedIn) {
         setLogs(logs.map((log: any) => log.id === newLog.id ? newLog : log) as any);
@@ -139,6 +139,7 @@ const Attendance = ({ user }: { user: any }) => {
     })
     .catch(err => {
       console.error(err);
+      alert(err.message);
       setIsLoading(false);
     });
   };

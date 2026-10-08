@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserPlus, Shield, User, Lock, X, Check, Search, Trash2, Key, Unlock, AlertCircle } from 'lucide-react';
-import { API_BASE_URL } from '../config';
+import { apiFetch } from '../lib/api';
 
 const UserModal = ({ isOpen, onClose, onSave, editingUser }) => {
   const [formData, setFormData] = useState({
@@ -142,15 +142,16 @@ const UserManagement = () => {
   const [editingUser, setEditingUser] = useState(null);
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/users`)
+    apiFetch('/admin/users')
       .then(res => res.json())
-      .then(data => setUsers(data));
+      .then(data => setUsers(Array.isArray(data) ? data : []))
+      .catch(err => console.error('Failed to fetch users', err));
   }, []);
 
   const handleSaveUser = (userData) => {
     if (editingUser) {
       // Update existing user
-      fetch(`${API_BASE_URL}/users/${editingUser.id}`, {
+      apiFetch(`/admin/users/${editingUser.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userData)
@@ -166,7 +167,7 @@ const UserManagement = () => {
       .catch(err => alert(err.message));
     } else {
       // Create new user
-      fetch(`${API_BASE_URL}/users`, {
+      apiFetch('/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userData)
@@ -195,7 +196,7 @@ const UserManagement = () => {
 
   const handleDelete = (id, name) => {
     if (window.confirm(`Are you sure you want to delete user "${name}"?`)) {
-      fetch(`${API_BASE_URL}/users/${id}`, {
+      apiFetch(`/admin/users/${id}`, {
         method: 'DELETE',
       })
       .then(res => {
@@ -208,22 +209,29 @@ const UserManagement = () => {
   };
 
   const handleResetPassword = (id, email) => {
-    fetch(`${API_BASE_URL}/users/${id}/reset-password`, {
+    apiFetch(`/admin/users/${id}/reset-password`, {
       method: 'POST',
     })
-    .then(res => res.json())
+    .then(async res => {
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || 'Failed to reset password');
+      return data;
+    })
     .then(data => alert(data.message))
     .catch(err => alert(err.message));
   };
 
   const handleToggleLock = (user) => {
     const newLockStatus = !user.locked;
-    fetch(`${API_BASE_URL}/users/${user.id}/lock`, {
+    apiFetch(`/admin/users/${user.id}/lock`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ locked: newLockStatus })
     })
-    .then(res => res.json())
+    .then(res => {
+      if (!res.ok) throw new Error('Failed to update lock status');
+      return res.json();
+    })
     .then(updatedUser => {
       setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
       alert(`User account ${newLockStatus ? 'locked' : 'unlocked'} successfully.`);

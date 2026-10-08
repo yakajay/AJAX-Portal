@@ -14,17 +14,17 @@ import {
   GitBranch
 } from 'lucide-react';
 import type { User } from '../types';
-import { API_BASE_URL } from '../config';
+import { apiFetch } from '../lib/api';
 
 interface Employee {
-  id: number;
+  id: string;
   name: string;
   email: string;
   role: string;
   department: string;
-  managerId?: number | null;
+  managerId?: string | null;
   manager?: {
-    id: number;
+    id: string;
     name: string;
     email: string;
   } | null;
@@ -39,7 +39,8 @@ const EmployeeModal = ({
   employee, 
   allEmployees, 
   mode,
-  isAdmin 
+  isAdmin,
+  isSuperAdmin = false
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
@@ -48,10 +49,12 @@ const EmployeeModal = ({
   allEmployees: Employee[];
   mode: 'add' | 'edit';
   isAdmin: boolean;
+  isSuperAdmin?: boolean;
 }) => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    password: '',
     role: 'USER',
     department: 'Engineering',
     managerId: '' as string | number
@@ -63,6 +66,7 @@ const EmployeeModal = ({
       setFormData({
         name: employee.name,
         email: employee.email,
+        password: '',
         role: employee.role,
         department: employee.department,
         managerId: employee.managerId || ''
@@ -71,6 +75,7 @@ const EmployeeModal = ({
       setFormData({
         name: '',
         email: '',
+        password: '',
         role: 'USER',
         department: 'Engineering',
         managerId: ''
@@ -84,19 +89,22 @@ const EmployeeModal = ({
     e.preventDefault();
     setLoading(true);
     try {
-      const url = mode === 'add' ? `${API_BASE_URL}/users` : `${API_BASE_URL}/users/${employee?.id}`;
+      const url = mode === 'add' ? '/admin/users' : `/admin/users/${employee?.id}`;
       const method = mode === 'add' ? 'POST' : 'PUT';
       
-      const response = await fetch(url, {
+      const { password, ...rest } = formData;
+      const response = await apiFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(mode === 'add' ? formData : rest),
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || data.error || `Failed to ${mode} employee`);
       onSave(data);
       onClose();
     } catch (error) {
       console.error(`Failed to ${mode} employee`, error);
+      alert(error.message);
     } finally {
       setLoading(false);
     }
@@ -134,11 +142,25 @@ const EmployeeModal = ({
               onChange={(e) => setFormData({...formData, email: e.target.value})}
             />
           </div>
+          {mode === 'add' && (
+            <div>
+              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Temporary Password</label>
+              <input
+                required
+                type="password"
+                minLength={6}
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all"
+                placeholder="At least 6 characters"
+                value={formData.password}
+                onChange={(e) => setFormData({...formData, password: e.target.value})}
+              />
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Role</label>
               <select 
-                disabled={!isAdmin}
+                disabled={!isSuperAdmin}
                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all disabled:opacity-50"
                 value={formData.role}
                 onChange={(e) => setFormData({...formData, role: e.target.value})}
@@ -316,7 +338,7 @@ const EmployeeDirectory = ({ user }: { user: User | null }) => {
 
   const fetchEmployees = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/users`);
+      const res = await apiFetch(isAdmin ? '/admin/users' : '/user/directory');
       const data = await res.json();
       setEmployees(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -498,6 +520,7 @@ const EmployeeDirectory = ({ user }: { user: User | null }) => {
         allEmployees={employees}
         mode={modalMode}
         isAdmin={isAdmin}
+        isSuperAdmin={user?.role === 'SUPER_ADMIN'}
       />
 
       <ProfileModal 

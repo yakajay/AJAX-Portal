@@ -1,34 +1,77 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, ArrowRight } from 'lucide-react';
-import { API_BASE_URL } from '../config';
+import { Mail, Lock } from 'lucide-react';
+import { apiFetch, readError, setToken } from '../lib/api';
+import OtpForm from '../components/auth/OtpForm';
+
+type Step = 'credentials' | 'login-otp' | 'verify-email';
 
 const Login = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [step, setStep] = useState<Step>('credentials');
+  const [notice, setNotice] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleCredentials = async (e) => {
     e.preventDefault();
-    
-    fetch(`${API_BASE_URL}/auth/login`, {
-      method: 'POST',
-      mode: 'cors',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify({ email, password })
-    })
-    .then(res => {
-      if (res.ok) return res.json();
-      throw new Error('Invalid credentials');
-    })
-    .then(userData => {
-      onLogin(userData);
+    setSubmitting(true);
+    setNotice('');
+    try {
+      const res = await apiFetch('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password })
+      });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok && body.otpRequired) {
+        setStep('login-otp');
+      } else if (body.code === 'EMAIL_NOT_VERIFIED') {
+        setStep('verify-email');
+      } else {
+        throw new Error(body.message || 'Invalid credentials');
+      }
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleLoginOtp = async (otp: string) => {
+    setSubmitting(true);
+    try {
+      const res = await apiFetch('/auth/login/verify', {
+        method: 'POST',
+        body: JSON.stringify({ email, otp })
+      });
+      if (!res.ok) throw new Error(await readError(res, 'Invalid or expired code'));
+      const { token, user } = await res.json();
+      setToken(token);
+      onLogin(user, token);
       navigate('/');
-    })
-    .catch(err => alert(err.message));
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleVerifyEmail = async (otp: string) => {
+    setSubmitting(true);
+    try {
+      const res = await apiFetch('/auth/verify-email', {
+        method: 'POST',
+        body: JSON.stringify({ email, otp })
+      });
+      if (!res.ok) throw new Error(await readError(res, 'Invalid or expired code'));
+      setNotice('Email verified. Please sign in.');
+      setStep('credentials');
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -47,7 +90,15 @@ const Login = ({ onLogin }) => {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow-xl shadow-slate-200/50 sm:rounded-2xl sm:px-10 border border-slate-100">
-          <form className="space-y-6" onSubmit={handleSubmit}>
+          {step === 'login-otp' && (
+            <OtpForm email={email} purpose="LOGIN" submitLabel="Verify and sign in" submitting={submitting} onSubmit={handleLoginOtp} />
+          )}
+          {step === 'verify-email' && (
+            <OtpForm email={email} purpose="VERIFY_EMAIL" submitLabel="Verify email" submitting={submitting} onSubmit={handleVerifyEmail} />
+          )}
+          {step === 'credentials' && (
+          <form className="space-y-6" onSubmit={handleCredentials}>
+            {notice && <p className="text-sm text-emerald-700">{notice}</p>}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-slate-700">
                 Email address
@@ -106,7 +157,7 @@ const Login = ({ onLogin }) => {
               </div>
 
               <div className="text-sm">
-                <Link to="/forgot-password" weight="medium" className="font-medium text-emerald-600 hover:text-emerald-500">
+                <Link to="/forgot-password" className="font-medium text-emerald-600 hover:text-emerald-500">
                   Forgot password?
                 </Link>
               </div>
@@ -115,12 +166,14 @@ const Login = ({ onLogin }) => {
             <div>
               <button
                 type="submit"
-                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-all transform hover:scale-[1.02]"
+                disabled={submitting}
+                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-all transform hover:scale-[1.02]"
               >
                 Sign in
               </button>
             </div>
           </form>
+          )}
 
           <div className="mt-6">
             <div className="relative">

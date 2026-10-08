@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
+import { apiFetch } from '../lib/api';
 import { User, Mail, Lock, Save, Camera, Shield, Bell, Key } from 'lucide-react';
 
-const Profile = ({ user }) => {
+const Profile = ({ user, onUserUpdate }) => {
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -12,9 +13,46 @@ const Profile = ({ user }) => {
 
   const [status, setStatus] = useState({ type: '', message: '' });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setStatus({ type: 'success', message: 'Profile updated successfully!' });
+    const wantsPasswordChange = !!(formData.currentPassword || formData.newPassword || formData.confirmPassword);
+    if (wantsPasswordChange && formData.newPassword !== formData.confirmPassword) {
+      setStatus({ type: 'error', message: 'New passwords do not match.' });
+      return;
+    }
+
+    const readError = async (res, fallback) => {
+      const body = await res.json().catch(() => ({}));
+      return body.message || body.error || fallback;
+    };
+
+    try {
+      const profileRes = await apiFetch('/user/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: formData.name })
+      });
+      if (!profileRes.ok) throw new Error(await readError(profileRes, 'Failed to update profile'));
+      const updated = await profileRes.json();
+
+      if (wantsPasswordChange) {
+        const pwRes = await apiFetch('/user/password', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            currentPassword: formData.currentPassword,
+            newPassword: formData.newPassword
+          })
+        });
+        if (!pwRes.ok) throw new Error(await readError(pwRes, 'Failed to update password'));
+      }
+
+      onUserUpdate?.({ ...user, ...updated });
+      setFormData({ ...formData, currentPassword: '', newPassword: '', confirmPassword: '' });
+      setStatus({ type: 'success', message: 'Profile updated successfully!' });
+    } catch (err) {
+      setStatus({ type: 'error', message: err.message });
+    }
     setTimeout(() => setStatus({ type: '', message: '' }), 3000);
   };
 
@@ -101,7 +139,8 @@ const Profile = ({ user }) => {
                       className="w-full pl-12 pr-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:bg-white transition-all font-medium"
                       value={formData.email}
                       onChange={(e) => setFormData({...formData, email: e.target.value})}
-                    />
+                    readOnly disabled title="Email is your sign-in identity and cannot be changed here"
+                      />
                   </div>
                 </div>
               </div>

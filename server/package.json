@@ -5,18 +5,20 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "seed": "node seed.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@prisma/client": "^6.1.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "prisma": "^6.1.0"
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.11.1",
+    "nodemailer": "^10.0.16"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

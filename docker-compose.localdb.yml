@@ -1,0 +1,28 @@
+# Optional override that adds a local MongoDB container, for working without Atlas:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.localdb.yml up --build
+#
+# The API is pointed at this container, overriding MONGODB_URI from server/.env.
+# Data persists in the `mongo-data` volume (`docker compose down -v` wipes it).
+
+services:
+  mongo:
+    image: mongo:7
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  api:
+    environment:
+      MONGODB_URI: mongodb://mongo:27017
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+volumes:
+  mongo-data:
