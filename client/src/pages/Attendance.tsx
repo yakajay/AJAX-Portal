@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
+import { formatDate, formatTime, formatDuration, localDayKey, userTimeZone } from '../lib/datetime';
 import { apiFetch } from '../lib/api';
 
 const CalendarView = ({ logs }: { logs: any[] }) => {
@@ -31,8 +32,8 @@ const CalendarView = ({ logs }: { logs: any[] }) => {
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
 
   const getDayStatus = (day: number) => {
-    const dateStr = new Date(year, month, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    const log = logs.find(l => l.date === dateStr);
+    const dayStr = localDayKey(new Date(year, month, day));
+    const log = logs.find(l => localDayKey(l.checkInAt) === dayStr);
     return log ? log.status : null;
   };
 
@@ -111,7 +112,7 @@ const Attendance = ({ user }: { user: any }) => {
       const res = await apiFetch('/user/attendance');
       const data = await res.json();
       setLogs(data); 
-      const activeSession = data.find((log: any) => !log.checkOut);
+      const activeSession = data.find((log: any) => !log.checkOutAt);
       setIsCheckedIn(!!activeSession);
     } catch (err) {
       console.error("Failed to fetch logs", err);
@@ -245,6 +246,7 @@ const Attendance = ({ user }: { user: any }) => {
                 <h3 className="font-black text-slate-900 tracking-tight flex items-center">
                   <History size={18} className="mr-2 text-blue-600" />
                   Attendance History
+                  <span className="ml-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Times in {userTimeZone()}</span>
                 </h3>
                 <button className="text-[10px] font-black uppercase tracking-widest text-blue-600 hover:underline">Download Log</button>
               </div>
@@ -262,11 +264,11 @@ const Attendance = ({ user }: { user: any }) => {
                   <tbody className="divide-y divide-slate-100">
                     {logs.length > 0 ? logs.map((log: any) => (
                       <tr key={log.id} className="hover:bg-slate-50/50 transition-colors group">
-                        <td className="px-6 py-4 font-black text-slate-900">{log.date}</td>
-                        <td className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-tighter">{log.checkIn}</td>
-                        <td className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-tighter">{log.checkOut || '--:--'}</td>
+                        <td className="px-6 py-4 font-black text-slate-900">{formatDate(log.checkInAt)}</td>
+                        <td className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-tighter">{formatTime(log.checkInAt)}</td>
+                        <td className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-tighter">{log.checkOutAt ? formatTime(log.checkOutAt) : '--:--'}</td>
                         <td className="px-6 py-4 text-sm font-bold text-slate-600">
-                          {log.checkOut ? '9h 10m' : <span className="text-blue-600 animate-pulse">Tracking...</span>}
+                          {log.checkOutAt ? formatDuration(log.checkInAt, log.checkOutAt) : <span className="text-blue-600 animate-pulse">Tracking...</span>}
                         </td>
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-widest ${

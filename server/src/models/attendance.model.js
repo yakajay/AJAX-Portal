@@ -4,9 +4,9 @@ import { schemaOptions, userRef } from './schemaOptions.js';
 const attendanceSchema = new mongoose.Schema(
   {
     userId: userRef(),
-    date: { type: String, required: true },
-    checkIn: { type: String, required: true },
-    checkOut: { type: String, default: null },
+    // Real instants (stored as UTC); the client formats them in the viewer's timezone
+    checkInAt: { type: Date, required: true },
+    checkOutAt: { type: Date, default: null },
     status: { type: String, default: 'Present' }
   },
   schemaOptions()
@@ -16,8 +16,8 @@ export const Attendance = mongoose.model('Attendance', attendanceSchema);
 
 export const attendanceModel = {
   findByUser: (userId) => Attendance.find({ userId }).sort({ createdAt: -1 }),
-  findOpen: (userId) => Attendance.findOne({ userId, checkOut: null }).sort({ createdAt: -1 }),
+  findOpen: (userId) => Attendance.findOne({ userId, checkOutAt: null }).sort({ createdAt: -1 }),
   create: (data) => Attendance.create(data),
-  setCheckOut: (id, checkOut) =>
-    Attendance.findByIdAndUpdate(id, { checkOut }, { new: true }).orFail()
+  setCheckOut: (id, checkOutAt) =>
+    Attendance.findByIdAndUpdate(id, { checkOutAt }, { new: true }).orFail()
 };

@@ -48,7 +48,7 @@ const Dashboard = ({ user }: { user: User | null }) => {
   const [stats, setStats] = useState<{ workforce?: number; monthlySpend?: number; pendingLeaves: number; documents?: number; daysPresent?: number } | null>(null);
 
   useEffect(() => {
-    apiFetch(isAdmin ? '/admin/dashboard/stats' : '/user/dashboard')
+    apiFetch(isAdmin ? '/admin/dashboard/stats' : `/user/dashboard?tz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}`)
       .then(res => (res.ok ? res.json() : Promise.reject(new Error('Failed to load stats'))))
       .then(setStats)
       .catch(err => console.error(err));

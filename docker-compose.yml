@@ -9,7 +9,9 @@
 services:
   api:
     build: ./server
-    env_file: ./server/.env
+    env_file:
+      - path: ./server/.env
+        required: false   # the API reports clearly if MONGODB_URI is missing
     environment:
       # development: OTP codes print to `docker compose logs api` and JWT_SECRET may be omitted.
       # Set NODE_ENV=production for real deployments (needs JWT_SECRET and SMTP_*).

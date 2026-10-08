@@ -39,7 +39,21 @@ docker compose logs -f api
 
 For a real deployment set `NODE_ENV=production`, `JWT_SECRET` and the `SMTP_*` variables.
 
-Seed accounts: `admin@organization.com` / `Admin@123` (super admin), `jane@organization.com` / `Welcome@123` (user). Change these before using real data.
+### Test accounts (from `npm run seed`)
+
+| Email | Password | Role / purpose |
+|---|---|---|
+| `admin@organization.com` | `Admin@123` | Super Admin (read/write/delete, manages admins) |
+| `hr.admin@organization.com` | `Admin@123` | Admin with read/write |
+| `readonly.admin@organization.com` | `Admin@123` | Admin with read only (write actions return 403) |
+| `jane@organization.com` | `Welcome@123` | User (has sample leaves, documents, attendance) |
+| `john@organization.com` | `Welcome@123` | User |
+| `alice@organization.com` | `Welcome@123` | User |
+| `bob@organization.com` | `Welcome@123` | User |
+| `locked@organization.com` | `Welcome@123` | Locked account (login is refused) |
+| `unverified@organization.com` | `Welcome@123` | Email not verified (login asks for a verification code) |
+
+The seed also adds sample leave requests, HR documents, attendance, contractors and payroll transactions, but only into empty collections, so re-running it never duplicates them. Re-running does reset the account passwords above. Change them before using real data.
 
 ### Changing ports or hostnames
 
