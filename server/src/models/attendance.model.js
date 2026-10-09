@@ -7,7 +7,10 @@ const attendanceSchema = new mongoose.Schema(
     // Real instants (stored as UTC); the client formats them in the viewer's timezone
     checkInAt: { type: Date, required: true },
     checkOutAt: { type: Date, default: null },
-    status: { type: String, default: 'Present' }
+    status: { type: String, default: 'Present' },
+    // How the entry was created: a live clock-in, a manual punch, or a regularization request
+    source: { type: String, enum: ['clock', 'manual', 'regularization'], default: 'clock' },
+    reason: { type: String, default: null }
   },
   schemaOptions()
 );

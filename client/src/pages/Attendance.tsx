@@ -14,32 +14,192 @@ import {
 import { formatDate, formatTime, formatDuration, localDayKey, userTimeZone } from '../lib/datetime';
 import { apiFetch } from '../lib/api';
 
-const CalendarView = ({ logs }: { logs: any[] }) => {
+type DayMode = 'leave' | 'regularize' | 'manual';
+
+const LEAVE_TYPES = ['Annual Leave', 'Sick Leave', 'Casual Leave'];
+const STATUS_DOT: Record<string, string> = {
+  Present: 'bg-emerald-500',
+  Leave: 'bg-sky-500',
+  Pending: 'bg-amber-500'
+};
+
+const inputCls = 'w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30';
+const labelCls = 'block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5';
+
+// Hovering (or focusing/tapping) a date opens it here, with the three ways to fix it up
+const DayPanel = ({ dayKey, logs, leaves, onLogAdded, onLeaveAdded }: {
+  dayKey: string; logs: any[]; leaves: any[]; onLogAdded: (log: any) => void; onLeaveAdded: (leave: any) => void;
+}) => {
+  const todayKey = localDayKey(new Date());
+  const isFuture = dayKey > todayKey;
+  const date = new Date(`${dayKey}T00:00:00`);
+  const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+  const dayLogs = logs.filter(l => localDayKey(l.checkInAt) === dayKey);
+  const dayLeave = leaves.find(l => l.status !== 'Rejected' && l.startDate <= dayKey && dayKey <= l.endDate);
+
+  const [mode, setMode] = useState<DayMode>('manual');
+  const [leaveType, setLeaveType] = useState(LEAVE_TYPES[0]);
+  const [inTime, setInTime] = useState('09:00');
+  const [outTime, setOutTime] = useState('18:00');
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+
+  // A new date starts a fresh form; future dates only allow leave
+  useEffect(() => {
+    setMessage(null);
+    setReason('');
+    setMode(isFuture ? 'leave' : 'manual');
+  }, [dayKey, isFuture]);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setMessage(null);
+    try {
+      if (mode === 'leave') {
+        const res = await apiFetch('/user/leaves', {
+          method: 'POST',
+          body: JSON.stringify({ type: leaveType, startDate: dayKey, endDate: dayKey, days: 1, reason })
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.message || 'Failed to apply for leave');
+        onLeaveAdded(body);
+        setMessage({ ok: true, text: 'Leave request sent for approval.' });
+      } else {
+        const res = await apiFetch('/user/attendance/manual', {
+          method: 'POST',
+          body: JSON.stringify({
+            kind: mode,
+            checkInAt: new Date(`${dayKey}T${inTime}`).toISOString(),
+            checkOutAt: new Date(`${dayKey}T${outTime}`).toISOString(),
+            reason
+          })
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.message || 'Failed to save attendance');
+        onLogAdded(body);
+        setMessage({ ok: true, text: mode === 'regularize' ? 'Regularization sent for approval.' : 'Punch times saved.' });
+      }
+    } catch (err: any) {
+      setMessage({ ok: false, text: err.message });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const summary = dayLogs.length
+    ? dayLogs.map(l => `${formatTime(l.checkInAt)} – ${l.checkOutAt ? formatTime(l.checkOutAt) : 'still working'}`).join(', ')
+    : 'No punches recorded';
+  const status = dayLeave ? `Leave (${dayLeave.status})` : dayLogs[0]?.status || (isWeekend ? 'Weekend' : isFuture ? 'Upcoming' : 'No record');
+
+  const tabs: { key: DayMode; label: string; disabled: boolean }[] = [
+    { key: 'leave', label: 'Apply leave', disabled: isWeekend },
+    { key: 'regularize', label: 'Regularize', disabled: isFuture },
+    { key: 'manual', label: 'Manual punch', disabled: isFuture }
+  ];
+
+  return (
+    <div className="border-t border-slate-100 p-6 space-y-4" aria-live="polite">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h4 className="font-black text-slate-900 tracking-tight">
+            {date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+          </h4>
+          <p className="text-xs text-slate-500 mt-0.5">{summary}</p>
+        </div>
+        <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg bg-slate-100 text-slate-600 whitespace-nowrap">{status}</span>
+      </div>
+
+      <div role="tablist" className="flex flex-wrap gap-2">
+        {tabs.map(t => (
+          <button
+            key={t.key}
+            type="button"
+            role="tab"
+            aria-selected={mode === t.key}
+            disabled={t.disabled}
+            onClick={() => { setMode(t.key); setMessage(null); }}
+            className={`px-4 py-2 text-xs font-black uppercase tracking-widest rounded-xl border transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+              mode === t.key ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <form onSubmit={submit} className="space-y-4">
+        {mode === 'leave' ? (
+          <div>
+            <label className={labelCls} htmlFor="day-leave-type">Leave type</label>
+            <select id="day-leave-type" className={inputCls} value={leaveType} onChange={e => setLeaveType(e.target.value)}>
+              {LEAVE_TYPES.map(t => <option key={t}>{t}</option>)}
+            </select>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelCls} htmlFor="day-in">Login time</label>
+              <input id="day-in" type="time" required className={inputCls} value={inTime} onChange={e => setInTime(e.target.value)} />
+            </div>
+            <div>
+              <label className={labelCls} htmlFor="day-out">Logout time</label>
+              <input id="day-out" type="time" required className={inputCls} value={outTime} onChange={e => setOutTime(e.target.value)} />
+            </div>
+          </div>
+        )}
+        {mode !== 'manual' && (
+          <div>
+            <label className={labelCls} htmlFor="day-reason">Reason{mode === 'regularize' ? '' : ' (optional)'}</label>
+            <textarea id="day-reason" rows={2} required={mode === 'regularize'} className={inputCls} value={reason} onChange={e => setReason(e.target.value)} />
+          </div>
+        )}
+        <div className="flex items-center gap-4">
+          <button type="submit" disabled={busy || (mode === 'leave' && isWeekend)} className="px-6 py-3 bg-blue-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-700 disabled:opacity-50 transition-all">
+            {busy ? 'Saving…' : mode === 'leave' ? 'Submit leave request' : mode === 'regularize' ? 'Send regularization' : 'Save punch times'}
+          </button>
+          {message && (
+            <span role="status" className={`text-sm font-bold ${message.ok ? 'text-emerald-700' : 'text-rose-600'}`}>{message.text}</span>
+          )}
+        </div>
+      </form>
+    </div>
+  );
+};
+
+const CalendarView = ({ logs, leaves, onLogAdded, onLeaveAdded }: {
+  logs: any[]; leaves: any[]; onLogAdded: (log: any) => void; onLeaveAdded: (leave: any) => void;
+}) => {
   const [currentDate, setCurrentDate] = useState(new Date());
-  
+  const [selected, setSelected] = useState(localDayKey(new Date()));
+
   const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
   const firstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
-  
+
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   const days = daysInMonth(year, month);
   const startDay = firstDayOfMonth(year, month);
-  
+
   const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
 
-  const getDayStatus = (day: number) => {
-    const dayStr = localDayKey(new Date(year, month, day));
-    const log = logs.find(l => localDayKey(l.checkInAt) === dayStr);
-    return log ? log.status : null;
+  const getDayStatus = (dayKey: string): string | null => {
+    const log = logs.find(l => localDayKey(l.checkInAt) === dayKey);
+    if (log) return log.status === 'Present' ? 'Present' : 'Pending';
+    const leave = leaves.find(l => l.status !== 'Rejected' && l.startDate <= dayKey && dayKey <= l.endDate);
+    return leave ? 'Leave' : null;
   };
 
-  const calendarDays = [];
+  const calendarDays: (number | null)[] = [];
   for (let i = 0; i < startDay; i++) calendarDays.push(null);
   for (let i = 1; i <= days; i++) calendarDays.push(i);
+
+  const todayKey = localDayKey(new Date());
 
   return (
     <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden h-full">
@@ -49,11 +209,12 @@ const CalendarView = ({ logs }: { logs: any[] }) => {
           {monthNames[month]} {year}
         </h3>
         <div className="flex gap-2">
-          <button onClick={prevMonth} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400"><ChevronLeft size={18} /></button>
-          <button onClick={nextMonth} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400"><ChevronRight size={18} /></button>
+          <button onClick={prevMonth} aria-label="Previous month" className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400"><ChevronLeft size={18} /></button>
+          <button onClick={nextMonth} aria-label="Next month" className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400"><ChevronRight size={18} /></button>
         </div>
       </div>
       <div className="p-4">
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Hover or tap a date to manage it</p>
         <div className="grid grid-cols-7 gap-1 mb-2">
           {dayNames.map(d => (
             <div key={d} className="text-center text-[10px] font-black text-slate-400 uppercase tracking-widest py-2">{d}</div>
@@ -62,41 +223,50 @@ const CalendarView = ({ logs }: { logs: any[] }) => {
         <div className="grid grid-cols-7 gap-1">
           {calendarDays.map((day, idx) => {
             if (day === null) return <div key={`empty-${idx}`} className="h-12"></div>;
-            const status = getDayStatus(day);
-            const isToday = day === new Date().getDate() && month === new Date().getMonth() && year === new Date().getFullYear();
-            
+            const dayKey = localDayKey(new Date(year, month, day));
+            const status = getDayStatus(dayKey);
+            const isToday = dayKey === todayKey;
+            const isSelected = dayKey === selected;
+            const select = () => setSelected(dayKey);
+
             return (
-              <div 
-                key={day} 
-                className={`h-12 flex flex-col items-center justify-center rounded-xl text-xs font-bold transition-all relative group ${
+              <button
+                type="button"
+                key={day}
+                onMouseEnter={select}
+                onFocus={select}
+                onClick={select}
+                aria-pressed={isSelected}
+                aria-label={`${monthNames[month]} ${day}${status ? `, ${status}` : ''}`}
+                className={`h-12 flex flex-col items-center justify-center rounded-xl text-xs font-bold transition-all relative ${
                   isToday ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'hover:bg-slate-50 text-slate-700'
-                }`}
+                } ${isSelected ? 'ring-2 ring-slate-900' : ''}`}
               >
                 {day}
                 {status && (
-                  <div className={`absolute bottom-1.5 w-1 h-1 rounded-full ${status === 'Present' ? 'bg-emerald-500' : 'bg-amber-500'}`}></div>
+                  <div className={`absolute bottom-1.5 w-1 h-1 rounded-full ${STATUS_DOT[status]}`}></div>
                 )}
-              </div>
+              </button>
             );
           })}
         </div>
       </div>
-      <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-center gap-6">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Present</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-amber-500"></div>
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Late / Half Day</span>
-        </div>
+      <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-center gap-6 flex-wrap">
+        {[['bg-emerald-500', 'Present'], ['bg-sky-500', 'Leave'], ['bg-amber-500', 'Pending / Half Day']].map(([dot, label]) => (
+          <div key={label} className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${dot}`}></div>
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</span>
+          </div>
+        ))}
       </div>
+      <DayPanel dayKey={selected} logs={logs} leaves={leaves} onLogAdded={onLogAdded} onLeaveAdded={onLeaveAdded} />
     </div>
   );
 };
 
 const Attendance = ({ user }: { user: any }) => {
-  const [logs, setLogs] = useState([]);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [leaves, setLeaves] = useState<any[]>([]);
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [activeView, setActiveView] = useState<'history' | 'calendar'>('calendar');
@@ -239,7 +409,12 @@ const Attendance = ({ user }: { user: any }) => {
 
         <div className="lg:col-span-2">
           {activeView === 'calendar' ? (
-            <CalendarView logs={logs} />
+            <CalendarView
+              logs={logs}
+              leaves={leaves}
+              onLogAdded={(log) => setLogs((prev) => [log, ...prev])}
+              onLeaveAdded={(leave) => setLeaves((prev) => [leave, ...prev])}
+            />
           ) : (
             <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden h-full">
               <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">

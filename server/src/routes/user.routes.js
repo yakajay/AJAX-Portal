@@ -20,6 +20,7 @@ router.get('/dashboard', dashboard.stats);
 router.get('/attendance', attendance.listMine);
 router.post('/attendance/check-in', attendance.checkIn);
 router.post('/attendance/check-out', attendance.checkOut);
+router.post('/attendance/manual', attendance.addManual);
 
 router.get('/leaves', leave.listMine);
 router.get('/leaves/balance', leave.balance);

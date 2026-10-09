@@ -108,3 +108,105 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Brand palette (from the HRMS design): deep green accent, warm neutrals, Manrope type.
+   Pages are written with Tailwind's blue/cyan/indigo/purple (accent) and slate (neutral)
+   utilities, so the palette is applied by redefining those scales instead of editing every page. */
+@theme {
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+
+  --color-green-50: #eaf4f1;
+  --color-green-100: #d4ebe5;
+  --color-green-200: #a9d7cc;
+  --color-green-300: #7ec2b2;
+  --color-green-400: #3fa08d;
+  --color-green-500: #1f8774;
+  --color-green-600: #0f6b5c;
+  --color-green-700: #0b5649;
+  --color-green-800: #09443a;
+  --color-green-900: #07342d;
+  --color-green-950: #04201b;
+
+  --color-blue-50: #eaf4f1;
+  --color-blue-100: #d4ebe5;
+  --color-blue-200: #a9d7cc;
+  --color-blue-300: #7ec2b2;
+  --color-blue-400: #3fa08d;
+  --color-blue-500: #1f8774;
+  --color-blue-600: #0f6b5c;
+  --color-blue-700: #0b5649;
+  --color-blue-800: #09443a;
+  --color-blue-900: #07342d;
+  --color-blue-950: #04201b;
+
+  --color-cyan-50: #eaf4f1;
+  --color-cyan-100: #d4ebe5;
+  --color-cyan-200: #a9d7cc;
+  --color-cyan-300: #7ec2b2;
+  --color-cyan-400: #3fa08d;
+  --color-cyan-500: #1f8774;
+  --color-cyan-600: #0f6b5c;
+  --color-cyan-700: #0b5649;
+  --color-cyan-800: #09443a;
+  --color-cyan-900: #07342d;
+
+  --color-indigo-50: #eaf4f1;
+  --color-indigo-100: #d4ebe5;
+  --color-indigo-500: #1f8774;
+  --color-indigo-600: #0f6b5c;
+  --color-indigo-700: #0b5649;
+
+  --color-purple-50: #eaf4f1;
+  --color-purple-100: #d4ebe5;
+  --color-purple-500: #1f8774;
+  --color-purple-600: #0f6b5c;
+  --color-purple-700: #0b5649;
+
+  --color-slate-50: #f4f5f1;
+  --color-slate-100: #eef0eb;
+  --color-slate-200: #e1e5df;
+  --color-slate-300: #c9d0c7;
+  --color-slate-400: #7a8781;
+  --color-slate-500: #5b6862;
+  --color-slate-600: #3c4944;
+  --color-slate-700: #2d3935;
+  --color-slate-800: #1d2b26;
+  --color-slate-900: #14201c;
+  --color-slate-950: #0d1512;
+}
+
+body { font-family: var(--font-sans); }
+
+/* Dark theme. The sidebar-free feature cards (bg-slate-900) are already dark and are left alone. */
+.dark { color-scheme: dark; }
+.dark body { background: #0f1513; }
+.dark .bg-white { background-color: #19211e; }
+.dark .bg-slate-50 { background-color: #0f1513; }
+.dark .bg-slate-50\/50, .dark .bg-slate-50\/30 { background-color: #1e2623; }
+.dark .bg-slate-100 { background-color: #232d29; }
+.dark .bg-slate-200 { background-color: #2b3631; }
+.dark .hover\:bg-slate-50:hover { background-color: #1e2623; }
+.dark .hover\:bg-slate-100:hover { background-color: #232d29; }
+.dark .border-slate-50 { border-color: #232d29; }
+.dark .border-slate-100, .dark .divide-slate-100 > :not(:last-child), .dark .divide-slate-50 > :not(:last-child) { border-color: #232d29; }
+.dark .border-slate-200 { border-color: #2b3631; }
+.dark .border-slate-300 { border-color: #44514b; }
+.dark .text-slate-900 { color: #e8eeea; }
+.dark .text-slate-800 { color: #e8eeea; }
+.dark .text-slate-700 { color: #c3cec8; }
+.dark .text-slate-600 { color: #aab8b1; }
+.dark .text-slate-500 { color: #9aa8a1; }
+.dark .text-slate-400 { color: #8a9890; }
+.dark .bg-blue-50, .dark .bg-indigo-50, .dark .bg-purple-50, .dark .bg-cyan-50, .dark .bg-green-50 { background-color: #1f3a33; }
+.dark .bg-emerald-50, .dark .bg-emerald-100 { background-color: rgb(16 185 129 / 0.15); }
+.dark .bg-amber-50, .dark .bg-amber-100 { background-color: rgb(245 158 11 / 0.15); }
+.dark .bg-rose-50, .dark .bg-rose-100 { background-color: rgb(244 63 94 / 0.15); }
+.dark .text-emerald-700 { color: #6ee7b7; }
+.dark .text-amber-700 { color: #fcd34d; }
+.dark .text-rose-700, .dark .text-rose-600 { color: #fda4af; }
+.dark .text-blue-600, .dark .text-indigo-600, .dark .text-purple-600, .dark .text-cyan-600, .dark .text-cyan-700, .dark .text-blue-700 { color: #8fd3c2; }
+.dark input, .dark select, .dark textarea { color: #e8eeea; }
+
+.dark .bg-blue-100 { background-color: #1f3a33; }
+.dark .text-blue-800 { color: #8fd3c2; }
+.dark .hover\:bg-blue-50:hover { background-color: #1f3a33; }

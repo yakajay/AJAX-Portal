@@ -38,31 +38,39 @@ const Sidebar = ({ isOpen, toggleSidebar, user }: { isOpen: boolean; toggleSideb
   }
 
   return (
-    <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white transform ${isOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0`}>
-      <div className="flex items-center justify-between h-16 px-6 bg-slate-900 border-b border-slate-800">
-        <span className="text-xl font-bold tracking-wider text-blue-400">AJAX HR PORTAL</span>
-        <button className="lg:hidden" onClick={toggleSidebar}>
-          <X size={24} />
-        </button>
-      </div>
-      <nav className="mt-6">
-        {filteredMenuItems.map((item) => {
-          const isActive = location.pathname === item.path;
-          return (
-            <Link
-              key={item.name}
-              to={item.path}
-              className={`flex items-center px-6 py-3 mt-2 text-sm transition-colors duration-200 ${
-                isActive ? 'bg-slate-800 text-blue-400 border-r-4 border-blue-400' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-              }`}
-            >
-              <item.icon size={20} className="mr-3" />
-              {item.name}
-            </Link>
-          );
-        })}
-      </nav>
-    </div>
+    <>
+      {isOpen && <div className="fixed inset-0 z-40 bg-slate-900/40 lg:hidden" onClick={toggleSidebar} aria-hidden="true" />}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 transform ${
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        } transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 lg:shrink-0 overflow-y-auto`}
+      >
+        <div className="flex items-center justify-between h-[68px] px-6 border-b border-slate-200 lg:hidden">
+          <span className="text-lg font-extrabold text-slate-900">Ajax HRMS</span>
+          <button onClick={toggleSidebar} aria-label="Close menu">
+            <X size={24} />
+          </button>
+        </div>
+        <nav className="p-5 flex flex-col gap-1">
+          {filteredMenuItems.map((item) => {
+            const isActive = location.pathname === item.path;
+            return (
+              <Link
+                key={item.name}
+                to={item.path}
+                onClick={() => isOpen && toggleSidebar()}
+                className={`flex items-center px-4 py-3 text-[15px] rounded-[10px] transition-colors duration-200 ${
+                  isActive ? 'bg-blue-100 text-blue-800 font-bold' : 'text-slate-600 font-semibold hover:bg-blue-50'
+                }`}
+              >
+                <item.icon size={20} className="mr-3" />
+                {item.name}
+              </Link>
+            );
+          })}
+        </nav>
+      </aside>
+    </>
   );
 };
 
