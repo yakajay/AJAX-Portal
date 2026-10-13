@@ -3,7 +3,8 @@ import { errorMessage, formatDate, money, monthLabel, timeAgo } from './format';
 
 describe('format helpers', () => {
   it('formats money and calendar dates without timezone drift', () => {
-    expect(money(1234.5)).toBe('$1,234.50');
+    expect(money(1234.5, 'USD')).toBe('$1,234.50');
+    expect(money(1234.5)).toBe('₹1,234.50'); // INR is the default
     expect(money(123456.5, 'INR')).toBe('₹1,23,456.50');
     expect(formatDate('2026-10-05')).toBe('Oct 5, 2026');
     expect(formatDate('2026-01-01T00:00:00.000Z')).toBe('Jan 1, 2026');

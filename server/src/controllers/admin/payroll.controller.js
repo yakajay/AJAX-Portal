@@ -22,7 +22,7 @@ export const run = async (req, res) => {
   const transaction = await transactionModel.create({
     recipient: company,
     date: todayLabel(),
-    amount: `$${parsed.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+    amount: formatMoney(parsed, 'INR'),
     status: 'Success',
     method: method || 'Bank Transfer'
   });
@@ -92,7 +92,7 @@ export const runMonthly = async (req, res) => {
 
   let created = 0;
   let totalNet = 0;
-  let currency = 'USD';
+  let currency = 'INR';
   const recipients = [];
   for (const structure of structures) {
     const uid = String(structure.userId);

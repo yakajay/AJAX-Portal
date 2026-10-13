@@ -13,7 +13,7 @@ const contractorSchema = new mongoose.Schema(
     contractStart: { type: String, default: null }, // YYYY-MM-DD
     contractEnd: { type: String, default: null },
     hourlyRate: { type: Number, default: 0, min: 0 },
-    currency: { type: String, default: 'USD' }
+    currency: { type: String, default: 'INR' }
   },
   schemaOptions()
 );

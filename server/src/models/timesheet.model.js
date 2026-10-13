@@ -19,7 +19,7 @@ const invoiceSchema = new mongoose.Schema(
     contractorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Contractor', required: true, index: true },
     number: { type: String, required: true, unique: true, trim: true },
     amount: { type: Number, required: true, min: 0.01 },
-    currency: { type: String, default: 'USD' },
+    currency: { type: String, default: 'INR' },
     issueDate: { type: String, required: true },
     dueDate: { type: String, required: true },
     status: { type: String, enum: ['Draft', 'Sent', 'Paid'], default: 'Draft' },

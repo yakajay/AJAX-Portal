@@ -52,16 +52,16 @@ const holidays = [
 ];
 
 const contractors = [
-  { name: 'Marcus Chen', role: 'Backend Developer', company: 'Digital Solutions Inc.', status: 'Active', country: 'Singapore', rating: 4.8, email: 'marcus@digitalsolutions.example', contractStart: '2026-01-05', contractEnd: inDays(18), hourlyRate: 65 },
-  { name: 'Sofia Rossi', role: 'UI/UX Designer', company: 'Creative Labs', status: 'Active', country: 'Italy', rating: 4.5, email: 'sofia@creativelabs.example', contractStart: '2026-03-01', contractEnd: '2027-02-28', hourlyRate: 55 },
-  { name: 'Omar Haddad', role: 'DevOps Engineer', company: 'CloudWorks', status: 'On Bench', country: 'UAE', rating: 4.2, email: 'omar@cloudworks.example', contractStart: '2025-10-01', contractEnd: inDays(-6), hourlyRate: 70 },
-  { name: 'Lena Fischer', role: 'QA Engineer', company: 'TechSquad', status: 'Pending', country: 'Germany', rating: 0, email: 'lena@techsquad.example', contractStart: inDays(10), contractEnd: inDays(200), hourlyRate: 48 }
+  { name: 'Marcus Chen', role: 'Backend Developer', company: 'Digital Solutions Inc.', status: 'Active', country: 'Singapore', rating: 4.8, email: 'marcus@digitalsolutions.example', contractStart: '2026-01-05', contractEnd: inDays(18), hourlyRate: 3500 },
+  { name: 'Sofia Rossi', role: 'UI/UX Designer', company: 'Creative Labs', status: 'Active', country: 'Italy', rating: 4.5, email: 'sofia@creativelabs.example', contractStart: '2026-03-01', contractEnd: '2027-02-28', hourlyRate: 3000 },
+  { name: 'Omar Haddad', role: 'DevOps Engineer', company: 'CloudWorks', status: 'On Bench', country: 'UAE', rating: 4.2, email: 'omar@cloudworks.example', contractStart: '2025-10-01', contractEnd: inDays(-6), hourlyRate: 3800 },
+  { name: 'Lena Fischer', role: 'QA Engineer', company: 'TechSquad', status: 'Pending', country: 'Germany', rating: 0, email: 'lena@techsquad.example', contractStart: inDays(10), contractEnd: inDays(200), hourlyRate: 2600 }
 ];
 
 const transactions = [
-  { recipient: 'Digital Solutions Inc.', date: 'Sep 30, 2026', amount: '$12,500.00', status: 'Success', method: 'Bank Transfer' },
-  { recipient: 'Creative Labs', date: 'Sep 30, 2026', amount: '$8,200.00', status: 'Success', method: 'Bank Transfer' },
-  { recipient: 'CloudWorks', date: 'Oct 1, 2026', amount: '$5,750.00', status: 'Processing', method: 'Wire' }
+  { recipient: 'Digital Solutions Inc.', date: 'Sep 30, 2026', amount: '₹10,00,000.00', status: 'Success', method: 'Bank Transfer' },
+  { recipient: 'Creative Labs', date: 'Sep 30, 2026', amount: '₹6,56,000.00', status: 'Success', method: 'Bank Transfer' },
+  { recipient: 'CloudWorks', date: 'Oct 1, 2026', amount: '₹4,60,000.00', status: 'Processing', method: 'Wire' }
 ];
 
 // Only insert sample records into empty collections so re-running never duplicates them
@@ -128,12 +128,12 @@ async function main() {
 
   // Salary structures + last month's payslips
   const salaries = {
-    'hr.admin@organization.com': { basic: 4200, hra: 1500, allowances: 600 },
-    'readonly.admin@organization.com': { basic: 3800, hra: 1300, allowances: 500 },
-    'jane@organization.com': { basic: 4500, hra: 1600, allowances: 700 },
-    'john@organization.com': { basic: 3200, hra: 1100, allowances: 400 },
-    'alice@organization.com': { basic: 3600, hra: 1200, allowances: 450 },
-    'bob@organization.com': { basic: 3000, hra: 1000, allowances: 350 }
+    'hr.admin@organization.com': { basic: 75000, hra: 30000, allowances: 10000 },
+    'readonly.admin@organization.com': { basic: 65000, hra: 26000, allowances: 8000 },
+    'jane@organization.com': { basic: 90000, hra: 36000, allowances: 12000 },
+    'john@organization.com': { basic: 55000, hra: 22000, allowances: 6000 },
+    'alice@organization.com': { basic: 70000, hra: 28000, allowances: 8000 },
+    'bob@organization.com': { basic: 50000, hra: 20000, allowances: 5000 }
   };
   const prev = new Date();
   prev.setUTCDate(1);
@@ -194,8 +194,8 @@ async function main() {
   }
 
   await seedIfEmpty(Expense, 'expenses', [
-    { userId: id('jane@organization.com'), title: 'Client visit - train tickets', category: 'Travel', amount: 86.5, date: inDays(-4).slice(0, 10), receiptRef: 'INV-20933', description: 'Round trip to client site' },
-    { userId: id('john@organization.com'), title: 'Team lunch', category: 'Meals', amount: 142, date: inDays(-9).slice(0, 10), status: 'Approved', reviewedById: id('readonly.admin@organization.com'), reviewedAt: new Date() }
+    { userId: id('jane@organization.com'), title: 'Client visit - train tickets', category: 'Travel', amount: 1450, date: inDays(-4).slice(0, 10), receiptRef: 'INV-20933', description: 'Round trip to client site' },
+    { userId: id('john@organization.com'), title: 'Team lunch', category: 'Meals', amount: 3200, date: inDays(-9).slice(0, 10), status: 'Approved', reviewedById: id('readonly.admin@organization.com'), reviewedAt: new Date() }
   ]);
 
   await seedIfEmpty(SupportTicket, 'support tickets', [
@@ -208,7 +208,7 @@ async function main() {
   if (marcus && !(await Timesheet.countDocuments())) {
     await Timesheet.create({ contractorId: marcus.id, weekStart: '2026-10-05', hours: 38, notes: 'API work', status: 'Approved' });
     await Timesheet.create({ contractorId: marcus.id, weekStart: '2026-10-12', hours: 40 });
-    await Invoice.create({ contractorId: marcus.id, number: 'DSI-2026-014', amount: 12500, issueDate: '2026-09-25', dueDate: '2026-10-25', status: 'Sent' });
+    await Invoice.create({ contractorId: marcus.id, number: 'DSI-2026-014', amount: 1000000, issueDate: '2026-09-25', dueDate: '2026-10-25', status: 'Sent' });
     console.log('  contractor timesheets & invoice added');
   }
 

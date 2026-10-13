@@ -8,7 +8,7 @@ const salarySchema = withUserVirtual(
   new mongoose.Schema(
     {
       userId: { ...userRef(), unique: true },
-      currency: { type: String, default: 'USD' },
+      currency: { type: String, default: 'INR' },
       basic: money,
       hra: money,
       allowances: money,
@@ -27,7 +27,7 @@ const payslipSchema = withUserVirtual(
     {
       userId: userRef(),
       month: { type: String, required: true }, // YYYY-MM
-      currency: { type: String, default: 'USD' },
+      currency: { type: String, default: 'INR' },
       earnings: { basic: Number, hra: Number, allowances: Number },
       deductions: { pf: Number, tax: Number, other: Number },
       gross: { type: Number, required: true },

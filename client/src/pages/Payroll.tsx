@@ -59,7 +59,7 @@ const RunPayrollModal = ({ isOpen, onClose, onConfirm, companies }) => {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Amount ($)</label>
+            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Amount (₹)</label>
             <input 
               required
               type="number" 
@@ -169,7 +169,7 @@ const PaymentsView = ({ user }) => {
     const csvData = dataToExport.map(tx => [
       tx.recipient,
       tx.date,
-      tx.amount.replace('$', '').replace(',', ''),
+      tx.amount.replace(/[^0-9.]/g, ''),
       tx.status,
       tx.method
     ]);
@@ -235,7 +235,7 @@ const PaymentsView = ({ user }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
           title="Total Payout" 
-          value="$458,240" 
+          value="₹4,58,24,000" 
           icon={CreditCard} 
           trend="up" 
           trendValue="12.5%" 
@@ -244,7 +244,7 @@ const PaymentsView = ({ user }) => {
         />
         <StatCard 
           title="Tax Accrued" 
-          value="$12,450" 
+          value="₹12,45,000" 
           icon={TrendingUp} 
           trend="up" 
           trendValue="3.2%" 
@@ -253,7 +253,7 @@ const PaymentsView = ({ user }) => {
         />
         <StatCard 
           title="Fees Saved" 
-          value="$840" 
+          value="₹84,000" 
           icon={Receipt} 
           color="text-purple-600" 
           bgColor="bg-purple-50"

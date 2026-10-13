@@ -116,7 +116,7 @@ const Dashboard = ({ user }: { user: User | null }) => {
   const todayDow = (new Date().getDay() + 6) % 7;
   const greeting = new Date().getHours() < 12 ? t('dash.morning') : new Date().getHours() < 17 ? t('dash.afternoon') : t('dash.evening');
   const formatSpend = (n: number) =>
-    n >= 1000 ? `$${(n / 1000).toFixed(1)}k` : `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+    new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', notation: 'compact', maximumFractionDigits: 1 }).format(n);
 
   return (
     <div className="space-y-6 max-w-6xl">

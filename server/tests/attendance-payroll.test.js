@@ -109,7 +109,7 @@ describe('payroll and payslips', () => {
     await api().put(`/api/admin/payroll/structures/${emp.user.id}`).set(admin.auth).send({ basic: -1 }).expect(400);
     await api().put(`/api/admin/payroll/structures/${emp.user.id}`).set(admin.auth).send({ taxPercent: 120 }).expect(400);
     const ok = await api().put(`/api/admin/payroll/structures/${emp.user.id}`).set(admin.auth).send({ basic: 4000, hra: 1000, allowances: 500, pfPercent: 12, taxPercent: 10 }).expect(200);
-    expect(ok.body).toMatchObject({ basic: 4000, currency: 'USD' });
+    expect(ok.body).toMatchObject({ basic: 4000, currency: 'INR' });
     const list = await api().get('/api/admin/payroll/structures').set(admin.auth).expect(200);
     expect(list.body.find((r) => r.user.id === emp.user.id).structure.basic).toBe(4000);
   });

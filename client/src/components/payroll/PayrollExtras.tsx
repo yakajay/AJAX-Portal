@@ -121,7 +121,7 @@ export const MonthlyPayroll = ({ user }: { user: User }) => {
   });
 
   const totals = (data ?? []).reduce((a, p) => ({ gross: a.gross + p.gross, net: a.net + p.net, ded: a.ded + p.totalDeductions }), { gross: 0, net: 0, ded: 0 });
-  const currency = data?.[0]?.currency ?? 'USD';
+  const currency = data?.[0]?.currency ?? 'INR';
   const unpaid = (data ?? []).some((p) => p.status === 'Generated');
 
   return (

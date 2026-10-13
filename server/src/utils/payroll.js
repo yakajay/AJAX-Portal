@@ -32,8 +32,9 @@ export const computePayslip = (structure, { workingDays, unpaidLeaveDays = 0 }) 
   };
 };
 
-export const formatMoney = (amount, currency = 'USD') =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
+// INR uses Indian digit grouping (₹1,23,456.00); other currencies use US formatting
+export const formatMoney = (amount, currency = 'INR') =>
+  new Intl.NumberFormat(currency === 'INR' ? 'en-IN' : 'en-US', { style: 'currency', currency }).format(amount);
 
 // Renders a one-page payslip and resolves with the PDF bytes
 export const buildPayslipPdf = (payslip, employee, company = 'YakFlow') =>
