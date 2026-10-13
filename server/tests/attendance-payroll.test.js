@@ -21,6 +21,27 @@ describe('attendance', () => {
     await api().post('/api/user/attendance/check-out').set(me.auth).expect(200);
   });
 
+  it('allows one entry per day: clocking in again after clocking out is refused', async () => {
+    const me = await makeUser();
+    await api().post('/api/user/attendance/check-in').set(me.auth).send({ tz: 'UTC' }).expect(201);
+    await api().post('/api/user/attendance/check-out').set(me.auth).expect(200);
+    const again = await api().post('/api/user/attendance/check-in').set(me.auth).send({ tz: 'UTC' }).expect(409);
+    expect(again.body.message).toMatch(/one entry per day/);
+    expect(await Attendance.countDocuments({ userId: me.user.id })).toBe(1);
+    // another user is unaffected
+    const other = await makeUser();
+    await api().post('/api/user/attendance/check-in').set(other.auth).send({ tz: 'UTC' }).expect(201);
+  });
+
+  it('refuses a manual punch for a day that already has an entry, but still takes corrections', async () => {
+    const me = await makeUser();
+    const day = '2025-02-10';
+    const punch = (extra = {}) => ({ checkInAt: `${day}T09:00:00Z`, checkOutAt: `${day}T17:00:00Z`, tz: 'UTC', ...extra });
+    await api().post('/api/user/attendance/manual').set(me.auth).send(punch()).expect(201);
+    await api().post('/api/user/attendance/manual').set(me.auth).send(punch()).expect(409);
+    await api().post('/api/user/attendance/manual').set(me.auth).send(punch({ kind: 'regularize', reason: 'Wrong times' })).expect(201);
+  });
+
   it('enforces the geofence and IP allow-list when configured', async () => {
     const me = await makeUser();
     env.attendance.office = { lat: 12.9716, lng: 77.5946, radiusMeters: 300 };
@@ -32,9 +53,10 @@ describe('attendance', () => {
 
     env.attendance.office = null;
     env.attendance.allowedIps = ['203.0.113.'];
-    await api().post('/api/user/attendance/check-in').set(me.auth).expect(403); // supertest connects from loopback
+    const second = await makeUser(); // `me` already clocked in today
+    await api().post('/api/user/attendance/check-in').set(second.auth).expect(403); // supertest connects from loopback
     env.attendance.allowedIps = ['127.0.0.1', '::1', '::ffff:127.0.0.1'];
-    await api().post('/api/user/attendance/check-in').set(me.auth).expect(201);
+    await api().post('/api/user/attendance/check-in').set(second.auth).expect(201);
   });
 
   it('summarizes a month and exports it as CSV', async () => {

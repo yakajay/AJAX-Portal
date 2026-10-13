@@ -6,6 +6,14 @@ import { isValidMonth } from '../../utils/dates.js';
 import { sendCsv } from '../../utils/csv.js';
 import { notify, reviewersFor } from '../../utils/notify.js';
 
+// Does the user already have a (non-rejected) entry on today's date in this timezone?
+const hasEntryOnDay = async (userId, timeZone) => {
+  const today = dayKey(new Date(), timeZone);
+  const now = Date.now();
+  const nearby = await attendanceModel.findInRange([userId], new Date(now - 48 * 3600 * 1000), new Date(now + 24 * 3600 * 1000));
+  return nearby.some((e) => e.status !== 'Rejected' && dayKey(e.checkInAt, timeZone) === today);
+};
+
 export const listMine = async (req, res) => {
   res.json(await attendanceModel.findByUser(req.user.id));
 };
@@ -17,6 +25,10 @@ export const checkIn = async (req, res) => {
 
   if (await attendanceModel.findOpen(req.user.id)) {
     return res.status(409).json({ message: 'Already checked in.' });
+  }
+  // One attendance entry per day: after clocking out, that day is done
+  if (await hasEntryOnDay(req.user.id, safeTimeZone(req.body?.tz))) {
+    return res.status(409).json({ message: "You have already clocked in today. Attendance is one entry per day; use a correction request if a time is wrong." });
   }
   const entry = await attendanceModel.create({
     userId: req.user.id,
@@ -49,6 +61,14 @@ export const addManual = async (req, res) => {
     return res.status(400).json({ message: 'Times cannot be in the future.' });
   }
   const regularize = kind === 'regularize';
+  if (!regularize) {
+    const timeZone = safeTimeZone(req.body.tz);
+    const day = dayKey(start, timeZone);
+    const around = await attendanceModel.findInRange([req.user.id], new Date(start.getTime() - 48 * 3600 * 1000), new Date(start.getTime() + 48 * 3600 * 1000));
+    if (around.some((e) => e.status !== 'Rejected' && dayKey(e.checkInAt, timeZone) === day)) {
+      return res.status(409).json({ message: 'That day already has an attendance entry. Request a correction instead.' });
+    }
+  }
   if (regularize && !String(reason || '').trim()) {
     return res.status(400).json({ message: 'A reason is required to regularize attendance.' });
   }

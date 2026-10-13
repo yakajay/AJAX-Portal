@@ -307,13 +307,23 @@ const Attendance = ({ user }: { user: any }) => {
     }
   };
 
+  // One attendance entry per day: after clocking out, today is done
+  const todayKey = localDayKey(new Date());
+  const doneToday = !isCheckedIn && logs.some((l: any) => l.status !== 'Rejected' && localDayKey(l.checkInAt) === todayKey);
+
+  // Stats count distinct days and real hours this month (not one "day" per entry)
+  const monthKey = todayKey.slice(0, 7);
+  const monthLogs = logs.filter((l: any) => l.status !== 'Rejected' && l.status !== 'Regularization Pending' && localDayKey(l.checkInAt).startsWith(monthKey));
+  const daysPresent = new Set(monthLogs.map((l: any) => localDayKey(l.checkInAt))).size;
+  const hoursWorked = monthLogs.reduce((sum: number, l: any) => sum + ((l.checkOutAt ? new Date(l.checkOutAt) : new Date()).getTime() - new Date(l.checkInAt).getTime()), 0) / 3600000;
+
   const handleAction = async () => {
     setIsLoading(true);
     const endpoint = isCheckedIn ? 'check-out' : 'check-in';
     // Clock-ins carry the device location when the browser allows it (offices may require it)
     const location = isCheckedIn ? null : await getLocation();
 
-    apiFetch(`/user/attendance/${endpoint}`, { method: 'POST', ...(location ? { body: JSON.stringify({ location }) } : {}) })
+    apiFetch(`/user/attendance/${endpoint}`, { method: 'POST', body: JSON.stringify({ tz: userTimeZone(), ...(location ? { location } : {}) }) })
     .then(async res => {
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.message || 'Attendance action failed');
@@ -395,16 +405,16 @@ const Attendance = ({ user }: { user: any }) => {
             </div>
             
             <div>
-              <h2 className="text-2xl font-black text-slate-900 tracking-tight">{isCheckedIn ? 'Session Active' : 'Start Session'}</h2>
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight">{isCheckedIn ? 'Session Active' : doneToday ? 'All Done for Today' : 'Start Session'}</h2>
               <p className="text-sm font-bold text-slate-400 mt-2 leading-relaxed">
-                {isCheckedIn ? 'Tracking your working hours in real-time.' : 'Clock in to begin tracking your productivity for today.'}
+                {isCheckedIn ? 'Tracking your working hours in real-time.' : doneToday ? "Today's attendance is recorded as a single entry. Use the calendar to request a correction." : 'Clock in to begin tracking your productivity for today.'}
               </p>
             </div>
 
             <button 
               onClick={handleAction}
-              disabled={isLoading}
-              className={`w-full py-4 rounded-2xl font-black uppercase tracking-widest text-xs transition-all transform active:scale-95 shadow-xl flex items-center justify-center group/btn ${
+              disabled={isLoading || doneToday}
+              className={`w-full py-4 rounded-2xl disabled:opacity-60 disabled:cursor-not-allowed font-black uppercase tracking-widest text-xs transition-all transform active:scale-95 shadow-xl flex items-center justify-center group/btn ${
                 isCheckedIn 
                 ? 'bg-rose-600 text-white hover:bg-rose-700 shadow-rose-600/20' 
                 : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-600/20'
@@ -420,7 +430,7 @@ const Attendance = ({ user }: { user: any }) => {
               ) : (
                 <>
                   <LogIn size={18} className="mr-2 group-hover/btn:translate-x-1 transition-transform" />
-                  Clock In Now
+                  {doneToday ? 'Done for Today' : 'Clock In Now'}
                 </>
               )}
             </button>
@@ -436,12 +446,12 @@ const Attendance = ({ user }: { user: any }) => {
               </div>
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <p className="text-3xl font-black tracking-tight">{logs.length}</p>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Days Present</p>
+                  <p className="text-3xl font-black tracking-tight">{daysPresent}</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Days Present This Month</p>
                 </div>
                 <div>
-                  <p className="text-3xl font-black tracking-tight">{logs.length * 8}h</p>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Est. Hours</p>
+                  <p className="text-3xl font-black tracking-tight">{Math.round(hoursWorked * 10) / 10}h</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Hours This Month</p>
                 </div>
               </div>
             </div>

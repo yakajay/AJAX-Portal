@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import type { User } from '../types';
 import { apiFetch } from '../lib/api';
-import { formatDuration, formatTime, localDayKey } from '../lib/datetime';
+import { formatDuration, formatTime, localDayKey, userTimeZone } from '../lib/datetime';
 import { getLocation } from '../lib/geolocation';
 import { useI18n } from '../lib/i18n';
 import { FeedPanels, AdminAnalytics } from '../components/dashboard/DashboardPanels';
@@ -93,6 +93,8 @@ const Dashboard = ({ user }: { user: User | null }) => {
   const openSession = logs.find(l => !l.checkOutAt);
   const todayKey = localDayKey(new Date());
   const todayLogs = logs.filter(l => localDayKey(l.checkInAt) === todayKey);
+  // One attendance entry per day: once clocked out, today is complete
+  const doneToday = !openSession && todayLogs.some(l => l.status !== 'Rejected');
   const todayMs = todayLogs.reduce(
     (sum, l) => sum + ((l.checkOutAt ? new Date(l.checkOutAt) : new Date()).getTime() - new Date(l.checkInAt).getTime()), 0);
 
@@ -101,7 +103,7 @@ const Dashboard = ({ user }: { user: User | null }) => {
     try {
       // Clock-ins include the device location when allowed (offices may require it)
       const location = openSession ? null : await getLocation();
-      const res = await apiFetch(`/user/attendance/${openSession ? 'check-out' : 'check-in'}`, { method: 'POST', ...(location ? { body: JSON.stringify({ location }) } : {}) });
+      const res = await apiFetch(`/user/attendance/${openSession ? 'check-out' : 'check-in'}`, { method: 'POST', body: JSON.stringify({ tz: userTimeZone(), ...(location ? { location } : {}) }) });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.message || 'Attendance action failed');
       setLogs(prev => (openSession ? prev.map(l => (l.id === body.id ? body : l)) : [body, ...prev]));
@@ -149,11 +151,11 @@ const Dashboard = ({ user }: { user: User | null }) => {
           </div>
           <button
             onClick={toggleClock}
-            disabled={busy}
+            disabled={busy || doneToday}
             className="min-h-12 rounded-[10px] bg-white text-blue-800 font-bold text-base flex items-center justify-center gap-2 hover:bg-blue-50 disabled:opacity-60 transition-colors"
           >
             {openSession ? <LogOut size={18} /> : <LogIn size={18} />}
-            {openSession ? t('dash.clockOut') : t('dash.clockIn')}
+            {openSession ? t('dash.clockOut') : doneToday ? t('dash.doneToday') : t('dash.clockIn')}
           </button>
         </div>
 
