@@ -2,6 +2,23 @@
 
 React + Vite client (`client/`) and Express + MongoDB API (`server/`).
 
+## What's in the portal
+
+| Area | Highlights |
+|---|---|
+| **Leave** | Monthly accrual for annual leave, carry-forward (max 5 days), half days, working-day counting that skips weekends and public holidays, overlap and balance checks, cancel pending requests, a team calendar, and approvals by the employee's manager (or any admin with leave permission). |
+| **Attendance** | Clock in/out (with optional geolocation), monthly summaries with late / early-out flags, CSV export, attendance corrections approved by the manager or HR, an all-employee month report, and optional office-IP / geofence rules. |
+| **Payroll** | Salary structures per employee, a monthly payroll run (unpaid leave prorates pay), PDF payslips for employees and admins, mark-as-paid, plus the existing partner payments ledger. |
+| **Notifications** | In-app bell + page, email for important events (leave, tickets, payroll, expenses…), per-user opt-out and an optional daily digest. |
+| **Organisation** | Departments, reporting lines, an org chart, manager-level approvals, announcements, and birthday / work-anniversary reminders on the dashboard. |
+| **People processes** | Onboarding / offboarding checklists with acknowledgements, performance review cycles (self + manager rating), goals with key results, expense claims with approval and reimbursement. |
+| **Support** | Tickets with priority, SLA timers, assignment, a comment thread, and a staff queue. |
+| **Outsourcing** | Contract start/end dates with expiry alerts, weekly timesheets, invoices (with overdue detection). |
+| **Security** | Short-lived access tokens + rotating refresh tokens, device list and "sign out everywhere", authenticator-app (TOTP) 2FA next to the emailed code, per-module admin permissions, and a Super-Admin audit log. |
+| **UX** | `Ctrl/Cmd+K` command palette, dashboard charts, English / Hindi / Spanish shell, dark mode, mobile-friendly layout. |
+
+Not included: file uploads / storage (receipts and ticket attachments take a reference or link instead; HR documents stay metadata-only).
+
 ## Run with Docker
 
 Requires Docker Desktop (Compose v2).
@@ -62,6 +79,48 @@ The seed also adds sample leave requests, HR documents, attendance, contractors 
 ```bash
 VITE_API_URL=https://api.example.com/api CLIENT_ORIGIN=https://app.example.com docker compose up --build
 ```
+
+### Roles and permissions
+
+`USER` accounts only ever see their own data (plus their direct reports through the manager screens). `ADMIN` accounts get the admin screens, gated by permission tokens stored on the account:
+
+- global tokens `read`, `write`, `delete` apply to **every** area, and `all` grants everything;
+- area tokens such as `payroll:write`, `hr:delete` or `users:*` grant more in **one** area only (areas: `users leave attendance hr payroll outsourcing support org announcements performance expenses onboarding`).
+
+For example `read,payroll:write` is an admin who can see everything but only change payroll. `SUPER_ADMIN` bypasses all checks and is the only role that can read the audit log or manage other admins. Edit permissions under **User Management**.
+
+### Configuration
+
+Beyond the variables above (see `server/.env.example` for the full, commented list):
+
+| Variable | Purpose |
+|---|---|
+| `JWT_EXPIRES_IN` / `REFRESH_TTL_HOURS` | Access token lifetime (default `15m`) and how long a device session lasts without activity (default `12`). |
+| `TRUST_PROXY` | Set when behind a reverse proxy so client IPs are correct (rate limits, sessions, attendance IP rules). |
+| `ATTENDANCE_LATE_AFTER`, `ATTENDANCE_EARLY_BEFORE` | Local times used for late / early-out flags (`09:30` / `17:30`). |
+| `ATTENDANCE_ALLOWED_IPS`, `OFFICE_LAT`, `OFFICE_LNG`, `OFFICE_RADIUS_M` | Optional clock-in restrictions: an allowed IP (or prefix) **or** being inside the office geofence is enough. Unset = no restriction. |
+| `DIGEST_HOUR`, `CONTRACT_ALERT_DAYS`, `JOBS_ENABLED` | Background jobs: the daily email digest hour, how early contract-expiry alerts start, and an off switch. |
+| `LOG_LEVEL`, `METRICS_TOKEN` | Log verbosity and an optional bearer token for `/api/metrics`. |
+
+Scheduled jobs run inside the API process (hourly). To run them from cron instead, set `JOBS_ENABLED=false` and call `npm run jobs` (or `npm run digest`) in `server/`.
+
+### API documentation and operations
+
+- Interactive OpenAPI docs: `http://localhost:5000/api/docs` (JSON at `/api/openapi.json`). The document is generated from the live route table, so it always lists every endpoint.
+- `GET /api/health` (liveness), `GET /api/health/ready` (503 until MongoDB is connected) and `GET /api/metrics` (Prometheus text format; protect with `METRICS_TOKEN`).
+- Logs are structured JSON (pino) with a request id (`X-Request-Id`) on every line.
+
+### Tests and CI
+
+```bash
+cd server && npm test      # Vitest + supertest; starts an in-memory MongoDB (downloaded on first run)
+cd client && npm test      # Vitest + Testing Library
+cd client && npm run typecheck && npm run lint && npm run build
+```
+
+Set `MONGODB_TEST_URI=mongodb://127.0.0.1:27017` to run the API tests against an existing MongoDB instead of downloading one (each test file uses its own throw-away database). GitHub Actions (`.github/workflows/ci.yml`) runs both suites against a `mongo:7` service, lints, type-checks, builds the client and builds the Docker images.
+
+`client` type-checking currently covers the new code (`tsconfig.typed.json`); the older pages are not strictly typed yet.
 
 ## Run without Docker
 

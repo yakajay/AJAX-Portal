@@ -14,6 +14,9 @@ import {
 import type { User } from '../types';
 import { apiFetch } from '../lib/api';
 import { formatDuration, formatTime, localDayKey } from '../lib/datetime';
+import { getLocation } from '../lib/geolocation';
+import { useI18n } from '../lib/i18n';
+import { FeedPanels, AdminAnalytics } from '../components/dashboard/DashboardPanels';
 
 interface StatCardProps {
   title: string;
@@ -51,8 +54,9 @@ const weekHours = (logs: any[]) => {
 
 const Dashboard = ({ user }: { user: User | null }) => {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
-  const [stats, setStats] = useState<{ workforce?: number; monthlySpend?: number; pendingLeaves: number; documents?: number; daysPresent?: number } | null>(null);
+  const [stats, setStats] = useState<{ workforce?: number; monthlySpend?: number; pendingLeaves: number; documents?: number; daysPresent?: number; expiringContracts?: number; pendingExpenses?: number; openTickets?: number } | null>(null);
   const [logs, setLogs] = useState<any[]>([]);
   const [holiday, setHoliday] = useState<{ date: string; name: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -71,9 +75,11 @@ const Dashboard = ({ user }: { user: User | null }) => {
 
     apiFetch('/user/holidays')
       .then(res => (res.ok ? res.json() : []))
-      .then((list: { date: string; name: string }[]) => {
+      .then((list: { date: string; name: string; iso?: string | null }[]) => {
         const today = localDayKey(new Date());
-        setHoliday(list.filter(h => h.date >= today).sort((a, b) => a.date.localeCompare(b.date))[0] || null);
+        // Holiday labels like "Aug 15, 2026" don't sort or compare, so use the server's ISO date
+        const dated = list.filter(h => h.iso).map(h => ({ name: h.name, date: h.iso as string }));
+        setHoliday(dated.filter(h => h.date >= today).sort((a, b) => a.date.localeCompare(b.date))[0] || null);
       })
       .catch(err => console.error(err));
   }, []);
@@ -93,7 +99,9 @@ const Dashboard = ({ user }: { user: User | null }) => {
   const toggleClock = async () => {
     setBusy(true);
     try {
-      const res = await apiFetch(`/user/attendance/${openSession ? 'check-out' : 'check-in'}`, { method: 'POST' });
+      // Clock-ins include the device location when allowed (offices may require it)
+      const location = openSession ? null : await getLocation();
+      const res = await apiFetch(`/user/attendance/${openSession ? 'check-out' : 'check-in'}`, { method: 'POST', ...(location ? { body: JSON.stringify({ location }) } : {}) });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.message || 'Attendance action failed');
       setLogs(prev => (openSession ? prev.map(l => (l.id === body.id ? body : l)) : [body, ...prev]));
@@ -106,7 +114,7 @@ const Dashboard = ({ user }: { user: User | null }) => {
 
   const week = weekHours(logs);
   const todayDow = (new Date().getDay() + 6) % 7;
-  const greeting = new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 17 ? 'Good afternoon' : 'Good evening';
+  const greeting = new Date().getHours() < 12 ? t('dash.morning') : new Date().getHours() < 17 ? t('dash.afternoon') : t('dash.evening');
   const formatSpend = (n: number) =>
     n >= 1000 ? `$${(n / 1000).toFixed(1)}k` : `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 
@@ -123,15 +131,15 @@ const Dashboard = ({ user }: { user: User | null }) => {
           onClick={() => navigate('/leave')}
           className="px-5 py-3 rounded-[10px] border-[1.5px] border-blue-600 text-blue-800 bg-white font-bold text-[15px] hover:bg-blue-50 transition-colors"
         >
-          Request leave
+          {t('dash.requestLeave')}
         </button>
       </div>
 
       <div className="flex flex-wrap gap-5">
         <div className="flex-1 basis-80 p-6 rounded-2xl bg-blue-600 text-white flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            <span className="font-bold text-[15px]">Today's attendance</span>
-            <span className="text-[13px] font-bold px-2.5 py-1 rounded-full bg-white/20">{openSession ? 'Clocked in' : 'Clocked out'}</span>
+            <span className="font-bold text-[15px]">{t('dash.todayAttendance')}</span>
+            <span className="text-[13px] font-bold px-2.5 py-1 rounded-full bg-white/20">{openSession ? t('dash.clockedIn') : t('dash.clockedOut')}</span>
           </div>
           <div className="text-[44px] leading-none font-extrabold tracking-tight">
             {todayLogs.length ? formatDuration(new Date(Date.now() - todayMs).toISOString(), new Date().toISOString()) : '—'}
@@ -145,7 +153,7 @@ const Dashboard = ({ user }: { user: User | null }) => {
             className="min-h-12 rounded-[10px] bg-white text-blue-800 font-bold text-base flex items-center justify-center gap-2 hover:bg-blue-50 disabled:opacity-60 transition-colors"
           >
             {openSession ? <LogOut size={18} /> : <LogIn size={18} />}
-            {openSession ? 'Clock out' : 'Clock in'}
+            {openSession ? t('dash.clockOut') : t('dash.clockIn')}
           </button>
         </div>
 
@@ -176,7 +184,7 @@ const Dashboard = ({ user }: { user: User | null }) => {
       <div className="flex flex-wrap gap-5">
         <div className="flex-[3] basis-96 min-w-0 bg-white p-6 rounded-2xl border border-slate-200 flex flex-col gap-5">
           <div className="flex items-baseline justify-between">
-            <h2 className="text-lg font-extrabold text-slate-900">Hours this week</h2>
+            <h2 className="text-lg font-extrabold text-slate-900">{t('dash.hoursThisWeek')}</h2>
             <span className="text-[13px] text-slate-500">Target {TARGET_HOURS}h per day</span>
           </div>
           <div className="flex items-end gap-4 h-44 border-b border-slate-200">
@@ -198,7 +206,7 @@ const Dashboard = ({ user }: { user: User | null }) => {
         </div>
 
         <div className="flex-[2] basis-72 min-w-0 bg-white p-6 rounded-2xl border border-slate-200">
-          <h2 className="text-lg font-extrabold text-slate-900 mb-4">Quick actions</h2>
+          <h2 className="text-lg font-extrabold text-slate-900 mb-4">{t('dash.quickActions')}</h2>
           <div className="flex flex-col gap-3">
             {isAdmin && (
               <>
@@ -231,6 +239,9 @@ const Dashboard = ({ user }: { user: User | null }) => {
           </div>
         </div>
       </div>
+
+      <FeedPanels />
+      {isAdmin && <AdminAnalytics stats={stats} />}
     </div>
   );
 };

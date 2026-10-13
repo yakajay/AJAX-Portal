@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock } from 'lucide-react';
-import { apiFetch, readError, setToken } from '../lib/api';
+import { apiFetch, readError, setSession } from '../lib/api';
 import OtpForm from '../components/auth/OtpForm';
 
-type Step = 'credentials' | 'login-otp' | 'verify-email';
+type Step = 'credentials' | 'login-otp' | 'login-totp' | 'verify-email';
 
 const Login = ({ onLogin }) => {
   const [email, setEmail] = useState('');
@@ -25,7 +25,8 @@ const Login = ({ onLogin }) => {
       });
       const body = await res.json().catch(() => ({}));
       if (res.ok && body.otpRequired) {
-        setStep('login-otp');
+        // Accounts with an authenticator app are asked for that code instead of an emailed one
+        setStep(body.method === 'totp' ? 'login-totp' : 'login-otp');
       } else if (body.code === 'EMAIL_NOT_VERIFIED') {
         setStep('verify-email');
       } else {
@@ -46,9 +47,9 @@ const Login = ({ onLogin }) => {
         body: JSON.stringify({ email, otp })
       });
       if (!res.ok) throw new Error(await readError(res, 'Invalid or expired code'));
-      const { token, user } = await res.json();
-      setToken(token);
-      onLogin(user, token);
+      const { token, refreshToken, user } = await res.json();
+      setSession(token, refreshToken);
+      onLogin(user, token, refreshToken);
       navigate('/');
     } catch (err) {
       alert(err.message);
@@ -92,6 +93,16 @@ const Login = ({ onLogin }) => {
         <div className="bg-white py-8 px-4 shadow-xl shadow-slate-200/50 sm:rounded-2xl sm:px-10 border border-slate-100">
           {step === 'login-otp' && (
             <OtpForm email={email} purpose="LOGIN" submitLabel="Verify and sign in" submitting={submitting} onSubmit={handleLoginOtp} />
+          )}
+          {step === 'login-totp' && (
+            <OtpForm
+              email={email}
+              purpose="LOGIN"
+              method="totp"
+              submitLabel="Verify and sign in"
+              submitting={submitting}
+              onSubmit={handleLoginOtp}
+            />
           )}
           {step === 'verify-email' && (
             <OtpForm email={email} purpose="VERIFY_EMAIL" submitLabel="Verify email" submitting={submitting} onSubmit={handleVerifyEmail} />

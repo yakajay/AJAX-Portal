@@ -14,7 +14,10 @@ import {
   GitBranch
 } from 'lucide-react';
 import type { User } from '../types';
+import { useSearchParams } from 'react-router-dom';
 import { apiFetch } from '../lib/api';
+import { Tabs } from '../components/ui';
+import { OrgChart, Departments } from '../components/org/OrgViews';
 
 interface Employee {
   id: string;
@@ -320,9 +323,11 @@ const ProfileModal = ({
   );
 };
 
-const EmployeeDirectory = ({ user }: { user: User | null }) => {
+const DirectoryView = ({ user }: { user: User | null }) => {
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  // The command palette links here with ?q=<name>
+  const [searchParams] = useSearchParams();
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('q') ?? '');
   const [deptFilter, setDeptFilter] = useState('All Departments');
   const [loading, setLoading] = useState(true);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
@@ -529,6 +534,18 @@ const EmployeeDirectory = ({ user }: { user: User | null }) => {
         employee={selectedEmployee}
         onEdit={openEditModal}
       />
+    </div>
+  );
+};
+
+const EmployeeDirectory = ({ user }: { user: User }) => {
+  const [tab, setTab] = useState<'people' | 'chart' | 'departments'>('people');
+  return (
+    <div className="space-y-6">
+      <Tabs tabs={[{ id: 'people', label: 'People' }, { id: 'chart', label: 'Org chart' }, { id: 'departments', label: 'Departments' }]} value={tab} onChange={setTab} />
+      {tab === 'people' && <DirectoryView user={user} />}
+      {tab === 'chart' && <OrgChart />}
+      {tab === 'departments' && <Departments user={user} />}
     </div>
   );
 };

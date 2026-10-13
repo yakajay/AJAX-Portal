@@ -14,6 +14,9 @@ import {
   Receipt
 } from 'lucide-react';
 import { apiFetch } from '../lib/api';
+import { can } from '../lib/permissions';
+import { Tabs } from '../components/ui';
+import { SalaryStructures, MonthlyPayroll } from '../components/payroll/PayrollExtras';
 
 const RunPayrollModal = ({ isOpen, onClose, onConfirm, companies }) => {
   const [formData, setFormData] = useState({
@@ -110,13 +113,13 @@ const StatCard = ({ title, value, icon: Icon, trend, trendValue, color, bgColor 
   </div>
 );
 
-const Payroll = ({ user }) => {
+const PaymentsView = ({ user }) => {
   const [transactions, setTransactions] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
 
-  const canWrite = user?.role === 'SUPER_ADMIN' || user?.permissions?.includes('write');
+  const canWrite = can(user, 'payroll', 'write');
 
   useEffect(() => {
     fetchTransactions();
@@ -363,6 +366,26 @@ const Payroll = ({ user }) => {
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+const Payroll = ({ user }) => {
+  const [tab, setTab] = useState<'monthly' | 'structures' | 'payments'>('monthly');
+  return (
+    <div className="space-y-6">
+      <Tabs
+        tabs={[
+          { id: 'monthly', label: 'Monthly payroll' },
+          { id: 'structures', label: 'Salary structures' },
+          { id: 'payments', label: 'Partner payments' }
+        ]}
+        value={tab}
+        onChange={setTab}
+      />
+      {tab === 'monthly' && <MonthlyPayroll user={user} />}
+      {tab === 'structures' && <SalaryStructures user={user} />}
+      {tab === 'payments' && <PaymentsView user={user} />}
     </div>
   );
 };

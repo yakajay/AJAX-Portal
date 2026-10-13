@@ -1,7 +1,7 @@
 import { userModel } from '../../models/user.model.js';
 import { verifyPassword } from '../../utils/password.js';
 import { sanitizeUser } from '../../utils/format.js';
-import { generateSecret, verifyTotp, otpauthUrl } from '../../utils/totp.js';
+import { generateSecret, matchTotp, otpauthUrl } from '../../utils/totp.js';
 import { listSessions, revokeSession, revokeAllSessions } from '../../utils/sessions.js';
 import { audit } from '../../utils/audit.js';
 import { env } from '../../config/env.js';
@@ -36,10 +36,12 @@ export const enableTotp = async (req, res) => {
   const user = await userModel.findWithTotpSecret(req.user.id);
   if (user.totp.enabled) return res.status(409).json({ message: 'Two-factor authentication is already enabled.' });
   if (!user.totp.secret) return res.status(400).json({ message: 'Start setup first.' });
-  if (!verifyTotp(user.totp.secret, req.body.code)) {
+  const step = matchTotp(user.totp.secret, req.body.code);
+  if (step === null) {
     return res.status(400).json({ message: 'That code is not valid. Check your authenticator app and try again.' });
   }
-  const updated = await userModel.update(user.id, { 'totp.enabled': true });
+  // The code used to confirm setup can't be reused for the next sign-in
+  const updated = await userModel.update(user.id, { 'totp.enabled': true, 'totp.lastStep': step });
   await audit(req, { action: 'user.2fa_enable', entity: 'user', entityId: user.id, summary: 'Enabled two-factor authentication' });
   res.json(sanitizeUser(updated));
 };
@@ -47,8 +49,10 @@ export const enableTotp = async (req, res) => {
 export const disableTotp = async (req, res) => {
   const user = await userModel.findWithTotpSecret(req.user.id);
   if (!user.totp.enabled) return res.status(409).json({ message: 'Two-factor authentication is not enabled.' });
-  if (!verifyPassword(req.body.password, user.password) || !verifyTotp(user.totp.secret, req.body.code)) {
-    return res.status(401).json({ message: 'Password or code is incorrect.' });
+  const step = matchTotp(user.totp.secret, req.body.code);
+  if (!verifyPassword(req.body.password, user.password) || step === null || !(await userModel.consumeTotpStep(user.id, step))) {
+    // 400, not 401: a 401 would make the client treat the session as expired
+    return res.status(400).json({ message: 'Password or code is incorrect.' });
   }
   const updated = await userModel.update(user.id, { 'totp.enabled': false, 'totp.secret': null });
   await audit(req, { action: 'user.2fa_disable', entity: 'user', entityId: user.id, summary: 'Disabled two-factor authentication' });

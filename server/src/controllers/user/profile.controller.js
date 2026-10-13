@@ -48,7 +48,8 @@ export const changePassword = async (req, res) => {
     return res.status(400).json({ message: 'New password must be at least 6 characters.' });
   }
   if (!verifyPassword(currentPassword, req.user.password)) {
-    return res.status(401).json({ message: 'Current password is incorrect.' });
+    // 400, not 401: a 401 tells the client its session expired and would sign the user out
+    return res.status(400).json({ message: 'Current password is incorrect.' });
   }
   await userModel.update(req.user.id, { password: hashPassword(newPassword) });
   // A password change signs every other device out

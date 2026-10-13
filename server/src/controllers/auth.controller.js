@@ -2,7 +2,7 @@ import { userModel } from '../models/user.model.js';
 import { otpModel } from '../models/otp.model.js';
 import { hashPassword, verifyPassword, isHashed } from '../utils/password.js';
 import { startSession, refreshSession, revokeSession, revokeAllSessions } from '../utils/sessions.js';
-import { verifyTotp } from '../utils/totp.js';
+import { matchTotp } from '../utils/totp.js';
 import { issueOtp, checkOtp, OTP_PURPOSE } from '../utils/otp.js';
 import { sanitizeUser } from '../utils/format.js';
 
@@ -104,11 +104,19 @@ export const verifyLogin = async (req, res) => {
   let valid = false;
   if (user.totp?.enabled) {
     const withSecret = await userModel.findWithTotpSecret(user.id);
-    valid = verifyTotp(withSecret.totp.secret, req.body.otp);
+    const step = matchTotp(withSecret.totp.secret, req.body.otp);
+    // A code that was already used (even once, even by the real user) is refused
+    valid = step !== null && (await userModel.consumeTotpStep(user.id, step));
   }
   // Emailed codes always work too (the only method for users without an authenticator app)
   if (!valid) valid = await checkOtp(email, OTP_PURPOSE.LOGIN, req.body.otp);
-  if (!valid) return res.status(401).json(BAD_CODE);
+  if (!valid) {
+    return res.status(401).json(
+      user.totp?.enabled
+        ? { message: 'Invalid or expired code. Authenticator codes work once - wait for the next code and try again.' }
+        : BAD_CODE
+    );
+  }
 
   const tokens = await startSession(user, req);
   res.json({ token: tokens.token, refreshToken: tokens.refreshToken, user: sanitizeUser(user) });

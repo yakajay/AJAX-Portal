@@ -5,7 +5,6 @@ import { LEAVE_POLICY, LEAVE_TYPES, leaveBalances } from '../../utils/leavePolic
 import { isValidIso, isValidMonth, monthBounds, workingDays, labelToIso, overlaps, isoDate, currentMonth } from '../../utils/dates.js';
 import { holidaySet, decideLeave } from '../../services/leave.service.js';
 import { notify, adminIdsFor } from '../../utils/notify.js';
-import { audit } from '../../utils/audit.js';
 
 export const listMine = async (req, res) => {
   res.json(await leaveModel.findByUser(req.user.id));

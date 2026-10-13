@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { connectTestDb, disconnectTestDb } from './helpers/db.js';
 import { api, makeUser } from './helpers/fixtures.js';
 import { outbox } from './helpers/setup.js';
@@ -6,6 +6,7 @@ import { User } from '../src/models/user.model.js';
 import { Session } from '../src/models/session.model.js';
 import { hashPassword } from '../src/utils/password.js';
 import { totp } from '../src/utils/totp.js';
+import { vi } from 'vitest';
 
 beforeAll(connectTestDb);
 afterAll(disconnectTestDb);
@@ -92,6 +93,8 @@ describe('refresh tokens and sessions', () => {
 
   it('changing password signs out other devices but not this one', async () => {
     const me = await makeUser();
+    // a wrong current password is a validation error (400), never a 401 that would end the session
+    await api().put('/api/user/password').set(me.auth).send({ currentPassword: 'nope', newPassword: 'NewPass@123' }).expect(400);
     const { startSession } = await import('../src/utils/sessions.js');
     const other = await startSession(me.user, { headers: {}, ip: '' });
     await api().put('/api/user/password').set(me.auth).send({ currentPassword: 'Password@1', newPassword: 'NewPass@123' }).expect(200);
@@ -109,7 +112,12 @@ describe('refresh tokens and sessions', () => {
 });
 
 describe('authenticator-app 2FA', () => {
+  afterEach(() => vi.useRealTimers());
+
   it('can be set up, used to sign in, and disabled', async () => {
+    // Each code works once, so move the clock forward 30 s between uses (only Date is faked)
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2030-01-01T10:00:00Z'));
     const me = await makeUser();
     const setup = await api().post('/api/user/2fa/setup').set(me.auth).expect(200);
     expect(setup.body.otpauthUrl).toContain('otpauth://totp/');
@@ -125,6 +133,7 @@ describe('authenticator-app 2FA', () => {
     expect(JSON.stringify(profile.body)).not.toContain(setup.body.secret);
 
     // Sign in: no email is sent, the authenticator code works
+    vi.setSystemTime(new Date('2030-01-01T10:00:31Z'));
     outbox.length = 0;
     const step1 = await api().post('/api/auth/login').send({ email: me.user.email, password: 'Password@1' }).expect(200);
     expect(step1.body.method).toBe('totp');
@@ -138,10 +147,31 @@ describe('authenticator-app 2FA', () => {
     expect(outbox).toHaveLength(1);
     await api().post('/api/auth/login/verify').send({ email: me.user.email, otp: lastCode() }).expect(200);
 
-    // Disabling needs the password and a current code
-    await api().post('/api/user/2fa/disable').set(me.auth).send({ password: 'wrong', code: totp(setup.body.secret) }).expect(401);
+    // Disabling needs the password and a current (unused) code
+    vi.setSystemTime(new Date('2030-01-01T10:01:02Z'));
+    await api().post('/api/user/2fa/disable').set(me.auth).send({ password: 'wrong', code: totp(setup.body.secret) }).expect(400);
     const off = await api().post('/api/user/2fa/disable').set(me.auth).send({ password: 'Password@1', code: totp(setup.body.secret) }).expect(200);
     expect(off.body.totpEnabled).toBe(false);
+  });
+});
+
+describe('authenticator codes cannot be replayed', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('refuses the same code twice, and accepts the next step', async () => {
+    const me = await makeUser();
+    const setup = await api().post('/api/user/2fa/setup').set(me.auth).expect(200);
+    const start = Date.now();
+    await api().post('/api/user/2fa/enable').set(me.auth).send({ code: totp(setup.body.secret, start) }).expect(200);
+
+    // The code that confirmed setup is burned
+    await api().post('/api/auth/login').send({ email: me.user.email, password: 'Password@1' }).expect(200);
+    await api().post('/api/auth/login/verify').send({ email: me.user.email, otp: totp(setup.body.secret, start) }).expect(401);
+
+    // A code from the following step works once, then never again
+    const next = totp(setup.body.secret, start + 30_000);
+    await api().post('/api/auth/login/verify').send({ email: me.user.email, otp: next }).expect(200);
+    await api().post('/api/auth/login/verify').send({ email: me.user.email, otp: next }).expect(401);
   });
 });
 

@@ -35,7 +35,9 @@ const userSchema = new mongoose.Schema(
     // Authenticator-app 2FA. The secret is stripped from every JSON response (see the transform below).
     totp: {
       secret: { type: String, default: null },
-      enabled: { type: Boolean, default: false }
+      enabled: { type: Boolean, default: false },
+      // Last accepted 30-second step, so a code can't be replayed within its validity window
+      lastStep: { type: Number, default: 0 }
     }
   },
   // Password hashes and 2FA secrets never leave the server
@@ -59,6 +61,9 @@ export const userModel = {
     User.find().select('name email role department designation managerId dateOfBirth joinDate').populate(withManager),
   findById: (id) => (isValidId(id) ? User.findById(id) : null),
   findWithTotpSecret: (id) => User.findById(id),
+  // Atomically records a used TOTP step; false if that step (or a later one) was already used
+  consumeTotpStep: async (id, step) =>
+    (await User.updateOne({ _id: id, 'totp.lastStep': { $lt: step } }, { $set: { 'totp.lastStep': step } })).modifiedCount === 1,
   findByEmail: (email) => User.findOne({ email: String(email).toLowerCase() }),
   create: async (data) => (await User.create(data)).populate(withManager),
   update: (id, data) =>

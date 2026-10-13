@@ -50,19 +50,22 @@ export const hotp = (secret, counter, digits = 6) => {
 export const totp = (secret, atMs = Date.now(), stepSeconds = 30) =>
   hotp(secret, Math.floor(atMs / 1000 / stepSeconds));
 
-// Accepts the current code and one step either side to tolerate clock drift
-export const verifyTotp = (secret, code, atMs = Date.now(), window = 1) => {
+// Returns the 30-second step the code belongs to (accepting one step of drift either side), or null.
+// Callers store the step to refuse the same code twice.
+export const matchTotp = (secret, code, atMs = Date.now(), window = 1) => {
   const candidate = String(code ?? '').replace(/\s/g, '');
-  if (!/^\d{6}$/.test(candidate) || !secret) return false;
+  if (!/^\d{6}$/.test(candidate) || !secret) return null;
   const step = Math.floor(atMs / 1000 / 30);
-  let ok = false;
+  let matched = null;
   for (let i = -window; i <= window; i++) {
     const expected = Buffer.from(hotp(secret, step + i));
     // Evaluate every window so timing doesn't reveal which step matched
-    if (crypto.timingSafeEqual(expected, Buffer.from(candidate))) ok = true;
+    if (crypto.timingSafeEqual(expected, Buffer.from(candidate))) matched = step + i;
   }
-  return ok;
+  return matched;
 };
+
+export const verifyTotp = (secret, code, atMs = Date.now(), window = 1) => matchTotp(secret, code, atMs, window) !== null;
 
 export const otpauthUrl = ({ secret, account, issuer }) =>
   `otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(account)}` +

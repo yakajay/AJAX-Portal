@@ -6,6 +6,7 @@ const Profile = ({ user, onUserUpdate }) => {
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
+    dateOfBirth: user?.dateOfBirth || '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
@@ -30,7 +31,7 @@ const Profile = ({ user, onUserUpdate }) => {
       const profileRes = await apiFetch('/user/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: formData.name })
+        body: JSON.stringify({ name: formData.name, dateOfBirth: formData.dateOfBirth || null })
       });
       if (!profileRes.ok) throw new Error(await readError(profileRes, 'Failed to update profile'));
       const updated = await profileRes.json();
@@ -142,6 +143,18 @@ const Profile = ({ user, onUserUpdate }) => {
                     readOnly disabled title="Email is your sign-in identity and cannot be changed here"
                       />
                   </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2" htmlFor="dob">Date of Birth</label>
+                  <input
+                    id="dob"
+                    type="date"
+                    max={new Date().toISOString().slice(0, 10)}
+                    className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:bg-white transition-all font-medium"
+                    value={formData.dateOfBirth}
+                    onChange={(e) => setFormData({...formData, dateOfBirth: e.target.value})}
+                  />
+                  <p className="text-xs text-slate-400 mt-1">Colleagues see your birthday (not the year) on the dashboard.</p>
                 </div>
               </div>
 

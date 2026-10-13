@@ -131,6 +131,15 @@ describe('approvals', () => {
   });
 });
 
+describe('holidays endpoint', () => {
+  it('adds an ISO date next to the display label', async () => {
+    await addHoliday('Dec 25, 2031', 'Xmas');
+    const me = await makeUser();
+    const res = await api().get('/api/user/holidays').set(me.auth).expect(200);
+    expect(res.body.find((h) => h.name === 'Xmas')).toMatchObject({ date: 'Dec 25, 2031', iso: '2031-12-25' });
+  });
+});
+
 describe('team calendar', () => {
   it('shows who is out and public holidays for a month, without reasons', async () => {
     await addHoliday('Jun 3, 2031', 'Calendar holiday');

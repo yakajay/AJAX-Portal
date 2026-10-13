@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { apiFetch } from '../lib/api';
+import { can } from '../lib/permissions';
+import { Tabs } from '../components/ui';
+import { TicketList } from '../components/support/TicketViews';
 import { HelpCircle, MessageSquare, BookOpen, Send, Mail, Phone, ChevronRight, CheckCircle2 } from 'lucide-react';
 
 const SupportCard = ({ icon: Icon, title, description, color, bgColor }) => (
@@ -13,10 +16,11 @@ const SupportCard = ({ icon: Icon, title, description, color, bgColor }) => (
   </div>
 );
 
-const Support = () => {
+const NewTicketView = ({ onSubmitted }: { onSubmitted: () => void }) => {
   const [formData, setFormData] = useState({
     subject: '',
     category: 'General Inquiry',
+    priority: 'Medium',
     message: ''
   });
 
@@ -34,8 +38,9 @@ const Support = () => {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.message || 'Failed to submit ticket');
       }
-      setFormData({ subject: '', category: 'General Inquiry', message: '' });
+      setFormData({ subject: '', category: 'General Inquiry', priority: 'Medium', message: '' });
       setIsSubmitted(true);
+      onSubmitted();
       setTimeout(() => setIsSubmitted(false), 5000);
     } catch (err) {
       alert(err.message);
@@ -43,7 +48,7 @@ const Support = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-12">
+    <div className="space-y-12">
       <div className="text-center space-y-4">
         <h1 className="text-4xl font-black text-slate-900 tracking-tight">How can we help?</h1>
         <p className="text-slate-500 max-w-xl mx-auto font-medium">
@@ -128,6 +133,19 @@ const Support = () => {
                   </div>
                 </div>
                 <div>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Priority</label>
+                  <select
+                    className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:bg-white transition-all font-medium"
+                    value={formData.priority}
+                    onChange={(e) => setFormData({...formData, priority: e.target.value})}
+                  >
+                    <option value="Low">Low — answer within 5 days</option>
+                    <option value="Medium">Medium — within 2 days</option>
+                    <option value="High">High — within 24 hours</option>
+                    <option value="Urgent">Urgent — within 4 hours</option>
+                  </select>
+                </div>
+                <div>
                   <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Detailed Message</label>
                   <textarea 
                     required
@@ -181,6 +199,27 @@ const Support = () => {
           </div>
         </div>
       </div>
+    </div>
+  );
+};
+
+const Support = ({ user }: { user: any }) => {
+  const [tab, setTab] = useState<'new' | 'mine' | 'queue'>('new');
+  const isStaff = can(user, 'support', 'read');
+  return (
+    <div className="max-w-5xl mx-auto space-y-8">
+      <Tabs
+        tabs={[
+          { id: 'new', label: 'Get help' },
+          { id: 'mine', label: 'My tickets' },
+          ...(isStaff ? [{ id: 'queue' as const, label: 'Ticket queue' }] : [])
+        ]}
+        value={tab}
+        onChange={setTab}
+      />
+      {tab === 'new' && <NewTicketView onSubmitted={() => undefined} />}
+      {tab === 'mine' && <TicketList user={user} scope="mine" />}
+      {tab === 'queue' && isStaff && <TicketList user={user} scope="queue" />}
     </div>
   );
 };
