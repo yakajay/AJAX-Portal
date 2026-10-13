@@ -29,7 +29,7 @@ export const submit = async (req, res) => {
 
   const expense = await Expense.create({
     userId: req.user.id, title: title.trim(), category: category || 'Other', amount: Math.round(parsed * 100) / 100,
-    currency: currency || 'USD', date, description: String(description || '').trim(), receiptRef: String(receiptRef || '').trim().slice(0, 300)
+    currency: currency || 'INR', date, description: String(description || '').trim(), receiptRef: String(receiptRef || '').trim().slice(0, 300)
   });
   await notify(await adminIdsFor('expenses'), {
     type: 'expense', title: `${req.user.name} submitted an expense claim`, body: `${expense.title} - ${formatMoney(expense.amount, expense.currency)}`, link: '/expenses'

@@ -10,7 +10,7 @@ const expenseSchema = withUserVirtual(
       title: { type: String, required: true, trim: true },
       category: { type: String, enum: EXPENSE_CATEGORIES, default: 'Other' },
       amount: { type: Number, required: true, min: 0.01 },
-      currency: { type: String, default: 'USD' },
+      currency: { type: String, default: 'INR' },
       date: { type: String, required: true }, // YYYY-MM-DD the money was spent
       description: { type: String, default: '' },
       receiptRef: { type: String, default: '' }, // receipt number or link (no file uploads)

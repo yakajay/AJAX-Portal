@@ -89,9 +89,9 @@ const Expenses = ({ user }: { user: User | null }) => {
       {tab === 'mine' && (
         <>
           <div className="grid sm:grid-cols-3 gap-4">
-            <StatTile label="Awaiting review" value={money(totals.pending)} />
-            <StatTile label="Approved, unpaid" value={money(totals.approved)} />
-            <StatTile label="Reimbursed" value={money(totals.paid)} />
+            <StatTile label="Awaiting review" value={money(totals.pending, 'INR')} />
+            <StatTile label="Approved, unpaid" value={money(totals.approved, 'INR')} />
+            <StatTile label="Reimbursed" value={money(totals.paid, 'INR')} />
           </div>
           <Card flush>
             {mine.loading ? <Spinner /> : !mine.data?.length ? <Empty>No claims yet.</Empty> : (
@@ -157,7 +157,7 @@ const Expenses = ({ user }: { user: User | null }) => {
           <Field label="What was it for?"><input required className={inputClass} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Taxi to client site" /></Field>
           <div className="grid grid-cols-2 gap-4">
             <Field label="Category"><select className={inputClass} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></Field>
-            <Field label="Amount (USD)"><input required type="number" step="0.01" min="0.01" className={inputClass} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></Field>
+            <Field label="Amount (INR)"><input required type="number" step="0.01" min="0.01" className={inputClass} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></Field>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <Field label="Date spent"><input required type="date" max={today()} className={inputClass} value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></Field>

@@ -273,7 +273,7 @@ describe('expenses', () => {
     const paid = await api().post(`/api/admin/expenses/${created.body.id}/reimburse`).set(admin.auth).expect(200);
     expect(paid.body.status).toBe('Reimbursed');
     const tx = await Transaction.findOne({ method: 'Expense Reimbursement', recipient: me.user.name });
-    expect(tx.amount).toBe('$45.50');
+    expect(tx.amount).toBe('₹45.50');
     expect((await api().get('/api/user/expenses').set(me.auth)).body[0].status).toBe('Reimbursed');
   });
 

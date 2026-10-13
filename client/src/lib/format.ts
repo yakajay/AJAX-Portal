@@ -1,5 +1,6 @@
+// INR uses Indian digit grouping (₹1,23,456.00); other currencies use US formatting
 export const money = (amount: number, currency = 'USD') =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
+  new Intl.NumberFormat(currency === 'INR' ? 'en-IN' : 'en-US', { style: 'currency', currency }).format(amount);
 
 /** "2026-10-05" -> "Oct 5, 2026" (calendar dates carry no timezone, so parse them as UTC). */
 export const formatDate = (iso?: string | null, opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' }) =>
