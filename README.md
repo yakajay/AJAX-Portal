@@ -80,6 +80,15 @@ The seed also adds sample leave requests, HR documents, attendance, contractors 
 VITE_API_URL=https://api.example.com/api CLIENT_ORIGIN=https://app.example.com docker compose up --build
 ```
 
+### Creating your own Super Admin
+
+Sign-in always asks for an emailed code. In development (no SMTP) that code is printed in the API log (`docker compose logs -f api`), so the address doesn't need a real mailbox. To create or reset a Super Admin in the database your `server/.env` points to:
+
+```bash
+docker compose run --rm -e ADMIN_PASSWORD='<password>' api node scripts/create-admin.js you@example.com "Your Name"
+# without Docker:  cd server && ADMIN_PASSWORD='<password>' npm run create-admin -- you@example.com "Your Name"
+```
+
 ### Roles and permissions
 
 `USER` accounts only ever see their own data (plus their direct reports through the manager screens). `ADMIN` accounts get the admin screens, gated by permission tokens stored on the account:

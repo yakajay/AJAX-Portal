@@ -11,7 +11,8 @@
     "jobs": "node scripts/run-jobs.js all",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "create-admin": "node scripts/create-admin.js"
   },
   "keywords": [],
   "author": "",
