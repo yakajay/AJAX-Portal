@@ -1,11 +1,12 @@
 import { leaveModel } from '../../models/leave.model.js';
+import { decideLeave } from '../../services/leave.service.js';
 
 export const listAll = async (req, res) => {
   res.json(await leaveModel.findAll());
 };
 
 export const setStatus = async (req, res) => {
-  const { status } = req.body;
+  const { status, note } = req.body;
   if (!['Pending', 'Approved', 'Rejected'].includes(status)) {
     return res.status(400).json({ message: 'Status must be Pending, Approved or Rejected.' });
   }
@@ -14,5 +15,8 @@ export const setStatus = async (req, res) => {
   if (String(target.userId) === req.user.id) {
     return res.status(403).json({ message: 'You cannot review your own leave request.' });
   }
-  res.json(await leaveModel.setStatus(target.id, status));
+  if (target.status === 'Cancelled') {
+    return res.status(409).json({ message: 'This request was cancelled by the employee.' });
+  }
+  res.json(await decideLeave(req, target, status, note));
 };

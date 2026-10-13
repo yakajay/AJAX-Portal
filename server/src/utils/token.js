@@ -1,7 +1,11 @@
 import jwt from 'jsonwebtoken';
+import crypto from 'node:crypto';
 import { env } from '../config/env.js';
 
-export const signToken = (user) =>
-  jwt.sign({ sub: user.id, role: user.role }, env.jwtSecret, { expiresIn: env.jwtExpiresIn });
+// `sid` ties an access token to a revocable Session row
+export const signToken = (user, sid) =>
+  jwt.sign({ sub: user.id, role: user.role, sid: String(sid) }, env.jwtSecret, { expiresIn: env.jwtExpiresIn });
 
 export const verifyToken = (token) => jwt.verify(token, env.jwtSecret);
+
+export const newRefreshToken = () => crypto.randomBytes(48).toString('base64url');

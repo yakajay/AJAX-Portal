@@ -12,7 +12,10 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { formatDate, formatTime, formatDuration, localDayKey, userTimeZone } from '../lib/datetime';
-import { apiFetch } from '../lib/api';
+import { apiFetch, downloadFile } from '../lib/api';
+import { can } from '../lib/permissions';
+import { getLocation } from '../lib/geolocation';
+import { MonthlySummary, CorrectionsQueue, AttendanceReport } from '../components/attendance/AttendanceExtras';
 
 type DayMode = 'leave' | 'regularize' | 'manual';
 
@@ -269,13 +272,28 @@ const Attendance = ({ user }: { user: any }) => {
   const [leaves, setLeaves] = useState<any[]>([]);
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [activeView, setActiveView] = useState<'history' | 'calendar'>('calendar');
+  const [activeView, setActiveView] = useState<'history' | 'calendar' | 'summary' | 'corrections' | 'report'>('calendar');
+  const [pendingCorrections, setPendingCorrections] = useState(0);
+  const isAdminUser = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
+  const canSeeReport = can(user, 'attendance', 'read');
 
   useEffect(() => {
     if (user?.id) {
       fetchLogs();
+      refreshCorrections();
     }
   }, [user?.id]);
+
+  // Managers (and admins) get a Corrections tab with a badge when requests are waiting
+  const refreshCorrections = async () => {
+    try {
+      const team = await apiFetch('/user/team/regularizations').then(r => (r.ok ? r.json() : []));
+      const all = canSeeReport ? await apiFetch('/admin/attendance/regularizations').then(r => (r.ok ? r.json() : [])) : [];
+      setPendingCorrections(new Set([...team, ...all].map((c: any) => c.id)).size);
+    } catch {
+      setPendingCorrections(0);
+    }
+  };
 
   const fetchLogs = async () => {
     try {
@@ -289,11 +307,23 @@ const Attendance = ({ user }: { user: any }) => {
     }
   };
 
-  const handleAction = () => {
+  // One attendance entry per day: after clocking out, today is done
+  const todayKey = localDayKey(new Date());
+  const doneToday = !isCheckedIn && logs.some((l: any) => l.status !== 'Rejected' && localDayKey(l.checkInAt) === todayKey);
+
+  // Stats count distinct days and real hours this month (not one "day" per entry)
+  const monthKey = todayKey.slice(0, 7);
+  const monthLogs = logs.filter((l: any) => l.status !== 'Rejected' && l.status !== 'Regularization Pending' && localDayKey(l.checkInAt).startsWith(monthKey));
+  const daysPresent = new Set(monthLogs.map((l: any) => localDayKey(l.checkInAt))).size;
+  const hoursWorked = monthLogs.reduce((sum: number, l: any) => sum + ((l.checkOutAt ? new Date(l.checkOutAt) : new Date()).getTime() - new Date(l.checkInAt).getTime()), 0) / 3600000;
+
+  const handleAction = async () => {
     setIsLoading(true);
     const endpoint = isCheckedIn ? 'check-out' : 'check-in';
-    
-    apiFetch(`/user/attendance/${endpoint}`, { method: 'POST' })
+    // Clock-ins carry the device location when the browser allows it (offices may require it)
+    const location = isCheckedIn ? null : await getLocation();
+
+    apiFetch(`/user/attendance/${endpoint}`, { method: 'POST', body: JSON.stringify({ tz: userTimeZone(), ...(location ? { location } : {}) }) })
     .then(async res => {
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.message || 'Attendance action failed');
@@ -336,6 +366,28 @@ const Attendance = ({ user }: { user: any }) => {
             >
               History
             </button>
+            <button 
+              onClick={() => setActiveView('summary')}
+              className={`px-6 py-2 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeView === 'summary' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              Summary
+            </button>
+            {(isAdminUser || pendingCorrections > 0) && (
+              <button 
+                onClick={() => setActiveView('corrections')}
+                className={`px-6 py-2 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeView === 'corrections' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                Corrections{pendingCorrections > 0 && <span className="ml-2 px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[10px]">{pendingCorrections}</span>}
+              </button>
+            )}
+            {canSeeReport && (
+              <button 
+                onClick={() => setActiveView('report')}
+                className={`px-6 py-2 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeView === 'report' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                Report
+              </button>
+            )}
           </div>
           <div className="text-[10px] font-black uppercase tracking-widest bg-white px-4 py-2 rounded-xl border border-slate-200 text-slate-400 shadow-sm">
             Today: <span className="text-slate-900 ml-1">{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
@@ -353,16 +405,16 @@ const Attendance = ({ user }: { user: any }) => {
             </div>
             
             <div>
-              <h2 className="text-2xl font-black text-slate-900 tracking-tight">{isCheckedIn ? 'Session Active' : 'Start Session'}</h2>
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight">{isCheckedIn ? 'Session Active' : doneToday ? 'All Done for Today' : 'Start Session'}</h2>
               <p className="text-sm font-bold text-slate-400 mt-2 leading-relaxed">
-                {isCheckedIn ? 'Tracking your working hours in real-time.' : 'Clock in to begin tracking your productivity for today.'}
+                {isCheckedIn ? 'Tracking your working hours in real-time.' : doneToday ? "Today's attendance is recorded as a single entry. Use the calendar to request a correction." : 'Clock in to begin tracking your productivity for today.'}
               </p>
             </div>
 
             <button 
               onClick={handleAction}
-              disabled={isLoading}
-              className={`w-full py-4 rounded-2xl font-black uppercase tracking-widest text-xs transition-all transform active:scale-95 shadow-xl flex items-center justify-center group/btn ${
+              disabled={isLoading || doneToday}
+              className={`w-full py-4 rounded-2xl disabled:opacity-60 disabled:cursor-not-allowed font-black uppercase tracking-widest text-xs transition-all transform active:scale-95 shadow-xl flex items-center justify-center group/btn ${
                 isCheckedIn 
                 ? 'bg-rose-600 text-white hover:bg-rose-700 shadow-rose-600/20' 
                 : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-600/20'
@@ -378,7 +430,7 @@ const Attendance = ({ user }: { user: any }) => {
               ) : (
                 <>
                   <LogIn size={18} className="mr-2 group-hover/btn:translate-x-1 transition-transform" />
-                  Clock In Now
+                  {doneToday ? 'Done for Today' : 'Clock In Now'}
                 </>
               )}
             </button>
@@ -394,12 +446,12 @@ const Attendance = ({ user }: { user: any }) => {
               </div>
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <p className="text-3xl font-black tracking-tight">{logs.length}</p>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Days Present</p>
+                  <p className="text-3xl font-black tracking-tight">{daysPresent}</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Days Present This Month</p>
                 </div>
                 <div>
-                  <p className="text-3xl font-black tracking-tight">{logs.length * 8}h</p>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Est. Hours</p>
+                  <p className="text-3xl font-black tracking-tight">{Math.round(hoursWorked * 10) / 10}h</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Hours This Month</p>
                 </div>
               </div>
             </div>
@@ -408,7 +460,13 @@ const Attendance = ({ user }: { user: any }) => {
         </div>
 
         <div className="lg:col-span-2">
-          {activeView === 'calendar' ? (
+          {activeView === 'summary' ? (
+            <MonthlySummary />
+          ) : activeView === 'corrections' ? (
+            <CorrectionsQueue user={user} onChanged={refreshCorrections} />
+          ) : activeView === 'report' ? (
+            <AttendanceReport />
+          ) : activeView === 'calendar' ? (
             <CalendarView
               logs={logs}
               leaves={leaves}
@@ -423,7 +481,12 @@ const Attendance = ({ user }: { user: any }) => {
                   Attendance History
                   <span className="ml-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Times in {userTimeZone()}</span>
                 </h3>
-                <button className="text-[10px] font-black uppercase tracking-widest text-blue-600 hover:underline">Download Log</button>
+                <button
+                  onClick={() => downloadFile(`/user/attendance/export?month=${new Date().toISOString().slice(0, 7)}&tz=${encodeURIComponent(userTimeZone())}`, 'attendance.csv').catch((e) => alert(e.message))}
+                  className="text-[10px] font-black uppercase tracking-widest text-blue-600 hover:underline"
+                >
+                  Download Log
+                </button>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left">

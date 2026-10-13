@@ -1,30 +1,48 @@
 import React, { useState, useEffect } from 'react';
 import { UserPlus, Shield, User, Lock, X, Check, Search, Trash2, Key, Unlock, AlertCircle } from 'lucide-react';
-import { apiFetch } from '../lib/api';
+import { apiFetch, readError } from '../lib/api';
+import PermissionEditor from '../components/admin/PermissionEditor';
 
 const UserModal = ({ isOpen, onClose, onSave, editingUser }) => {
-  const [formData, setFormData] = useState({
+  const blank = {
     name: '',
     email: '',
+    password: '',
     role: 'USER',
-    permissions: ['read']
-  });
+    permissions: ['read'],
+    department: 'Engineering',
+    designation: '',
+    managerId: '',
+    joinDate: '',
+    dateOfBirth: ''
+  };
+  const [formData, setFormData] = useState(blank);
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [people, setPeople] = useState<{ id: string; name: string }[]>([]);
+
+  // Pickers for department and reporting line
+  useEffect(() => {
+    if (!isOpen) return;
+    apiFetch('/user/departments').then(r => (r.ok ? r.json() : [])).then((d: { name: string }[]) => setDepartments(d.map(x => x.name))).catch(() => undefined);
+    apiFetch('/user/directory').then(r => (r.ok ? r.json() : [])).then(setPeople).catch(() => undefined);
+  }, [isOpen]);
 
   useEffect(() => {
     if (editingUser) {
       setFormData({
+        ...blank,
         ...editingUser,
+        password: '',
+        managerId: editingUser.managerId || '',
+        designation: editingUser.designation || '',
+        joinDate: editingUser.joinDate || '',
+        dateOfBirth: editingUser.dateOfBirth || '',
         permissions: Array.isArray(editingUser.permissions) 
           ? editingUser.permissions 
           : (editingUser.permissions?.split(',') || ['read'])
       });
     } else {
-      setFormData({
-        name: '',
-        email: '',
-        role: 'USER',
-        permissions: ['read']
-      });
+      setFormData(blank);
     }
   }, [editingUser, isOpen]);
 
@@ -32,13 +50,21 @@ const UserModal = ({ isOpen, onClose, onSave, editingUser }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave(formData);
+    // Blank optional fields are sent as null so they can be cleared; the password only applies to new accounts
+    const { password, ...rest } = formData;
+    onSave({
+      ...rest,
+      ...(editingUser ? {} : { password }),
+      managerId: formData.managerId || null,
+      joinDate: formData.joinDate || null,
+      dateOfBirth: formData.dateOfBirth || null
+    });
     onClose();
   };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-xl w-full max-w-md shadow-2xl overflow-hidden">
+      <div className="bg-white rounded-xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <h2 className="text-xl font-bold text-slate-900">
             {editingUser ? 'Edit User' : 'Create New User'}
@@ -71,6 +97,42 @@ const UserModal = ({ isOpen, onClose, onSave, editingUser }) => {
               disabled={!!editingUser}
             />
           </div>
+          {!editingUser && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Temporary Password</label>
+              <input required type="password" minLength={6} autoComplete="new-password" className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} placeholder="At least 6 characters" />
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Department</label>
+              <select className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" value={formData.department} onChange={(e) => setFormData({...formData, department: e.target.value})}>
+                {[...new Set([formData.department, ...departments].filter(Boolean))].map(d => <option key={d}>{d}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Job Title</label>
+              <input type="text" className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" value={formData.designation} onChange={(e) => setFormData({...formData, designation: e.target.value})} placeholder="e.g. Senior Engineer" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Reports To</label>
+            <select className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" value={formData.managerId} onChange={(e) => setFormData({...formData, managerId: e.target.value})}>
+              <option value="">No manager</option>
+              {people.filter(p => p.id !== editingUser?.id).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Join Date</label>
+              <input type="date" className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" value={formData.joinDate} onChange={(e) => setFormData({...formData, joinDate: e.target.value})} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Date of Birth</label>
+              <input type="date" className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" value={formData.dateOfBirth} onChange={(e) => setFormData({...formData, dateOfBirth: e.target.value})} />
+            </div>
+          </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Access Level</label>
             <select 
@@ -92,39 +154,7 @@ const UserModal = ({ isOpen, onClose, onSave, editingUser }) => {
           </div>
           
           {formData.role === 'ADMIN' && (
-            <div className="space-y-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
-              <p className="text-xs font-bold text-slate-500 uppercase">Modify Permissions</p>
-              <div className="flex items-center space-x-4">
-                <label className="flex items-center text-sm text-slate-700 cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    checked={formData.permissions.includes('write')}
-                    onChange={(e) => {
-                      const perms = e.target.checked 
-                        ? [...formData.permissions, 'write']
-                        : formData.permissions.filter(p => p !== 'write');
-                      setFormData({...formData, permissions: perms});
-                    }}
-                    className="mr-2 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                  />
-                  Write Access
-                </label>
-                <label className="flex items-center text-sm text-slate-700 cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    checked={formData.permissions.includes('delete')}
-                    onChange={(e) => {
-                      const perms = e.target.checked 
-                        ? [...formData.permissions, 'delete']
-                        : formData.permissions.filter(p => p !== 'delete');
-                      setFormData({...formData, permissions: perms});
-                    }}
-                    className="mr-2 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                  />
-                  Delete Access
-                </label>
-              </div>
-            </div>
+            <PermissionEditor value={formData.permissions} onChange={(permissions) => setFormData({...formData, permissions})} />
           )}
 
           <button type="submit" className="w-full py-3 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors mt-2">
@@ -157,7 +187,7 @@ const UserManagement = () => {
         body: JSON.stringify(userData)
       })
       .then(res => {
-        if (!res.ok) throw new Error('Failed to update user');
+        if (!res.ok) return readError(res, 'Failed to update user').then(m => { throw new Error(m); });
         return res.json();
       })
       .then(updatedUser => {
@@ -173,7 +203,7 @@ const UserManagement = () => {
         body: JSON.stringify(userData)
       })
       .then(res => {
-        if (!res.ok) throw new Error('Failed to create user');
+        if (!res.ok) return readError(res, 'Failed to create user').then(m => { throw new Error(m); });
         return res.json();
       })
       .then(newUser => {

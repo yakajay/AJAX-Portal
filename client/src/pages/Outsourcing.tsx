@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Plus, UserPlus, FileText, ExternalLink, X, Users, Star, MapPin, Briefcase } from 'lucide-react';
 import { apiFetch } from '../lib/api';
+import { can } from '../lib/permissions';
+import { Tabs } from '../components/ui';
+import { ContractAlerts, Timesheets, Invoices } from '../components/outsourcing/OutsourcingExtras';
 
 const AddPartnerModal = ({ isOpen, onClose, onAdd }) => {
   const [formData, setFormData] = useState({
@@ -9,7 +12,10 @@ const AddPartnerModal = ({ isOpen, onClose, onAdd }) => {
     company: '',
     status: 'Active',
     country: '',
-    rating: 5.0
+    rating: 5.0,
+    contractStart: '',
+    contractEnd: '',
+    hourlyRate: ''
   });
   const [loading, setLoading] = useState(false);
 
@@ -22,7 +28,13 @@ const AddPartnerModal = ({ isOpen, onClose, onAdd }) => {
       const response = await apiFetch('/admin/contractors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({...formData, rating: parseFloat(formData.rating)}),
+        body: JSON.stringify({
+          ...formData,
+          rating: parseFloat(formData.rating),
+          contractStart: formData.contractStart || null,
+          contractEnd: formData.contractEnd || null,
+          hourlyRate: formData.hourlyRate === '' ? 0 : parseFloat(formData.hourlyRate)
+        }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.message || 'Failed to add partner');
@@ -116,6 +128,23 @@ const AddPartnerModal = ({ isOpen, onClose, onAdd }) => {
               />
             </div>
           </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Contract start</label>
+              <input type="date" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:bg-white transition-all"
+                value={formData.contractStart} onChange={(e) => setFormData({...formData, contractStart: e.target.value})} />
+            </div>
+            <div>
+              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Contract end</label>
+              <input type="date" min={formData.contractStart} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:bg-white transition-all"
+                value={formData.contractEnd} onChange={(e) => setFormData({...formData, contractEnd: e.target.value})} />
+            </div>
+            <div>
+              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Rate / hour</label>
+              <input type="number" min="0" step="0.01" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:bg-white transition-all"
+                value={formData.hourlyRate} onChange={(e) => setFormData({...formData, hourlyRate: e.target.value})} placeholder="0.00" />
+            </div>
+          </div>
           <button 
             type="submit"
             disabled={loading}
@@ -129,13 +158,13 @@ const AddPartnerModal = ({ isOpen, onClose, onAdd }) => {
   );
 };
 
-const Outsourcing = ({ user }) => {
+const PartnersView = ({ user }) => {
   const [contractors, setContractors] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const canWrite = user?.role === 'SUPER_ADMIN' || user?.permissions?.includes('write');
+  const canWrite = can(user, 'outsourcing', 'write');
 
   useEffect(() => {
     fetchContractors();
@@ -236,6 +265,7 @@ const Outsourcing = ({ user }) => {
                   <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Contractor</th>
                   <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Partner Company</th>
                   <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Contract ends</th>
                   <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Location</th>
                   <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Rating</th>
                   <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
@@ -270,6 +300,9 @@ const Outsourcing = ({ user }) => {
                         {contractor.status}
                       </span>
                     </td>
+                    <td className="px-6 py-5 text-sm font-bold text-slate-500">
+                      {contractor.contractEnd ? new Date(`${contractor.contractEnd}T00:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) : '—'}
+                    </td>
                     <td className="px-6 py-5">
                       <div className="flex items-center text-sm font-bold text-slate-500">
                         <MapPin size={14} className="mr-2 text-slate-400" />
@@ -300,6 +333,30 @@ const Outsourcing = ({ user }) => {
         onClose={() => setIsModalOpen(false)} 
         onAdd={(newPartner) => setContractors([...contractors, newPartner])} 
       />
+    </div>
+  );
+};
+
+const Outsourcing = ({ user }) => {
+  const [tab, setTab] = useState<'partners' | 'timesheets' | 'invoices'>('partners');
+  const [contractors, setContractors] = useState([]);
+
+  // Timesheets and invoices pick from the same contractor list
+  useEffect(() => {
+    apiFetch('/admin/contractors').then(r => (r.ok ? r.json() : [])).then(setContractors).catch(() => setContractors([]));
+  }, []);
+
+  return (
+    <div className="space-y-6">
+      <ContractAlerts />
+      <Tabs
+        tabs={[{ id: 'partners', label: 'Partners' }, { id: 'timesheets', label: 'Timesheets' }, { id: 'invoices', label: 'Invoices' }]}
+        value={tab}
+        onChange={setTab}
+      />
+      {tab === 'partners' && <PartnersView user={user} />}
+      {tab === 'timesheets' && <Timesheets user={user} contractors={contractors} />}
+      {tab === 'invoices' && <Invoices user={user} contractors={contractors} />}
     </div>
   );
 };

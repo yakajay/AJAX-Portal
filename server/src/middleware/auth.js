@@ -1,8 +1,12 @@
+import mongoose from 'mongoose';
 import { userModel } from '../models/user.model.js';
+import { Session } from '../models/session.model.js';
 import { verifyToken } from '../utils/token.js';
 import { ADMIN_ROLES } from '../utils/format.js';
+import { hasPermission } from '../utils/permissions.js';
 
-// Verifies the Bearer JWT, then reloads the user so role changes and locks apply immediately
+// Verifies the Bearer JWT, checks its session hasn't been revoked, then reloads the user so role
+// changes and locks apply immediately
 export const authenticate = async (req, res, next) => {
   const header = req.headers.authorization || '';
   const [scheme, token] = header.split(' ');
@@ -17,11 +21,17 @@ export const authenticate = async (req, res, next) => {
     return res.status(401).json({ message: 'Invalid or expired token.' });
   }
 
+  const session = mongoose.isValidObjectId(payload.sid) ? await Session.findById(payload.sid) : null;
+  if (!session || session.revokedAt || session.expiresAt < new Date()) {
+    return res.status(401).json({ message: 'Session ended. Please sign in again.' });
+  }
+
   const user = await userModel.findById(payload.sub);
   if (!user) return res.status(401).json({ message: 'Account no longer exists.' });
   if (user.locked) return res.status(403).json({ message: 'Account is locked. Please contact support.' });
 
   req.user = user;
+  req.session = session;
   next();
 };
 
@@ -35,11 +45,21 @@ export const requireRole = (...roles) => (req, res, next) => {
 export const requireAdmin = requireRole(...ADMIN_ROLES);
 export const requireSuperAdmin = requireRole('SUPER_ADMIN');
 
-// Fine-grained write/delete checks for admins; SUPER_ADMIN always passes
-export const requirePermission = (permission) => (req, res, next) => {
-  const granted = (req.user.permissions || '').split(',');
-  if (req.user.role === 'SUPER_ADMIN' || granted.includes(permission) || granted.includes('all')) {
-    return next();
-  }
-  res.status(403).json({ message: `Missing "${permission}" permission.` });
+// Fine-grained checks for admins; SUPER_ADMIN always passes. `module` scopes the check
+// (e.g. `payroll:write`); global tokens like `write` still apply to every module.
+export const requirePermission = (permission, module) => {
+  const handler = (req, res, next) => {
+    if (hasPermission(req.user, module, permission)) return next();
+    const scope = module ? ` on ${module}` : '';
+    res.status(403).json({ message: `Missing "${permission}" permission${scope}.` });
+  };
+  handler.meta = { permission, module }; // read by the OpenAPI generator
+  return handler;
 };
+
+// Shorthand used in the admin router: can('payroll').read / .write / .delete
+export const can = (module) => ({
+  read: requirePermission('read', module),
+  write: requirePermission('write', module),
+  delete: requirePermission('delete', module)
+});

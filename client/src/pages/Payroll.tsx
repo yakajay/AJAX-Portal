@@ -14,6 +14,9 @@ import {
   Receipt
 } from 'lucide-react';
 import { apiFetch } from '../lib/api';
+import { can } from '../lib/permissions';
+import { Tabs } from '../components/ui';
+import { SalaryStructures, MonthlyPayroll } from '../components/payroll/PayrollExtras';
 
 const RunPayrollModal = ({ isOpen, onClose, onConfirm, companies }) => {
   const [formData, setFormData] = useState({
@@ -56,7 +59,7 @@ const RunPayrollModal = ({ isOpen, onClose, onConfirm, companies }) => {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Amount ($)</label>
+            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Amount (₹)</label>
             <input 
               required
               type="number" 
@@ -110,13 +113,13 @@ const StatCard = ({ title, value, icon: Icon, trend, trendValue, color, bgColor 
   </div>
 );
 
-const Payroll = ({ user }) => {
+const PaymentsView = ({ user }) => {
   const [transactions, setTransactions] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
 
-  const canWrite = user?.role === 'SUPER_ADMIN' || user?.permissions?.includes('write');
+  const canWrite = can(user, 'payroll', 'write');
 
   useEffect(() => {
     fetchTransactions();
@@ -166,7 +169,7 @@ const Payroll = ({ user }) => {
     const csvData = dataToExport.map(tx => [
       tx.recipient,
       tx.date,
-      tx.amount.replace('$', '').replace(',', ''),
+      tx.amount.replace(/[^0-9.]/g, ''),
       tx.status,
       tx.method
     ]);
@@ -232,7 +235,7 @@ const Payroll = ({ user }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
           title="Total Payout" 
-          value="$458,240" 
+          value="₹4,58,24,000" 
           icon={CreditCard} 
           trend="up" 
           trendValue="12.5%" 
@@ -241,7 +244,7 @@ const Payroll = ({ user }) => {
         />
         <StatCard 
           title="Tax Accrued" 
-          value="$12,450" 
+          value="₹12,45,000" 
           icon={TrendingUp} 
           trend="up" 
           trendValue="3.2%" 
@@ -250,7 +253,7 @@ const Payroll = ({ user }) => {
         />
         <StatCard 
           title="Fees Saved" 
-          value="$840" 
+          value="₹84,000" 
           icon={Receipt} 
           color="text-purple-600" 
           bgColor="bg-purple-50"
@@ -363,6 +366,26 @@ const Payroll = ({ user }) => {
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+const Payroll = ({ user }) => {
+  const [tab, setTab] = useState<'monthly' | 'structures' | 'payments'>('monthly');
+  return (
+    <div className="space-y-6">
+      <Tabs
+        tabs={[
+          { id: 'monthly', label: 'Monthly payroll' },
+          { id: 'structures', label: 'Salary structures' },
+          { id: 'payments', label: 'Partner payments' }
+        ]}
+        value={tab}
+        onChange={setTab}
+      />
+      {tab === 'monthly' && <MonthlyPayroll user={user} />}
+      {tab === 'structures' && <SalaryStructures user={user} />}
+      {tab === 'payments' && <PaymentsView user={user} />}
     </div>
   );
 };

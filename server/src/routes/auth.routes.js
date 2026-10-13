@@ -16,6 +16,10 @@ router.post('/resend-otp', limiter, auth.resendOtp);
 router.post('/forgot-password', limiter, auth.forgotPassword);
 router.post('/reset-password', limiter, auth.resetPassword);
 
+// Refreshing happens every few minutes per device, so it gets a roomier limit
+router.post('/refresh', rateLimit({ windowMs: 15 * 60 * 1000, max: 200 }), auth.refresh);
+router.post('/logout', authenticate, auth.logout);
+
 router.get('/me', authenticate, auth.me);
 
 export default router;

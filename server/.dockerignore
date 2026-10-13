@@ -5,3 +5,5 @@ node_modules
 npm-debug.log*
 Dockerfile
 .dockerignore
+tests
+vitest.config.js

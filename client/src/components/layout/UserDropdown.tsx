@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User as UserIcon, LogOut, HelpCircle, ChevronDown, Pencil } from 'lucide-react';
+import { User as UserIcon, LogOut, HelpCircle, ChevronDown, SlidersHorizontal } from 'lucide-react';
+import { useI18n } from '../../lib/i18n';
 import type { User } from '../../types';
 
 const UserDropdown = ({ user, onLogout }: { user: User | null; onLogout: () => void }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const { t } = useI18n();
   const initials = user?.name?.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase() || 'U';
 
   useEffect(() => {
@@ -61,21 +63,21 @@ const UserDropdown = ({ user, onLogout }: { user: User | null; onLogout: () => v
               className="flex items-center w-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
             >
               <UserIcon size={16} className="mr-3 text-slate-400" />
-              My Profile
+              {t('nav.profile')}
             </button>
             <button 
-              onClick={() => handleAction('/profile')}
+              onClick={() => handleAction('/preferences')}
               className="flex items-center w-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
             >
-              <Pencil size={16} className="mr-3 text-slate-400" />
-              Edit Profile
+              <SlidersHorizontal size={16} className="mr-3 text-slate-400" />
+              {t('nav.preferences')}
             </button>
             <button 
               onClick={() => handleAction('/support')}
               className="flex items-center w-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
             >
               <HelpCircle size={16} className="mr-3 text-slate-400" />
-              Help & Support
+              {t('nav.support')}
             </button>
           </div>
 
@@ -85,7 +87,7 @@ const UserDropdown = ({ user, onLogout }: { user: User | null; onLogout: () => v
               className="flex items-center w-full px-4 py-2 text-sm text-rose-600 hover:bg-rose-50 transition-colors font-semibold"
             >
               <LogOut size={16} className="mr-3" />
-              Sign Out
+              {t('header.signOut')}
             </button>
           </div>
         </div>

@@ -1,7 +1,8 @@
 import { userModel } from '../models/user.model.js';
 import { otpModel } from '../models/otp.model.js';
 import { hashPassword, verifyPassword, isHashed } from '../utils/password.js';
-import { signToken } from '../utils/token.js';
+import { startSession, refreshSession, revokeSession, revokeAllSessions } from '../utils/sessions.js';
+import { matchTotp } from '../utils/totp.js';
 import { issueOtp, checkOtp, OTP_PURPOSE } from '../utils/otp.js';
 import { sanitizeUser } from '../utils/format.js';
 
@@ -80,18 +81,45 @@ export const login = async (req, res) => {
     });
   }
 
+  // Users with an authenticator app skip the emailed code (they can still ask for one as a fallback)
+  if (user.totp?.enabled) {
+    return res.json({
+      otpRequired: true,
+      method: 'totp',
+      email,
+      message: 'Enter the 6-digit code from your authenticator app.'
+    });
+  }
+
   await issueOtp(email, OTP_PURPOSE.LOGIN);
-  res.json({ otpRequired: true, email, message: 'Enter the code we emailed you to finish signing in.' });
+  res.json({ otpRequired: true, method: 'email', email, message: 'Enter the code we emailed you to finish signing in.' });
 };
 
 // POST /auth/login/verify - step 2: exchange the one-time code for a JWT
 export const verifyLogin = async (req, res) => {
   const email = normalizeEmail(req.body.email);
   const user = await userModel.findByEmail(email);
-  if (!user || user.locked || !(await checkOtp(email, OTP_PURPOSE.LOGIN, req.body.otp))) {
-    return res.status(401).json(BAD_CODE);
+  if (!user || user.locked) return res.status(401).json(BAD_CODE);
+
+  let valid = false;
+  if (user.totp?.enabled) {
+    const withSecret = await userModel.findWithTotpSecret(user.id);
+    const step = matchTotp(withSecret.totp.secret, req.body.otp);
+    // A code that was already used (even once, even by the real user) is refused
+    valid = step !== null && (await userModel.consumeTotpStep(user.id, step));
   }
-  res.json({ token: signToken(user), user: sanitizeUser(user) });
+  // Emailed codes always work too (the only method for users without an authenticator app)
+  if (!valid) valid = await checkOtp(email, OTP_PURPOSE.LOGIN, req.body.otp);
+  if (!valid) {
+    return res.status(401).json(
+      user.totp?.enabled
+        ? { message: 'Invalid or expired code. Authenticator codes work once - wait for the next code and try again.' }
+        : BAD_CODE
+    );
+  }
+
+  const tokens = await startSession(user, req);
+  res.json({ token: tokens.token, refreshToken: tokens.refreshToken, user: sanitizeUser(user) });
 };
 
 // POST /auth/resend-otp - same response whether or not the account exists
@@ -105,7 +133,9 @@ export const resendOtp = async (req, res) => {
   let eligible = !!user && !user.locked;
   if (purpose === OTP_PURPOSE.VERIFY_EMAIL) eligible &&= !user.emailVerified;
   // Login codes can only be re-sent after the password step already issued one
-  if (purpose === OTP_PURPOSE.LOGIN) eligible &&= !!(await otpModel.latest(email, purpose));
+  if (purpose === OTP_PURPOSE.LOGIN) {
+    eligible &&= !!user?.totp?.enabled || !!(await otpModel.latest(email, purpose));
+  }
 
   if (eligible) await issueOtp(email, purpose);
   res.json({ message: 'If the account is eligible, a new code has been sent.' });
@@ -135,8 +165,22 @@ export const resetPassword = async (req, res) => {
   }
   // Receiving the code also proves ownership of the mailbox
   await userModel.update(user.id, { password: hashPassword(newPassword), emailVerified: true });
+  await revokeAllSessions(user.id);
   res.json({ message: 'Password reset. You can now sign in.' });
 };
 
 // GET /auth/me
 export const me = (req, res) => res.json(sanitizeUser(req.user));
+
+// POST /auth/refresh - exchange a refresh token for a new access token (the refresh token rotates)
+export const refresh = async (req, res) => {
+  const result = await refreshSession(req.body.refreshToken);
+  if (!result) return res.status(401).json({ message: 'Session expired. Please sign in again.' });
+  res.json({ token: result.token, refreshToken: result.refreshToken, user: sanitizeUser(result.user) });
+};
+
+// POST /auth/logout - ends the current session only
+export const logout = async (req, res) => {
+  await revokeSession(req.user.id, req.session.id);
+  res.json({ message: 'Signed out.' });
+};

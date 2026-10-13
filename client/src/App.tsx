@@ -1,21 +1,31 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './layouts/Layout';
-import Dashboard from './pages/Dashboard';
-import Outsourcing from './pages/Outsourcing';
-import Payroll from './pages/Payroll';
-import Attendance from './pages/Attendance';
-import HRHub from './pages/HRHub';
-import EmployeeDirectory from './pages/EmployeeDirectory';
-import LeaveManagement from './pages/LeaveManagement';
-import UserManagement from './pages/UserManagement';
-import Profile from './pages/Profile';
-import Support from './pages/Support';
+import { Spinner } from './components/ui';
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Outsourcing = lazy(() => import('./pages/Outsourcing'));
+const Payroll = lazy(() => import('./pages/Payroll'));
+const Attendance = lazy(() => import('./pages/Attendance'));
+const HRHub = lazy(() => import('./pages/HRHub'));
+const EmployeeDirectory = lazy(() => import('./pages/EmployeeDirectory'));
+const LeaveManagement = lazy(() => import('./pages/LeaveManagement'));
+const UserManagement = lazy(() => import('./pages/UserManagement'));
+const Profile = lazy(() => import('./pages/Profile'));
+const Support = lazy(() => import('./pages/Support'));
 import Login from './pages/Login';
-import Signup from './pages/Signup';
-import ForgotPassword from './pages/ForgotPassword';
+const Signup = lazy(() => import('./pages/Signup'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const Payslips = lazy(() => import('./pages/Payslips'));
+const Expenses = lazy(() => import('./pages/Expenses'));
+const Performance = lazy(() => import('./pages/Performance'));
+const Onboarding = lazy(() => import('./pages/Onboarding'));
+const Announcements = lazy(() => import('./pages/Announcements'));
+const Notifications = lazy(() => import('./pages/Notifications'));
+const Preferences = lazy(() => import('./pages/Preferences'));
+const AuditLog = lazy(() => import('./pages/AuditLog'));
 import type { User } from './types';
-import { getToken, setToken, clearToken, UNAUTHORIZED_EVENT } from './lib/api';
+import { getToken, setSession, clearToken, apiFetch, UNAUTHORIZED_EVENT } from './lib/api';
+import { I18nProvider } from './lib/i18n';
 
 function App() {
   const [user, setUser] = useState<User | null>(() => {
@@ -27,14 +37,16 @@ function App() {
   const INACTIVITY_LIMIT = 15 * 60 * 1000; // 15 minutes
 
   const handleLogout = useCallback(() => {
+    // Best effort: tell the server to end this device's session before dropping the tokens
+    if (getToken()) apiFetch('/auth/logout', { method: 'POST' }).catch(() => undefined);
     setUser(null);
     clearToken();
     sessionStorage.removeItem('user');
     sessionStorage.removeItem('lastActivity');
   }, []);
 
-  const handleLogin = (userData: User, token: string) => {
-    setToken(token);
+  const handleLogin = (userData: User, token: string, refreshToken?: string) => {
+    setSession(token, refreshToken);
     setUser(userData);
     sessionStorage.setItem('user', JSON.stringify(userData));
     sessionStorage.setItem('lastActivity', Date.now().toString());
@@ -88,7 +100,9 @@ function App() {
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
 
   return (
+    <I18nProvider initial={user?.preferences?.language}>
     <Router>
+      <Suspense fallback={<Spinner />}>
       <Routes>
         {/* Auth Routes */}
         <Route path="/login" element={<Login onLogin={handleLogin} />} />
@@ -111,6 +125,14 @@ function App() {
                   <Route path="/leave" element={<LeaveManagement user={user} />} />
                   <Route path="/profile" element={<Profile user={user} onUserUpdate={handleUserUpdate} />} />
                   <Route path="/support" element={<Support user={user} />} />
+                  <Route path="/payslips" element={<Payslips />} />
+                  <Route path="/expenses" element={<Expenses user={user} />} />
+                  <Route path="/performance" element={<Performance user={user} />} />
+                  <Route path="/onboarding" element={<Onboarding user={user} />} />
+                  <Route path="/announcements" element={<Announcements user={user} />} />
+                  <Route path="/notifications" element={<Notifications />} />
+                  <Route path="/preferences" element={<Preferences user={user} onUserUpdate={handleUserUpdate} onLogout={handleLogout} />} />
+                  <Route path="/audit" element={user.role === 'SUPER_ADMIN' ? <AuditLog /> : <Navigate to="/" replace />} />
                   <Route path="/settings" element={user.role === 'SUPER_ADMIN' ? <UserManagement /> : <Navigate to="/" replace />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
@@ -121,7 +143,9 @@ function App() {
           } 
         />
       </Routes>
+      </Suspense>
     </Router>
+    </I18nProvider>
   );
 }
 

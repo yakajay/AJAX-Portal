@@ -6,6 +6,8 @@ type Props = {
   email: string;
   purpose: 'VERIFY_EMAIL' | 'LOGIN' | 'RESET_PASSWORD';
   submitLabel: string;
+  /** 'totp' asks for the authenticator-app code and offers an emailed code as a fallback */
+  method?: 'email' | 'totp';
   submitting?: boolean;
   onSubmit: (otp: string) => void;
   /** Extra fields (e.g. a new password) rendered above the submit button */
@@ -14,10 +16,11 @@ type Props = {
 
 const RESEND_COOLDOWN = 60;
 
-const OtpForm = ({ email, purpose, submitLabel, submitting, onSubmit, children }: Props) => {
+const OtpForm = ({ email, purpose, submitLabel, method = 'email', submitting, onSubmit, children }: Props) => {
   const [otp, setOtp] = useState('');
-  const [cooldown, setCooldown] = useState(RESEND_COOLDOWN);
+  const [cooldown, setCooldown] = useState(method === 'totp' ? 0 : RESEND_COOLDOWN);
   const [notice, setNotice] = useState('');
+  const [emailSent, setEmailSent] = useState(method !== 'totp');
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -34,7 +37,8 @@ const OtpForm = ({ email, purpose, submitLabel, submitting, onSubmit, children }
       alert(await readError(res, 'Could not resend the code'));
       return;
     }
-    setNotice('A new code has been sent if the account is eligible.');
+    setNotice(method === 'totp' ? 'We emailed you a code. You can enter it here instead.' : 'A new code has been sent if the account is eligible.');
+    setEmailSent(true);
     setCooldown(RESEND_COOLDOWN);
   };
 
@@ -47,7 +51,11 @@ const OtpForm = ({ email, purpose, submitLabel, submitting, onSubmit, children }
       }}
     >
       <p className="text-sm text-slate-600">
-        We emailed a 6-digit code to <span className="font-medium text-slate-900">{email}</span>.
+        {method === 'totp' && !emailSent ? (
+          <>Open your authenticator app and enter the 6-digit code for <span className="font-medium text-slate-900">{email}</span>.</>
+        ) : (
+          <>We emailed a 6-digit code to <span className="font-medium text-slate-900">{email}</span>.</>
+        )}
       </p>
 
       <div>
@@ -91,7 +99,7 @@ const OtpForm = ({ email, purpose, submitLabel, submitting, onSubmit, children }
         disabled={cooldown > 0}
         className="w-full text-sm font-medium text-emerald-600 hover:text-emerald-500 disabled:text-slate-400"
       >
-        {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
+        {cooldown > 0 ? `Resend code in ${cooldown}s` : method === 'totp' && !emailSent ? 'Email me a code instead' : 'Resend code'}
       </button>
     </form>
   );
