@@ -9,6 +9,7 @@ import { summarizeAttendance, checkClockPolicy, localMinutes } from '../src/util
 import { daysUntilNext } from '../src/controllers/announcement.controller.js';
 import { buildOpenApi, collectRoutes } from '../src/docs/openapi.js';
 import { slaDueAt } from '../src/models/ticket.model.js';
+import { planMerges } from '../src/utils/attendanceMerge.js';
 
 describe('totp', () => {
   // RFC 4226 appendix D test vectors for the secret "12345678901234567890"
@@ -236,5 +237,38 @@ describe('openapi', () => {
     expect(paths['/auth/logout'].post.security).toBeDefined();
     expect(paths['/user/leaves'].get.security).toBeDefined();
     expect(paths['/admin/payroll/run-monthly'].post.description).toContain('payroll:write');
+  });
+});
+
+describe('planMerges', () => {
+  const e = (id, user, a, b, status = 'Present') => ({ id, userId: user, checkInAt: new Date(a), checkOutAt: b ? new Date(b) : null, status });
+  it('merges same-day entries into earliest in / latest out and keeps the earliest record', () => {
+    const plans = planMerges([
+      e('a', 'u1', '2030-03-04T09:00:00Z', '2030-03-04T12:00:00Z'),
+      e('b', 'u1', '2030-03-04T13:00:00Z', '2030-03-04T18:30:00Z'),
+      e('c', 'u1', '2030-03-04T12:10:00Z', '2030-03-04T12:50:00Z'),
+      e('d', 'u1', '2030-03-05T09:00:00Z', '2030-03-05T17:00:00Z') // another day: untouched
+    ], 'UTC');
+    expect(plans).toHaveLength(1);
+    expect(plans[0]).toMatchObject({ keepId: 'a', day: '2030-03-04' });
+    expect(plans[0].removeIds.sort()).toEqual(['b', 'c']);
+    expect(plans[0].checkOutAt.toISOString()).toBe('2030-03-04T18:30:00.000Z');
+  });
+  it('uses the given timezone to decide what a day is', () => {
+    // 22:00Z and 02:00Z (next UTC day) are the same calendar day in Asia/Kolkata? 03:30 and 07:30 IST -> same day
+    const entries = [e('a', 'u1', '2030-03-04T22:00:00Z', '2030-03-04T23:00:00Z'), e('b', 'u1', '2030-03-05T02:00:00Z', '2030-03-05T03:00:00Z')];
+    expect(planMerges(entries, 'Asia/Kolkata')).toHaveLength(1);
+    expect(planMerges(entries, 'UTC')).toHaveLength(0);
+  });
+  it('keeps the day open if any session is still open, never mixes people, and ignores pending/rejected entries', () => {
+    const plans = planMerges([
+      e('a', 'u1', '2030-03-04T09:00:00Z', '2030-03-04T12:00:00Z'),
+      e('b', 'u1', '2030-03-04T13:00:00Z', null),
+      e('x', 'u2', '2030-03-04T09:30:00Z', '2030-03-04T17:00:00Z'),
+      e('p', 'u2', '2030-03-04T10:00:00Z', '2030-03-04T11:00:00Z', 'Regularization Pending'),
+      e('r', 'u2', '2030-03-04T10:00:00Z', '2030-03-04T11:00:00Z', 'Rejected')
+    ], 'UTC');
+    expect(plans).toHaveLength(1);
+    expect(plans[0]).toMatchObject({ userId: 'u1', checkOutAt: null });
   });
 });

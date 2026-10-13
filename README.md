@@ -89,6 +89,17 @@ docker compose run --rm -e ADMIN_PASSWORD='<password>' api node scripts/create-a
 # without Docker:  cd server && ADMIN_PASSWORD='<password>' npm run create-admin -- you@example.com "Your Name"
 ```
 
+### Merging duplicate attendance entries
+
+Attendance is one entry per day. If you have older days with several clock-ins, collapse them (earliest clock-in to latest clock-out) with:
+
+```bash
+docker compose run --rm api node scripts/merge-attendance.js --tz Asia/Kolkata          # dry run: shows what would change
+docker compose run --rm api node scripts/merge-attendance.js --tz Asia/Kolkata --apply  # does it
+```
+
+`--tz` is the timezone that defines a "day". Merged-away entries are deleted, so back up the `attendances` collection first if the data matters.
+
 ### Roles and permissions
 
 `USER` accounts only ever see their own data (plus their direct reports through the manager screens). `ADMIN` accounts get the admin screens, gated by permission tokens stored on the account:
