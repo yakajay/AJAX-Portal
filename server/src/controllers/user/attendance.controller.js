@@ -1,17 +1,29 @@
 import { attendanceModel } from '../../models/attendance.model.js';
+import { summarizeAttendance, checkClockPolicy, validLocation } from '../../utils/attendanceReport.js';
+import { reviewRegularization, loadPendingRegularization } from '../../services/attendance.service.js';
+import { safeTimeZone, dayKey } from '../../utils/time.js';
+import { isValidMonth } from '../../utils/dates.js';
+import { sendCsv } from '../../utils/csv.js';
+import { notify, reviewersFor } from '../../utils/notify.js';
 
 export const listMine = async (req, res) => {
   res.json(await attendanceModel.findByUser(req.user.id));
 };
 
 export const checkIn = async (req, res) => {
+  const location = validLocation(req.body?.location) ? req.body.location : null;
+  const policy = checkClockPolicy({ ip: req.ip, location });
+  if (!policy.ok) return res.status(403).json({ message: policy.message });
+
   if (await attendanceModel.findOpen(req.user.id)) {
     return res.status(409).json({ message: 'Already checked in.' });
   }
   const entry = await attendanceModel.create({
     userId: req.user.id,
     checkInAt: new Date(),
-    status: 'Present'
+    status: 'Present',
+    ip: req.ip,
+    location: location ? { lat: location.lat, lng: location.lng, accuracy: Number.isFinite(location.accuracy) ? location.accuracy : null } : undefined
   });
   res.status(201).json(entry);
 };
@@ -25,7 +37,7 @@ export const checkOut = async (req, res) => {
 const MAX_SPAN_MS = 24 * 60 * 60 * 1000;
 
 // Back-filled entries for a past day: either the user's own manual punch, or a regularization
-// request (stored as pending until HR reviews it). Times arrive as ISO instants.
+// request (stored as pending until the manager / HR reviews it). Times arrive as ISO instants.
 export const addManual = async (req, res) => {
   const { checkInAt, checkOutAt, kind, reason } = req.body;
   const start = new Date(checkInAt);
@@ -46,7 +58,76 @@ export const addManual = async (req, res) => {
     checkOutAt: end,
     status: regularize ? 'Regularization Pending' : 'Present',
     source: regularize ? 'regularization' : 'manual',
-    reason: reason ? String(reason).trim() : null
+    reason: reason ? String(reason).trim() : null,
+    ip: req.ip
   });
+
+  if (regularize) {
+    await notify(await reviewersFor(req.user, 'attendance'), {
+      type: 'attendance',
+      title: `${req.user.name} requested an attendance correction`,
+      body: String(reason).trim().slice(0, 200),
+      link: '/attendance'
+    });
+  }
   res.status(201).json(entry);
+};
+
+const monthParams = (req, res) => {
+  const timeZone = safeTimeZone(req.query.tz);
+  const month = req.query.month || dayKey(new Date(), timeZone).slice(0, 7);
+  if (!isValidMonth(month)) {
+    res.status(400).json({ message: 'month must look like 2026-10.' });
+    return null;
+  }
+  return { timeZone, month };
+};
+
+// Entries whose local day might fall in the month (a day either side covers any timezone)
+const monthWindow = (month) => {
+  const [y, m] = month.split('-').map(Number);
+  return { from: new Date(Date.UTC(y, m - 1, 1) - 86400000), to: new Date(Date.UTC(y, m, 1) + 86400000) };
+};
+
+export const summary = async (req, res) => {
+  const params = monthParams(req, res);
+  if (!params) return;
+  const { from, to } = monthWindow(params.month);
+  const entries = await attendanceModel.findInRange([req.user.id], from, to);
+  res.json(summarizeAttendance(entries, params));
+};
+
+export const exportMine = async (req, res) => {
+  const params = monthParams(req, res);
+  if (!params) return;
+  const { from, to } = monthWindow(params.month);
+  const entries = await attendanceModel.findInRange([req.user.id], from, to);
+  const { days } = summarizeAttendance(entries, params);
+  const fmt = (d) => (d ? d.toISOString() : '');
+  sendCsv(res, `attendance-${params.month}.csv`, days, [
+    { header: 'Date', value: (d) => d.date },
+    { header: 'First in (UTC)', value: (d) => fmt(d.firstIn) },
+    { header: 'Last out (UTC)', value: (d) => fmt(d.lastOut) },
+    { header: 'Hours', value: (d) => d.hours },
+    { header: 'Late', value: (d) => (d.late ? 'Yes' : 'No') },
+    { header: 'Early out', value: (d) => (d.earlyOut ? 'Yes' : 'No') }
+  ]);
+};
+
+// --- Manager view: regularization requests from direct reports ---
+export const teamRegularizations = async (req, res) => {
+  const pending = await attendanceModel.findByStatus('Regularization Pending');
+  res.json(pending.filter((e) => String(e.user?.managerId) === req.user.id));
+};
+
+export const teamReview = async (req, res) => {
+  const { status, note } = req.body;
+  if (!['Approved', 'Rejected'].includes(status)) {
+    return res.status(400).json({ message: 'Status must be Approved or Rejected.' });
+  }
+  const entry = await loadPendingRegularization(req.params.id);
+  if (!entry) return res.status(404).json({ message: 'Pending request not found.' });
+  await entry.populate({ path: 'user', select: 'managerId' });
+  if (String(entry.user?.managerId) !== req.user.id) return res.status(404).json({ message: 'Pending request not found.' });
+  res.json(await reviewRegularization(req, entry, status, note));
 };

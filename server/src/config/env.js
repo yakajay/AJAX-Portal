@@ -22,7 +22,32 @@ export const env = {
     dbName: process.env.MONGODB_DB_NAME
   },
   jwtSecret,
-  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '8h',
+  // Short-lived access token; the refresh token (tied to a revocable session) keeps the user signed in
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '15m',
+  refreshTtlHours: parseInt(process.env.REFRESH_TTL_HOURS || '12'),
+  trustProxy: process.env.TRUST_PROXY || false,
+  logLevel: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'test' ? 'silent' : 'info'),
+  metricsToken: process.env.METRICS_TOKEN || '',
+  appName: 'YakFlow',
+  attendance: {
+    // Local wall-clock times (viewer's timezone) used for late / early-out flags
+    lateAfter: process.env.ATTENDANCE_LATE_AFTER || '09:30',
+    earlyBefore: process.env.ATTENDANCE_EARLY_BEFORE || '17:30',
+    // Optional check-in restrictions. Empty = unrestricted.
+    allowedIps: (process.env.ATTENDANCE_ALLOWED_IPS || '').split(',').map((s) => s.trim()).filter(Boolean),
+    office: process.env.OFFICE_LAT && process.env.OFFICE_LNG
+      ? {
+          lat: parseFloat(process.env.OFFICE_LAT),
+          lng: parseFloat(process.env.OFFICE_LNG),
+          radiusMeters: parseInt(process.env.OFFICE_RADIUS_M || '300')
+        }
+      : null
+  },
+  jobs: {
+    enabled: process.env.JOBS_ENABLED !== 'false' && process.env.NODE_ENV !== 'test',
+    digestHour: parseInt(process.env.DIGEST_HOUR || '8'),
+    contractAlertDays: parseInt(process.env.CONTRACT_ALERT_DAYS || '30')
+  },
   otpTtlMinutes: parseInt(process.env.OTP_TTL_MINUTES || '10'),
   otpMaxAttempts: 5,
   otpResendSeconds: 60,

@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { env } from './env.js';
+import { logger } from '../utils/logger.js';
 
 export const connectDB = async () => {
   if (!env.mongo.uri) {
@@ -7,7 +8,7 @@ export const connectDB = async () => {
   }
   mongoose.set('strictQuery', true);
   await mongoose.connect(env.mongo.uri, env.mongo.dbName ? { dbName: env.mongo.dbName } : {});
-  console.log(`MongoDB connected (db: ${mongoose.connection.name})`);
+  logger.info({ db: mongoose.connection.name }, 'MongoDB connected');
 };
 
 export const disconnectDB = () => mongoose.disconnect();
