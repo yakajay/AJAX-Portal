@@ -13,6 +13,7 @@ const UserManagement = lazy(() => import('./pages/UserManagement'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Support = lazy(() => import('./pages/Support'));
 import Login from './pages/Login';
+import SsoCallback from './pages/SsoCallback';
 const Signup = lazy(() => import('./pages/Signup'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const Payslips = lazy(() => import('./pages/Payslips'));
@@ -106,6 +107,7 @@ function App() {
       <Routes>
         {/* Auth Routes */}
         <Route path="/login" element={<Login onLogin={handleLogin} />} />
+        <Route path="/sso/callback" element={<SsoCallback onLogin={handleLogin} />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
 

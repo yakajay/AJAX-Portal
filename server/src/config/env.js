@@ -48,6 +48,17 @@ export const env = {
     digestHour: parseInt(process.env.DIGEST_HOUR || '8'),
     contractAlertDays: parseInt(process.env.CONTRACT_ALERT_DAYS || '30')
   },
+  // Single sign-on via any OpenID Connect provider (Microsoft Entra ID, Google Workspace, Okta, ...)
+  sso: {
+    issuer: (process.env.SSO_ISSUER || '').replace(/\/+$/, ''),
+    clientId: process.env.SSO_CLIENT_ID || '',
+    clientSecret: process.env.SSO_CLIENT_SECRET || '',
+    // Where the IdP sends the user back; must match the redirect URI registered with the IdP
+    redirectUri: process.env.SSO_REDIRECT_URI || `http://localhost:${process.env.PORT || 5000}/api/auth/sso/callback`,
+    providerName: process.env.SSO_PROVIDER_NAME || 'company account',
+    allowedDomains: (process.env.SSO_ALLOWED_DOMAINS || '').split(',').map((s) => s.trim().toLowerCase().replace(/^@/, '')).filter(Boolean),
+    autoProvision: process.env.SSO_AUTO_PROVISION !== 'false'
+  },
   otpTtlMinutes: parseInt(process.env.OTP_TTL_MINUTES || '10'),
   otpMaxAttempts: 5,
   otpResendSeconds: 60,

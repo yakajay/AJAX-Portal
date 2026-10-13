@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as auth from '../controllers/auth.controller.js';
+import * as sso from '../controllers/sso.controller.js';
 import { authenticate } from '../middleware/auth.js';
 import { rateLimit } from '../middleware/rateLimit.js';
 
@@ -7,6 +8,10 @@ const router = Router();
 
 // Public endpoints: throttled per IP
 const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 40 });
+
+router.get('/sso/config', sso.config);
+router.get('/sso/start', limiter, sso.start);
+router.get('/sso/callback', limiter, sso.callback);
 
 router.post('/register', limiter, auth.register);
 router.post('/verify-email', limiter, auth.verifyEmail);

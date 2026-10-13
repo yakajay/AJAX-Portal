@@ -14,7 +14,7 @@ React + Vite client (`client/`) and Express + MongoDB API (`server/`).
 | **People processes** | Onboarding / offboarding checklists with acknowledgements, performance review cycles (self + manager rating), goals with key results, expense claims with approval and reimbursement. |
 | **Support** | Tickets with priority, SLA timers, assignment, a comment thread, and a staff queue. |
 | **Outsourcing** | Contract start/end dates with expiry alerts, weekly timesheets, invoices (with overdue detection). |
-| **Security** | Short-lived access tokens + rotating refresh tokens, device list and "sign out everywhere", authenticator-app (TOTP) 2FA next to the emailed code, per-module admin permissions, and a Super-Admin audit log. |
+| **Security** | Short-lived access tokens + rotating refresh tokens, device list and "sign out everywhere", authenticator-app (TOTP) 2FA next to the emailed code, optional company single sign-on (OpenID Connect: Microsoft Entra ID, Google Workspace, Okta; see `SSO_*` in `server/.env.example`), per-module admin permissions, and a Super-Admin audit log. |
 | **UX** | `Ctrl/Cmd+K` command palette, dashboard charts, English / Hindi / Spanish shell, dark mode, mobile-friendly layout. |
 
 Not included: file uploads / storage (receipts and ticket attachments take a reference or link instead; HR documents stay metadata-only).

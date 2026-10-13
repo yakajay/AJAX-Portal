@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock } from 'lucide-react';
 import { apiFetch, readError, setSession } from '../lib/api';
+import { API_BASE_URL } from '../config';
 import OtpForm from '../components/auth/OtpForm';
 
 type Step = 'credentials' | 'login-otp' | 'login-totp' | 'verify-email';
@@ -12,7 +13,15 @@ const Login = ({ onLogin }) => {
   const [step, setStep] = useState<Step>('credentials');
   const [notice, setNotice] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [sso, setSso] = useState<{ enabled: boolean; providerName: string } | null>(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    apiFetch('/auth/sso/config')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((cfg) => cfg?.enabled && setSso(cfg))
+      .catch(() => undefined);
+  }, []);
 
   const handleCredentials = async (e) => {
     e.preventDefault();
@@ -184,6 +193,17 @@ const Login = ({ onLogin }) => {
               </button>
             </div>
           </form>
+          )}
+
+          {sso && step === 'credentials' && (
+            <div className="mt-6">
+              <a
+                href={`${API_BASE_URL}/auth/sso/start`}
+                className="w-full flex justify-center py-3 px-4 border border-slate-300 rounded-xl text-sm font-bold text-slate-700 bg-white hover:bg-slate-50 transition-all"
+              >
+                Sign in with {sso.providerName}
+              </a>
+            </div>
           )}
 
           <div className="mt-6">
