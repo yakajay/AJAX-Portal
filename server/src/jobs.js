@@ -6,6 +6,7 @@ import { sendMail } from './utils/mailer.js';
 import { addDays, isoDate } from './utils/dates.js';
 import { logger } from './utils/logger.js';
 import { env } from './config/env.js';
+import { forEachActiveCompany } from './utils/tenants.js';
 
 // Alerts admins once per contractor/end-date when a contract is within the alert window
 export const contractAlerts = async (now = new Date()) => {
@@ -48,15 +49,20 @@ export const sendDigests = async () => {
   return sent;
 };
 
+// Both jobs work on one company at a time; these run them for every active company
+const sum = (counts) => counts.reduce((a, b) => a + b, 0);
+export const contractAlertsAllCompanies = async (now) => sum(await forEachActiveCompany(() => contractAlerts(now)));
+export const sendDigestsAllCompanies = async () => sum(await forEachActiveCompany(() => sendDigests()));
+
 let lastDigestDay = null;
 
 // Runs hourly; the digest goes out once a day at DIGEST_HOUR (server time)
 export const runScheduled = async (now = new Date()) => {
-  const results = { contractAlerts: await contractAlerts(now), digests: 0 };
+  const results = { contractAlerts: await contractAlertsAllCompanies(now), digests: 0 };
   const day = isoDate(now);
   if (now.getHours() === env.jobs.digestHour && lastDigestDay !== day) {
     lastDigestDay = day;
-    results.digests = await sendDigests();
+    results.digests = await sendDigestsAllCompanies();
   }
   return results;
 };

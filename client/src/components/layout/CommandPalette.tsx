@@ -4,6 +4,7 @@ import { Search, User as UserIcon, Moon, LogOut, CalendarPlus, LogIn } from 'luc
 import type { User } from '../../types';
 import { apiJson } from '../../lib/api';
 import { visibleNav } from '../../lib/nav';
+import { useWorkspace } from '../../lib/workspace';
 import { useI18n } from '../../lib/i18n';
 import { useTheme } from '../../lib/theme';
 
@@ -28,6 +29,7 @@ const CommandPalette = ({ open, onClose, user, onLogout }: { open: boolean; onCl
   const navigate = useNavigate();
   const { t } = useI18n();
   const { toggle: toggleTheme } = useTheme();
+  const { workspace } = useWorkspace();
 
   useEffect(() => {
     if (!open) return;
@@ -40,7 +42,7 @@ const CommandPalette = ({ open, onClose, user, onLogout }: { open: boolean; onCl
 
   const entries = useMemo<Entry[]>(() => {
     const go = (path: string) => () => navigate(path);
-    const pages: Entry[] = visibleNav(user).map((item) => ({
+    const pages: Entry[] = visibleNav(user, workspace?.modules).map((item) => ({
       id: `page:${item.path}`, group: 'palette.pages', label: t(item.label), hint: item.path,
       haystack: `${t(item.label)} ${item.keywords ?? ''}`.toLowerCase(), icon: item.icon, run: go(item.path)
     }));
@@ -56,7 +58,7 @@ const CommandPalette = ({ open, onClose, user, onLogout }: { open: boolean; onCl
       run: () => navigate(`/directory?q=${encodeURIComponent(p.name)}`)
     }));
     return [...pages, ...actions, ...folks];
-  }, [user, people, navigate, t, toggleTheme, onLogout]);
+  }, [user, workspace, people, navigate, t, toggleTheme, onLogout]);
 
   const results = useMemo(() => {
     const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);

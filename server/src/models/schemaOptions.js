@@ -1,16 +1,23 @@
 import mongoose from 'mongoose';
+import { tenantPlugin } from '../plugins/tenant.js';
+
+// Must run before any model is compiled; every model imports this file first
+mongoose.plugin(tenantPlugin);
 
 export const isValidId = (id) => mongoose.isValidObjectId(id);
 
 // Keeps the JSON shape the client expects: `id` (string) instead of `_id`, no `__v`,
 // and populated virtuals (e.g. `user`, `manager`) included.
-export const schemaOptions = (extraTransform) => ({
+// `getters` is on for models with encrypted fields so JSON output carries the decrypted values
+export const schemaOptions = (extraTransform, { getters = false } = {}) => ({
   timestamps: true,
   toJSON: {
     virtuals: true,
+    getters,
     versionKey: false,
     transform: (doc, ret) => {
       delete ret._id;
+      delete ret.companyId; // tenancy is internal; clients never need it
       extraTransform?.(ret);
       return ret;
     }

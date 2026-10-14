@@ -1,0 +1,24 @@
+// Importing this registers every model (scripts that work across collections need the full set)
+import './announcement.model.js';
+import './attendance.model.js';
+import './auditLog.model.js';
+import './checklist.model.js';
+import './company.model.js';
+import './contractor.model.js';
+import './deleteRequest.model.js';
+import './department.model.js';
+import './document.model.js';
+import './expense.model.js';
+import './holiday.model.js';
+import './leave.model.js';
+import './notification.model.js';
+import './otp.model.js';
+import './performance.model.js';
+import './salary.model.js';
+import './samlRequest.model.js';
+import './session.model.js';
+import './supportAccess.model.js';
+import './ticket.model.js';
+import './timesheet.model.js';
+import './transaction.model.js';
+import './user.model.js';

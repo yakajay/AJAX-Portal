@@ -4,6 +4,7 @@ export const notFound = (req, res) => {
 
 // Express 5 forwards rejected promises from async handlers here
 export const errorHandler = (err, req, res, next) => {
+  if (err.name === 'ServiceError') return res.status(err.status).json({ message: err.message });
   if (err.name === 'DocumentNotFoundError') return res.status(404).json({ message: 'Record not found.' });
   if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid id or value.' });
   if (err.name === 'ValidationError') return res.status(400).json({ message: err.message });

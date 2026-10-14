@@ -58,14 +58,6 @@ export const update = async (req, res) => {
   res.json(await a.populate(withAuthor));
 };
 
-export const remove = async (req, res) => {
-  const a = mongoose.isValidObjectId(req.params.id) ? await Announcement.findById(req.params.id) : null;
-  if (!a) return res.status(404).json({ message: 'Announcement not found.' });
-  await a.deleteOne();
-  await audit(req, { action: 'announcement.delete', entity: 'announcement', entityId: a.id, summary: `Deleted announcement "${a.title}"` });
-  res.json({ message: 'Announcement deleted.' });
-};
-
 // Days from `today` until the next occurrence of the month/day in `iso` (0 = today); null if invalid
 export const daysUntilNext = (iso, today = new Date()) => {
   if (!iso) return null;

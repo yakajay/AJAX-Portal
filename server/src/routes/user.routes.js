@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth.js';
+import { requireModule } from '../middleware/tenant.js';
 import * as profile from '../controllers/user/profile.controller.js';
 import * as security from '../controllers/user/security.controller.js';
 import * as attendance from '../controllers/user/attendance.controller.js';
@@ -22,6 +23,8 @@ router.use(authenticate);
 
 router.get('/profile', profile.getProfile);
 router.put('/profile', profile.updateProfile);
+router.get('/profile/sensitive', profile.getSensitive);
+router.put('/profile/sensitive', profile.updateSensitive);
 router.put('/preferences', profile.updatePreferences);
 router.put('/password', profile.changePassword);
 
@@ -32,6 +35,18 @@ router.delete('/sessions/:id', security.endSession);
 router.post('/2fa/setup', security.setupTotp);
 router.post('/2fa/enable', security.enableTotp);
 router.post('/2fa/disable', security.disableTotp);
+
+// A company only gets the modules its plan includes (the admin routes check the same list)
+router.use('/attendance', requireModule('attendance'));
+router.use('/leaves', requireModule('leave'));
+router.use(['/documents', '/holidays'], requireModule('hr'));
+router.use('/payslips', requireModule('payroll'));
+router.use('/support', requireModule('support'));
+router.use(['/performance', '/goals'], requireModule('performance'));
+router.use('/expenses', requireModule('expenses'));
+router.use('/checklists', requireModule('onboarding'));
+router.use('/announcements', requireModule('announcements'));
+router.use(['/departments', '/org-chart'], requireModule('org'));
 
 router.get('/dashboard', dashboard.stats);
 router.get('/feed', announcements.feed);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserPlus, Shield, User, Lock, X, Check, Search, Trash2, Key, Unlock, AlertCircle } from 'lucide-react';
-import { apiFetch, readError } from '../lib/api';
+import { apiFetch, readError, requestDelete } from '../lib/api';
 import PermissionEditor from '../components/admin/PermissionEditor';
 
 const UserModal = ({ isOpen, onClose, onSave, editingUser }) => {
@@ -225,16 +225,10 @@ const UserManagement = () => {
   };
 
   const handleDelete = (id, name) => {
-    if (window.confirm(`Are you sure you want to delete user "${name}"?`)) {
-      apiFetch(`/admin/users/${id}`, {
-        method: 'DELETE',
-      })
-      .then(res => {
-        if (!res.ok) throw new Error('Failed to delete user');
-        setUsers(users.filter(u => u.id !== id));
-        alert(`User "${name}" has been deleted.`);
-      })
-      .catch(err => alert(err.message));
+    if (window.confirm(`Request deletion of "${name}"? The platform's Super Admin has to approve it before anything is removed.`)) {
+      requestDelete(`/admin/users/${id}`)
+        .then((message) => alert(message))
+        .catch((err) => alert(err.message));
     }
   };
 

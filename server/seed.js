@@ -14,6 +14,10 @@ import { ReviewCycle, Review, Goal } from './src/models/performance.model.js';
 import { Expense } from './src/models/expense.model.js';
 import { ChecklistTemplate } from './src/models/checklist.model.js';
 import { Timesheet, Invoice } from './src/models/timesheet.model.js';
+import { Company } from './src/models/company.model.js';
+import { createCompany } from './src/services/company.service.js';
+import { loadCompanyKey } from './src/utils/tenants.js';
+import { runAsTenant, runAsPlatform } from './src/utils/tenantContext.js';
 import { hashPassword } from './src/utils/password.js';
 import { computePayslip } from './src/utils/payroll.js';
 import { workingDays, monthBounds } from './src/utils/dates.js';
@@ -22,6 +26,10 @@ import { workingDays, monthBounds } from './src/utils/dates.js';
 // Change them (or don't seed) before using the data anywhere real.
 const ADMIN_PASSWORD = 'Admin@123';
 const USER_PASSWORD = 'Welcome@123';
+const PLATFORM_EMAIL = 'platform@yakflow.local';
+const PLATFORM_PASSWORD = 'Platform@123';
+// The sample company lives at <slug>.<BASE_DOMAIN> (e.g. demo.localhost); the sample users below belong to it
+const COMPANY_SLUG = (process.env.SEED_COMPANY_SLUG || 'demo').toLowerCase();
 
 // Birthdays / anniversaries are set relative to today so the dashboard feed always has something to show
 const inDays = (n, year) => {
@@ -74,6 +82,29 @@ const seedIfEmpty = async (Model, label, docs) => {
 async function main() {
   await connectDB();
   console.log('Seeding database...');
+
+  let company = await Company.findOne({ slug: COMPANY_SLUG });
+  if (company) await loadCompanyKey(company.id);
+  else company = await createCompany({ name: 'Demo Company', slug: COMPANY_SLUG, plan: 'enterprise', seatLimit: 500, primaryContact: { name: 'Super Admin', email: 'admin@organization.com' } });
+  company.settings.allowSelfSignup = true; // lets you try the signup screen locally
+  await company.save();
+  console.log(`  company: ${company.name} (${company.slug})`);
+
+  // The platform's own Super Admin lives outside every company
+  await runAsPlatform(() =>
+    User.findOneAndUpdate(
+      { email: PLATFORM_EMAIL },
+      { $set: { name: 'Platform Super Admin', role: 'PLATFORM_ADMIN', permissions: 'read,write,delete', department: 'Platform', emailVerified: true, locked: false, password: hashPassword(PLATFORM_PASSWORD) } },
+      { upsert: true, setDefaultsOnInsert: true }
+    )
+  );
+  console.log(`  platform admin: ${PLATFORM_EMAIL}`);
+
+  await runAsTenant(company._id, seedCompany);
+  console.log('Seed completed successfully!');
+}
+
+async function seedCompany() {
 
   for (const { password, manager, ...profile } of users) {
     await User.findOneAndUpdate(
@@ -212,7 +243,6 @@ async function main() {
     console.log('  contractor timesheets & invoice added');
   }
 
-  console.log('Seed completed successfully!');
 }
 
 main()

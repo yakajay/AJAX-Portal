@@ -24,6 +24,11 @@ const Announcements = lazy(() => import('./pages/Announcements'));
 const Notifications = lazy(() => import('./pages/Notifications'));
 const Preferences = lazy(() => import('./pages/Preferences'));
 const AuditLog = lazy(() => import('./pages/AuditLog'));
+const CompanySettings = lazy(() => import('./pages/CompanySettings'));
+const DeleteRequests = lazy(() => import('./pages/DeleteRequests'));
+const Companies = lazy(() => import('./pages/platform/Companies'));
+const PlatformRequests = lazy(() => import('./pages/platform/PlatformRequests'));
+const PlatformAudit = lazy(() => import('./pages/platform/PlatformAudit'));
 import type { User } from './types';
 import { getToken, setSession, clearToken, apiFetch, UNAUTHORIZED_EVENT } from './lib/api';
 import { I18nProvider } from './lib/i18n';
@@ -99,6 +104,8 @@ function App() {
   }, [user, handleLogout]);
 
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
+  // The platform owner's account manages companies and has no workspace of its own
+  const isPlatform = user?.role === 'PLATFORM_ADMIN';
 
   return (
     <I18nProvider initial={user?.preferences?.language}>
@@ -117,6 +124,16 @@ function App() {
           element={
             user ? (
               <Layout user={user} onLogout={handleLogout}>
+                {isPlatform ? (
+                <Routes>
+                  <Route path="/platform" element={<Companies />} />
+                  <Route path="/platform/requests" element={<PlatformRequests />} />
+                  <Route path="/platform/audit" element={<PlatformAudit />} />
+                  <Route path="/profile" element={<Profile user={user} onUserUpdate={handleUserUpdate} />} />
+                  <Route path="/preferences" element={<Preferences user={user} onUserUpdate={handleUserUpdate} onLogout={handleLogout} />} />
+                  <Route path="*" element={<Navigate to="/platform" replace />} />
+                </Routes>
+                ) : (
                 <Routes>
                   <Route path="/" element={<Dashboard user={user} />} />
                   <Route path="/outsourcing" element={isAdmin ? <Outsourcing user={user} /> : <Navigate to="/" replace />} />
@@ -135,9 +152,12 @@ function App() {
                   <Route path="/notifications" element={<Notifications />} />
                   <Route path="/preferences" element={<Preferences user={user} onUserUpdate={handleUserUpdate} onLogout={handleLogout} />} />
                   <Route path="/audit" element={user.role === 'SUPER_ADMIN' ? <AuditLog /> : <Navigate to="/" replace />} />
+                  <Route path="/company" element={user.role === 'SUPER_ADMIN' ? <CompanySettings /> : <Navigate to="/" replace />} />
+                  <Route path="/delete-requests" element={isAdmin ? <DeleteRequests user={user} /> : <Navigate to="/" replace />} />
                   <Route path="/settings" element={user.role === 'SUPER_ADMIN' ? <UserManagement /> : <Navigate to="/" replace />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
+                )}
               </Layout>
             ) : (
               <Navigate to="/login" />

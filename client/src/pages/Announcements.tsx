@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Megaphone, Pin, Plus, Pencil, Trash2 } from 'lucide-react';
 import type { User } from '../types';
-import { apiJson, apiSend } from '../lib/api';
+import { apiJson, apiSend, requestDelete } from '../lib/api';
 import { can } from '../lib/permissions';
 import { formatDateTime, errorMessage } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
@@ -52,9 +52,9 @@ const Announcements = ({ user }: { user: User | null }) => {
   };
 
   const remove = async (a: AnnouncementRecord) => {
-    if (!window.confirm(`Delete "${a.title}"?`)) return;
+    if (!window.confirm(`Request deletion of "${a.title}"? The platform's Super Admin has to approve it.`)) return;
     try {
-      await apiSend('DELETE', `/admin/announcements/${a.id}`);
+      alert(await requestDelete(`/admin/announcements/${a.id}`));
       await reload();
     } catch (err) {
       alert(errorMessage(err));

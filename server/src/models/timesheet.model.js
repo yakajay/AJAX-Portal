@@ -17,7 +17,7 @@ export const Timesheet = mongoose.model('Timesheet', timesheetSchema);
 const invoiceSchema = new mongoose.Schema(
   {
     contractorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Contractor', required: true, index: true },
-    number: { type: String, required: true, unique: true, trim: true },
+    number: { type: String, required: true, trim: true },
     amount: { type: Number, required: true, min: 0.01 },
     currency: { type: String, default: 'INR' },
     issueDate: { type: String, required: true },
@@ -28,6 +28,7 @@ const invoiceSchema = new mongoose.Schema(
   },
   schemaOptions()
 );
+invoiceSchema.index({ companyId: 1, number: 1 }, { unique: true });
 invoiceSchema.virtual('contractor', { ref: 'Contractor', localField: 'contractorId', foreignField: '_id', justOne: true });
 // A sent invoice past its due date is shown as Overdue
 invoiceSchema.virtual('displayStatus').get(function () {

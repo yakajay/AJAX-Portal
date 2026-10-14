@@ -4,6 +4,8 @@ import authRoutes from './auth.routes.js';
 import userRoutes from './user.routes.js';
 import adminRoutes from './admin.routes.js';
 import docsRoutes from './docs.routes.js';
+import platformRoutes from './platform.routes.js';
+import { resolveTenant, requireTenantHost, requirePlatformHost } from '../middleware/tenant.js';
 import { renderMetrics } from '../utils/metrics.js';
 import { env } from '../config/env.js';
 
@@ -28,8 +30,10 @@ router.get('/metrics', (req, res) => {
 });
 
 router.use('/', docsRoutes);        // /docs (Swagger UI) and /openapi.json
-router.use('/auth', authRoutes);    // public (login, OTP, register, reset)
-router.use('/user', userRoutes);    // any authenticated role, own data only
-router.use('/admin', adminRoutes);  // ADMIN / SUPER_ADMIN
+// Every route below runs inside a tenant scope chosen from the Host header (see middleware/tenant.js)
+router.use('/auth', resolveTenant, authRoutes);    // public (login, OTP, register, reset)
+router.use('/user', resolveTenant, userRoutes);    // any authenticated role, own data only
+router.use('/admin', resolveTenant, requireTenantHost, adminRoutes);  // company ADMIN / SUPER_ADMIN
+router.use('/platform', resolveTenant, requirePlatformHost, platformRoutes);  // platform Super Admin
 
 export default router;

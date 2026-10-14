@@ -1,6 +1,9 @@
 import mongoose from 'mongoose';
 import { schemaOptions, isValidId } from './schemaOptions.js';
-import { ALL_ROLES } from '../utils/format.js';
+import { encrypted } from './encryptedField.js';
+import { PLATFORM_ROLE } from '../utils/format.js';
+import { tenantStore } from '../utils/tenantContext.js';
+import { ROLES } from '../utils/format.js';
 import { Attendance } from './attendance.model.js';
 import { HRDocument } from './document.model.js';
 import { LeaveRequest } from './leave.model.js';
@@ -15,10 +18,10 @@ import { Department } from './department.model.js';
 
 const userSchema = new mongoose.Schema(
   {
-    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    email: { type: String, required: true, lowercase: true, trim: true }, // unique per company (see index below)
     name: { type: String, required: true, trim: true },
     department: { type: String, default: 'Engineering' },
-    role: { type: String, enum: ALL_ROLES, default: 'USER' },
+    role: { type: String, enum: ROLES, default: 'USER' },
     permissions: { type: String, default: 'read' }, // comma separated: read,write,delete
     locked: { type: Boolean, default: false },
     emailVerified: { type: Boolean, default: true },
@@ -31,6 +34,15 @@ const userSchema = new mongoose.Schema(
       language: { type: String, default: 'en' },
       emailNotifications: { type: Boolean, default: true },
       emailDigest: { type: Boolean, default: false }
+    },
+    // Sensitive personal data, sealed with the company's key. Not part of the normal user JSON: it is
+    // only exposed by the dedicated sensitive-data endpoints, and masked for the platform's Super Admin.
+    sensitive: {
+      bankName: encrypted(),
+      bankAccount: encrypted(),
+      bankIfsc: encrypted(),
+      governmentId: encrypted(),
+      taxId: encrypted()
     },
     // Authenticator-app 2FA. The secret is stripped from every JSON response (see the transform below).
     totp: {
@@ -47,6 +59,18 @@ const userSchema = new mongoose.Schema(
     delete ret.totp;
   })
 );
+
+// The same email can exist in different companies; within one it is unique
+userSchema.index({ companyId: 1, email: 1 }, { unique: true });
+
+// Platform staff live outside every company; company users can never hold the platform role
+userSchema.pre('validate', function checkPlatformRole() {
+  if (!this.isNew) return;
+  const scope = tenantStore()?.scope;
+  const inCompany = !!this.companyId || scope === 'tenant';
+  if (this.role === PLATFORM_ROLE && inCompany) throw new Error('The platform role cannot belong to a company.');
+  if (scope === 'platform' && this.role !== PLATFORM_ROLE) throw new Error('Only platform accounts exist outside a company.');
+});
 
 userSchema.virtual('manager', { ref: 'User', localField: 'managerId', foreignField: '_id', justOne: true });
 

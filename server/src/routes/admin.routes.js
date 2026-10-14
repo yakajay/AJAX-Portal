@@ -14,9 +14,13 @@ import * as announcements from '../controllers/announcement.controller.js';
 import * as performance from '../controllers/performance.controller.js';
 import * as expenses from '../controllers/expense.controller.js';
 import * as checklists from '../controllers/checklist.controller.js';
+import * as company from '../controllers/admin/company.controller.js';
+import * as sensitive from '../controllers/admin/sensitive.controller.js';
 
 // ADMIN and SUPER_ADMIN only. Each route also checks a per-module permission (see utils/permissions.js).
 // Account-level rules (e.g. only a Super Admin can manage admins) are enforced inside the user controller.
+// Company admins never delete directly: every DELETE route files a request for the platform Super Admin to
+// approve or reject (see controllers/admin/company.controller.js and the platform delete-request routes).
 const router = Router();
 router.use(authenticate, requireAdmin);
 
@@ -28,7 +32,9 @@ router.post('/users', can('users').write, users.create);
 router.put('/users/:id', can('users').write, users.update);
 router.patch('/users/:id/lock', can('users').write, users.setLock);
 router.post('/users/:id/reset-password', can('users').write, users.resetPassword);
-router.delete('/users/:id', can('users').delete, users.remove);
+router.get('/users/:id/sensitive', can('users').write, sensitive.read);
+router.put('/users/:id/sensitive', can('users').write, sensitive.update);
+router.delete('/users/:id', can('users').delete, company.deleteViaRequest('user'));
 
 router.get('/leaves', can('leave').read, leaves.listAll);
 router.put('/leaves/:id', can('leave').write, leaves.setStatus);
@@ -67,12 +73,12 @@ router.post('/support/tickets/:id/comments', can('support').write, support.addCo
 
 router.post('/departments', can('org').write, org.createDepartment);
 router.put('/departments/:id', can('org').write, org.updateDepartment);
-router.delete('/departments/:id', can('org').delete, org.deleteDepartment);
+router.delete('/departments/:id', can('org').delete, company.deleteViaRequest('department'));
 
 router.get('/announcements', can('announcements').read, announcements.listAll);
 router.post('/announcements', can('announcements').write, announcements.create);
 router.put('/announcements/:id', can('announcements').write, announcements.update);
-router.delete('/announcements/:id', can('announcements').delete, announcements.remove);
+router.delete('/announcements/:id', can('announcements').delete, company.deleteViaRequest('announcement'));
 
 router.get('/performance/cycles', can('performance').read, performance.listCycles);
 router.post('/performance/cycles', can('performance').write, performance.createCycle);
@@ -87,11 +93,24 @@ router.post('/expenses/:id/reimburse', can('expenses').write, expenses.reimburse
 router.get('/checklist-templates', can('onboarding').read, checklists.listTemplates);
 router.post('/checklist-templates', can('onboarding').write, checklists.createTemplate);
 router.put('/checklist-templates/:id', can('onboarding').write, checklists.updateTemplate);
-router.delete('/checklist-templates/:id', can('onboarding').delete, checklists.deleteTemplate);
+router.delete('/checklist-templates/:id', can('onboarding').delete, company.deleteViaRequest('checklistTemplate'));
 router.get('/checklists', can('onboarding').read, checklists.listAll);
 router.post('/checklists', can('onboarding').write, checklists.assign);
 router.put('/checklists/:id/tasks/:taskId', can('onboarding').write, checklists.completeTaskAsAdmin);
-router.delete('/checklists/:id', can('onboarding').delete, checklists.deleteChecklist);
+router.delete('/checklists/:id', can('onboarding').delete, company.deleteViaRequest('checklist'));
+
+// Company settings, single sign-on and support access: the company admin (SUPER_ADMIN) only
+router.get('/company', requireSuperAdmin, company.get);
+router.put('/company', requireSuperAdmin, company.update);
+router.get('/company/sso', requireSuperAdmin, company.getSso);
+router.put('/company/sso', requireSuperAdmin, company.updateSso);
+router.get('/support-access', requireSuperAdmin, company.listSupportAccess);
+router.post('/support-access', requireSuperAdmin, company.grantSupportAccess);
+router.post('/support-access/:id/revoke', requireSuperAdmin, company.revokeSupportAccess);
+
+// Any admin can see and raise delete requests; raising one needs delete permission on that module
+router.get('/delete-requests', company.listDeleteRequests);
+router.post('/delete-requests', company.createDeleteRequest);
 
 router.get('/audit', requireSuperAdmin, audit.list);
 

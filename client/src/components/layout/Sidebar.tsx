@@ -4,14 +4,16 @@ import type { User } from '../../types';
 import { visibleNav } from '../../lib/nav';
 import { useI18n } from '../../lib/i18n';
 import type { MessageKey } from '../../lib/locales';
+import { useWorkspace } from '../../lib/workspace';
 
-const GROUP_TITLES: Record<string, string | null> = { workspace: null, people: 'People & company', admin: 'Administration' };
+const GROUP_TITLES: Record<string, string | null> = { workspace: null, people: 'People & company', admin: 'Administration', platform: 'Super Admin console' };
 
 const Sidebar = ({ isOpen, toggleSidebar, user }: { isOpen: boolean; toggleSidebar: () => void; user: User | null }) => {
   const location = useLocation();
   const { t } = useI18n();
-  const items = visibleNav(user);
-  const groups = (['workspace', 'people', 'admin'] as const)
+  const { workspace } = useWorkspace();
+  const items = visibleNav(user, workspace?.modules);
+  const groups = (['workspace', 'people', 'admin', 'platform'] as const)
     .map((group) => ({ group, items: items.filter((i) => i.group === group) }))
     .filter((g) => g.items.length > 0);
 

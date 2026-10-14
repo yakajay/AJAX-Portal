@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { connectTestDb, disconnectTestDb } from './helpers/db.js';
-import { api, makeUser, makeAdmin, makeSuperAdmin } from './helpers/fixtures.js';
+import { api, makeUser, makeAdmin, makeSuperAdmin, inTenant } from './helpers/fixtures.js';
 import { outbox } from './helpers/setup.js';
 import { Notification } from '../src/models/notification.model.js';
 import { SupportTicket } from '../src/models/ticket.model.js';
@@ -57,7 +57,7 @@ describe('support tickets', () => {
   it('reports breached SLAs and supports the original { status } update', async () => {
     const admin = await makeAdmin();
     const me = await makeUser();
-    const t = await SupportTicket.create({ userId: me.user.id, subject: 'Old', message: 'm', priority: 'High', dueAt: new Date(Date.now() - 1000) });
+    const t = await inTenant(() => SupportTicket.create({ userId: me.user.id, subject: 'Old', message: 'm', priority: 'High', dueAt: new Date(Date.now() - 1000) }));
     const list = await api().get('/api/admin/support/tickets?priority=High').set(admin.auth).expect(200);
     expect(list.body.find((x) => x.id === t.id).slaState).toBe('Breached');
     await api().put(`/api/admin/support/tickets/${t.id}`).set(admin.auth).send({ status: 'Bogus' }).expect(400);
@@ -70,9 +70,9 @@ describe('notifications', () => {
   it('lists, marks read, marks all read and deletes - only for the owner', async () => {
     const me = await makeUser();
     const other = await makeUser();
-    await Notification.create([
+    await inTenant(() => Notification.create([
       { userId: me.user.id, type: 't', title: 'one' }, { userId: me.user.id, type: 't', title: 'two' }, { userId: other.user.id, type: 't', title: 'theirs' }
-    ]);
+    ]));
     const list = await api().get('/api/user/notifications').set(me.auth).expect(200);
     expect(list.body).toMatchObject({ unread: 2 });
     expect(list.body.items).toHaveLength(2);
@@ -92,8 +92,8 @@ describe('notifications', () => {
     const optedIn = await makeUser();
     const optedOut = await makeUser();
     await api().put('/api/user/preferences').set(optedIn.auth).send({ emailDigest: true }).expect(200);
-    await Notification.create([{ userId: optedIn.user.id, type: 't', title: 'Digest me' }, { userId: optedOut.user.id, type: 't', title: 'Not me' }]);
-    const sent = await sendDigests();
+    await inTenant(() => Notification.create([{ userId: optedIn.user.id, type: 't', title: 'Digest me' }, { userId: optedOut.user.id, type: 't', title: 'Not me' }]));
+    const sent = await inTenant(() => sendDigests());
     expect(sent).toBeGreaterThanOrEqual(1);
     const mails = outbox.filter((m) => m.to === optedIn.user.email);
     expect(mails).toHaveLength(1);
@@ -130,7 +130,8 @@ describe('org structure and announcements', () => {
     expect(list.body.find((d) => d.name === 'Research').memberCount).toBe(1);
     const sa = await makeSuperAdmin();
     await api().delete(`/api/admin/departments/${dept.body.id}`).set(admin.auth).expect(403); // admins lack delete
-    await api().delete(`/api/admin/departments/${dept.body.id}`).set(sa.auth).expect(409); // still has members
+    // Deleting needs the platform's approval: the call files a request instead (the members check runs on approval)
+    await api().delete(`/api/admin/departments/${dept.body.id}`).set(sa.auth).expect(202);
 
     const renamed = await api().put(`/api/admin/departments/${dept.body.id}`).set(admin.auth).send({ name: 'R and D' }).expect(200);
     expect(renamed.body.name).toBe('R and D');
@@ -146,7 +147,7 @@ describe('org structure and announcements', () => {
     const a = await makeUser({ name: 'LoopA' });
     const b = await makeUser({ name: 'LoopB', managerId: a.user.id });
     const { User } = await import('../src/models/user.model.js');
-    await User.updateOne({ _id: a.user.id }, { managerId: b.user.id }); // a <-> b
+    await inTenant(() => User.updateOne({ _id: a.user.id }, { managerId: b.user.id })); // a <-> b
     const res = await api().get('/api/user/org-chart').set(a.auth).expect(200);
     expect(Array.isArray(res.body)).toBe(true);
   });
@@ -174,7 +175,8 @@ describe('org structure and announcements', () => {
     await api().put(`/api/admin/announcements/${post.body.id}`).set(admin.auth).send({ pinned: false }).expect(200);
     await api().delete(`/api/admin/announcements/${post.body.id}`).set(admin.auth).expect(403); // needs delete permission
     const sa = await makeSuperAdmin();
-    await api().delete(`/api/admin/announcements/${post.body.id}`).set(sa.auth).expect(200);
+    await api().delete(`/api/admin/announcements/${post.body.id}`).set(sa.auth).expect(202); // files a delete request
+    expect((await api().get('/api/user/announcements').set(me.auth)).body.map((a) => a.title)).toContain('Office closed Friday');
   });
 
   it('feeds upcoming birthdays and anniversaries without revealing birth years', async () => {
@@ -272,7 +274,7 @@ describe('expenses', () => {
 
     const paid = await api().post(`/api/admin/expenses/${created.body.id}/reimburse`).set(admin.auth).expect(200);
     expect(paid.body.status).toBe('Reimbursed');
-    const tx = await Transaction.findOne({ method: 'Expense Reimbursement', recipient: me.user.name });
+    const tx = await inTenant(() => Transaction.findOne({ method: 'Expense Reimbursement', recipient: me.user.name }));
     expect(tx.amount).toBe('₹45.50');
     expect((await api().get('/api/user/expenses').set(me.auth)).body[0].status).toBe('Reimbursed');
   });
@@ -347,8 +349,8 @@ describe('outsourcing: contracts, timesheets, invoices', () => {
     expect(alerts.body.expired.map((c) => c.name)).toContain('Lapsed');
     expect(alerts.body.expiring.map((c) => c.name)).not.toContain('Fine');
 
-    await contractAlerts();
-    await contractAlerts(); // deduplicated
+    await inTenant(() => contractAlerts());
+    await inTenant(() => contractAlerts()); // deduplicated
     const inbox = await api().get('/api/user/notifications').set(admin.auth).expect(200);
     expect(inbox.body.items.filter((n) => n.title === 'Contract ending soon: Ending Soon')).toHaveLength(1);
 
