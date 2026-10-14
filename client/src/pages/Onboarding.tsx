@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { CheckCircle2, Circle, Plus, Trash2, UserPlus } from 'lucide-react';
 import type { User } from '../types';
-import { apiJson, apiSend } from '../lib/api';
+import { apiJson, apiSend, requestDelete } from '../lib/api';
 import { can } from '../lib/permissions';
 import { errorMessage, formatDate } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
@@ -122,7 +122,7 @@ const Onboarding = ({ user }: { user: User | null }) => {
             <div key={l.id} className="relative">
               <ChecklistCard list={l} asAdmin={canWrite} onToggle={toggleAdmin(l)} />
               {can(user, 'onboarding', 'delete') && (
-                <button aria-label="Delete checklist" className="absolute top-4 right-4 p-1.5 text-slate-300 hover:text-rose-600" onClick={() => window.confirm('Delete this checklist?') && void guard(() => apiSend('DELETE', `/admin/checklists/${l.id}`))}><Trash2 size={14} /></button>
+                <button aria-label="Delete checklist" className="absolute top-4 right-4 p-1.5 text-slate-300 hover:text-rose-600" onClick={() => window.confirm('Request deletion of this checklist? The platform Super Admin has to approve it.') && void guard(async () => alert(await requestDelete(`/admin/checklists/${l.id}`)))}><Trash2 size={14} /></button>
               )}
             </div>
           ))}

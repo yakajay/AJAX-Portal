@@ -4,7 +4,9 @@
 #   cp server/.env.example server/.env     # fill in MONGODB_URI and JWT_SECRET
 #   docker compose up --build
 #
-# Web: http://localhost:5173    API: http://localhost:5000/api
+# Platform console: http://admin.localhost:5173    A company workspace: http://<slug>.localhost:5173
+# (set BASE_DOMAIN=localhost and PUBLIC_PORT=5173 in server/.env; browsers resolve *.localhost on their own)
+# API: http://localhost:5000/api
 
 services:
   api:
@@ -28,7 +30,8 @@ services:
       context: ./client
       args:
         # Baked into the bundle at build time: the URL the browser uses for the API
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:5000/api}
+        # Relative: nginx in the web container forwards /api to the API, keeping the company subdomain
+        VITE_API_URL: ${VITE_API_URL:-/api}
     ports:
       - "5173:80"
     depends_on:

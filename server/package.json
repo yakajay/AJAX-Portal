@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "seed": "node seed.js",
+    "remove-demo-data": "node scripts/remove-demo-data.js",
     "digest": "node scripts/run-jobs.js digest",
     "jobs": "node scripts/run-jobs.js all",
     "test": "vitest run",
@@ -20,6 +20,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@node-saml/node-saml": "^5.1.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",

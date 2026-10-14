@@ -13,9 +13,38 @@ if (!jwtSecret) {
   console.warn('[config] JWT_SECRET not set - using an ephemeral secret for this run.');
 }
 
+// Master key that wraps every company's data-encryption key (32 bytes, base64 or hex). Losing it makes
+// encrypted employee data unreadable, so keep it in a secret manager and back it up separately.
+const parseMasterKey = (raw) => {
+  if (!raw) return null;
+  const key = /^[0-9a-f]{64}$/i.test(raw) ? Buffer.from(raw, 'hex') : Buffer.from(raw, 'base64');
+  if (key.length !== 32) throw new Error('DATA_ENCRYPTION_KEY must be 32 bytes (64 hex characters or base64).');
+  return key;
+};
+let dataKey = parseMasterKey(process.env.DATA_ENCRYPTION_KEY);
+if (!dataKey) {
+  if (isProduction) throw new Error('DATA_ENCRYPTION_KEY must be set in production.');
+  // Dev/test fallback: stable across restarts so seeded data stays readable, but NOT secret
+  dataKey = crypto.createHash('sha256').update('yakflow-development-data-key').digest();
+  console.warn('[config] DATA_ENCRYPTION_KEY not set - using an insecure development key.');
+}
+
+const baseDomain = (process.env.BASE_DOMAIN || 'localhost').trim().toLowerCase();
+
 export const env = {
   isProduction,
   port: process.env.PORT || 5000,
+  // Multi-tenancy: company workspaces live at <slug>.<baseDomain>; the platform console at <platformSubdomain>.<baseDomain>
+  tenancy: {
+    baseDomain,
+    platformSubdomain: (process.env.PLATFORM_SUBDOMAIN || 'admin').trim().toLowerCase(),
+    // Public URL parts, used to show admins the redirect URIs to register with their identity provider
+    publicScheme: process.env.PUBLIC_SCHEME || (isProduction ? 'https' : 'http'),
+    publicPort: process.env.PUBLIC_PORT || '',
+    // Single-company installs without wildcard DNS: any host that is not under baseDomain serves this company
+    defaultTenantSlug: (process.env.DEFAULT_TENANT_SLUG || '').trim().toLowerCase()
+  },
+  dataEncryptionKey: dataKey,
   clientOrigin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
   mongo: {
     uri: process.env.MONGODB_URI,
@@ -47,6 +76,12 @@ export const env = {
     enabled: process.env.JOBS_ENABLED !== 'false' && process.env.NODE_ENV !== 'test',
     digestHour: parseInt(process.env.DIGEST_HOUR || '8'),
     contractAlertDays: parseInt(process.env.CONTRACT_ALERT_DAYS || '30')
+  },
+  sso: {
+    // Identity providers are configured per company by its admins. Providers on private addresses are
+    // refused unless this is set (guards against server-side request forgery).
+    allowPrivateHosts: process.env.SSO_ALLOW_PRIVATE_HOSTS === 'true',
+    requestTimeoutMs: parseInt(process.env.SSO_TIMEOUT_MS || '10000')
   },
   otpTtlMinutes: parseInt(process.env.OTP_TTL_MINUTES || '10'),
   otpMaxAttempts: 5,

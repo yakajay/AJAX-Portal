@@ -1,6 +1,7 @@
 import authRoutes from '../routes/auth.routes.js';
 import userRoutes from '../routes/user.routes.js';
 import adminRoutes from '../routes/admin.routes.js';
+import platformRoutes from '../routes/platform.routes.js';
 
 // The OpenAPI document is generated from the live Express routers, so it can never miss an endpoint.
 // Hand-written text lives in DESCRIPTIONS below; everything else is derived (method, path, auth,
@@ -8,7 +9,8 @@ import adminRoutes from '../routes/admin.routes.js';
 const MOUNTS = [
   { prefix: '/auth', router: authRoutes, access: 'public' },
   { prefix: '/user', router: userRoutes, access: 'user' },
-  { prefix: '/admin', router: adminRoutes, access: 'admin' }
+  { prefix: '/admin', router: adminRoutes, access: 'admin' },
+  { prefix: '/platform', router: platformRoutes, access: 'platform' }
 ];
 
 const DESCRIPTIONS = {
@@ -25,7 +27,12 @@ const DESCRIPTIONS = {
   'GET /user/payslips/{id}/pdf': 'Downloads one of your payslips as a PDF.',
   'GET /admin/attendance/report': 'Month report for all employees. Add `format=csv` for a spreadsheet export.',
   'POST /admin/payroll/run-monthly': 'Generates payslips for every employee with a salary structure (skips ones that already exist). Unpaid leave prorates pay.',
-  'GET /admin/audit': 'Super Admin only. Filterable, paginated audit trail.',
+  'GET /admin/audit': 'Company admin (SUPER_ADMIN) only. Filterable, paginated audit trail for the company, including actions the platform took on it.',
+  'GET /auth/workspace': 'Public. Who the request address belongs to (a company or the platform console), its enabled modules and whether single sign-on is available.',
+  'POST /auth/sso/saml/acs': 'SAML 2.0 assertion consumer service: the identity provider posts the signed response here.',
+  'DELETE /admin/users/{id}': 'Company admins cannot delete directly: this files a delete request (202, status Pending) for the platform Super Admin to approve or reject. The other admin DELETE routes behave the same way.',
+  'PATCH /platform/delete-requests/{id}': 'Approve (carries out the deletion) or reject (needs a note) a delete request raised by a company.',
+  'GET /platform/companies/{id}/employees': 'Employee list with sensitive fields (salary, bank details, government IDs) masked, unless the company admin granted temporary support access. Unmasked views are audited.',
   'POST /user/2fa/setup': 'Generates an authenticator secret and `otpauth://` URL. Not active until confirmed with `/user/2fa/enable`.',
   'PUT /user/team/leaves/{id}': 'Managers approve or reject leave requests from their direct reports.'
 };
@@ -79,9 +86,10 @@ export const buildOpenApi = () => {
   for (const r of collectRoutes()) {
     const key = `${r.method} ${r.path}`;
     const notes = [];
-    if (r.access === 'admin') notes.push('Requires an ADMIN or SUPER_ADMIN account.');
+    if (r.access === 'admin') notes.push('Requires an ADMIN or SUPER_ADMIN account of the company whose subdomain is used.');
+    if (r.access === 'platform') notes.push('Requires the platform Super Admin (PLATFORM_ADMIN), on the platform host (admin.<base domain>).');
     if (r.permission) notes.push(`Requires permission \`${r.permission.module ? `${r.permission.module}:` : ''}${r.permission.permission}\` (or the global \`${r.permission.permission}\` / \`all\`).`);
-    if (r.path === '/admin/audit') notes.push('SUPER_ADMIN only.');
+    if (r.path === '/admin/audit' || r.path.startsWith('/admin/company') || r.path.startsWith('/admin/support-access')) notes.push('Company admin (SUPER_ADMIN) only.');
     const description = [DESCRIPTIONS[key], ...notes].filter(Boolean).join('\n\n');
     const segment = r.path.split('/')[2] || r.path.split('/')[1];
 
@@ -106,7 +114,7 @@ export const buildOpenApi = () => {
     info: {
       title: 'YakFlow API',
       version: '2.0.0',
-      description: 'HR portal API. Sign in with `/auth/login` + `/auth/login/verify`, then send `Authorization: Bearer <token>`. Generated from the live route table.'
+      description: 'HR portal API. Sign in with `/auth/login` + `/auth/login/verify`, then send `Authorization: Bearer <token>`. Generated from the live route table. Multi-tenant: the company is chosen by the request host (<slug>.<base domain>); the Super Admin console lives at admin.<base domain>.'
     },
     servers: [{ url: '/api' }],
     components: { securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' } } },

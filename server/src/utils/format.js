@@ -12,3 +12,8 @@ export const normalizePermissions = (permissions) =>
 
 export const ADMIN_ROLES = ['ADMIN', 'SUPER_ADMIN'];
 export const ALL_ROLES = ['USER', ...ADMIN_ROLES];
+
+// The platform owner's staff (companyId null) manage companies; they never exist inside a company.
+// Inside a company, SUPER_ADMIN is the company admin: it manages the workspace, SSO and support access.
+export const PLATFORM_ROLE = 'PLATFORM_ADMIN';
+export const ROLES = [...ALL_ROLES, PLATFORM_ROLE];

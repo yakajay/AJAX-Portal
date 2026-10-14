@@ -4,6 +4,8 @@ import { sanitizeUser } from '../../utils/format.js';
 import { isValidIso } from '../../utils/dates.js';
 import { revokeAllSessions } from '../../utils/sessions.js';
 import { audit } from '../../utils/audit.js';
+import { User } from '../../models/user.model.js';
+import { readSensitive, buildSensitiveUpdate } from '../admin/sensitive.controller.js';
 
 export const getProfile = (req, res) => res.json(sanitizeUser(req.user));
 
@@ -25,6 +27,17 @@ export const updateProfile = async (req, res) => {
   if (!Object.keys(data).length) return res.status(400).json({ message: 'Nothing to update.' });
   const user = await userModel.update(req.user.id, data);
   res.json(sanitizeUser(user));
+};
+
+// Own bank details and government IDs (sealed with the company key; never part of the normal profile)
+export const getSensitive = async (req, res) => res.json(readSensitive(await User.findById(req.user.id)));
+
+export const updateSensitive = async (req, res) => {
+  const { set, error } = buildSensitiveUpdate(req.body ?? {});
+  if (error) return res.status(400).json({ message: error });
+  await User.updateOne({ _id: req.user.id }, { $set: set });
+  await audit(req, { action: 'sensitive.update', entity: 'user', entityId: req.user.id, summary: 'Updated own bank and ID details', meta: Object.keys(set).map((k) => k.split('.')[1]) });
+  res.json(readSensitive(await User.findById(req.user.id)));
 };
 
 const LANGUAGES = ['en', 'hi', 'es'];

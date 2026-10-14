@@ -6,6 +6,7 @@ import { findInvalidPermission } from '../../utils/permissions.js';
 import { isValidIso } from '../../utils/dates.js';
 import { revokeAllSessions } from '../../utils/sessions.js';
 import { audit } from '../../utils/audit.js';
+import { assertSeatAvailable } from '../../services/company.service.js';
 
 // SUPER_ADMIN manages everyone; ADMIN manages plain USER accounts (and cannot mint privileged roles)
 const canManage = (actor, target) => actor.role === 'SUPER_ADMIN' || target.role === 'USER';
@@ -53,6 +54,7 @@ export const create = async (req, res) => {
   const invalidToken = permissions !== undefined && findInvalidPermission(permissions);
   if (invalidToken) return res.status(400).json({ message: `Unknown permission "${invalidToken}".` });
 
+  await assertSeatAvailable(req.company);
   const user = await userModel.create({
     ...extra.data,
     email: String(email).trim().toLowerCase(),
@@ -120,16 +122,6 @@ export const setLock = async (req, res) => {
   if (locked) await revokeAllSessions(target.id);
   await audit(req, { action: locked ? 'user.lock' : 'user.unlock', entity: 'user', entityId: target.id, summary: `${locked ? 'Locked' : 'Unlocked'} ${target.email}` });
   res.json(sanitizeUser(updated));
-};
-
-export const remove = async (req, res) => {
-  const target = await loadTarget(req, res);
-  if (!target) return;
-  if (target.id === req.user.id) return forbidden(res, 'You cannot delete your own account.');
-  if (!canManage(req.user, target)) return forbidden(res);
-  const removed = await userModel.remove(target.id);
-  await audit(req, { action: 'user.delete', entity: 'user', entityId: target.id, summary: `Deleted account ${target.email}` });
-  res.json(sanitizeUser(removed));
 };
 
 // Issues a temporary password the admin hands to the employee

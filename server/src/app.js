@@ -21,6 +21,7 @@ app.use(cors({
   exposedHeaders: ['Content-Disposition', 'X-Request-Id']
 }));
 app.use(express.json({ limit: '100kb' }));
+app.use(express.urlencoded({ extended: false, limit: '100kb' })); // SAML responses are form posts
 
 app.use('/api', routes);
 app.use(notFound);

@@ -75,15 +75,3 @@ export const updateDepartment = async (req, res) => {
   await audit(req, { action: 'department.update', entity: 'department', entityId: department.id, summary: `Updated department ${department.name}` });
   res.json(await department.populate({ path: 'head', select: 'name email' }));
 };
-
-export const deleteDepartment = async (req, res) => {
-  const department = mongoose.isValidObjectId(req.params.id) ? await Department.findById(req.params.id) : null;
-  if (!department) return res.status(404).json({ message: 'Department not found.' });
-  const members = await User.countDocuments({ department: department.name });
-  if (members > 0) {
-    return res.status(409).json({ message: `${members} employee(s) still belong to this department. Move them first.` });
-  }
-  await department.deleteOne();
-  await audit(req, { action: 'department.delete', entity: 'department', entityId: department.id, summary: `Deleted department ${department.name}` });
-  res.json({ message: 'Department deleted.' });
-};

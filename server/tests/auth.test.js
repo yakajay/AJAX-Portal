@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { connectTestDb, disconnectTestDb } from './helpers/db.js';
-import { api, makeUser } from './helpers/fixtures.js';
+import { api, makeUser, inTenant } from './helpers/fixtures.js';
 import { outbox } from './helpers/setup.js';
 import { User } from '../src/models/user.model.js';
 import { Session } from '../src/models/session.model.js';
@@ -16,7 +16,7 @@ const lastCode = () => outbox.at(-1).text.match(/code is (\d{6})/)[1];
 
 const makeLoginUser = async (extra = {}) => {
   const email = `login${Math.random().toString(36).slice(2, 8)}@test.local`;
-  await User.create({ email, name: 'Login User', password: hashPassword('Password@1'), role: 'USER', ...extra });
+  await inTenant(() => User.create({ email, name: 'Login User', password: hashPassword('Password@1'), role: 'USER', ...extra }));
   return email;
 };
 
@@ -68,7 +68,7 @@ describe('refresh tokens and sessions', () => {
     const me = await makeUser();
     const other = await (async () => {
       const { startSession } = await import('../src/utils/sessions.js');
-      return startSession(me.user, { headers: { 'user-agent': 'phone' }, ip: '10.0.0.2' });
+      return inTenant(() => startSession(me.user, { headers: { 'user-agent': 'phone' }, ip: '10.0.0.2' }));
     })();
     const list = await api().get('/api/user/sessions').set(me.auth).expect(200);
     expect(list.body).toHaveLength(2);
@@ -86,7 +86,7 @@ describe('refresh tokens and sessions', () => {
   it("does not let one user end another user's session", async () => {
     const a = await makeUser();
     const b = await makeUser();
-    const bSession = await Session.findOne({ userId: b.user.id });
+    const bSession = await inTenant(() => Session.findOne({ userId: b.user.id }));
     await api().delete(`/api/user/sessions/${bSession.id}`).set(a.auth).expect(404);
     await api().get('/api/auth/me').set(b.auth).expect(200);
   });

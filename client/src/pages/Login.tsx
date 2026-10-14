@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock } from 'lucide-react';
 import { apiFetch, readError, setSession } from '../lib/api';
+import { API_BASE_URL } from '../config';
 import OtpForm from '../components/auth/OtpForm';
+import { useWorkspace } from '../lib/workspace';
 
 type Step = 'credentials' | 'login-otp' | 'login-totp' | 'verify-email';
 
@@ -13,6 +15,11 @@ const Login = ({ onLogin }) => {
   const [notice, setNotice] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
+  const { workspace, loading: workspaceLoading } = useWorkspace();
+  // When the company has single sign-on, people pick how to sign in; otherwise it is just the password form
+  const sso = workspace?.sso?.enabled ? workspace.sso : null;
+  const [usePassword, setUsePassword] = useState(false);
+  const open = !!workspace && (workspace.kind === 'platform' || workspace.status === 'active');
 
   const handleCredentials = async (e) => {
     e.preventDefault();
@@ -78,19 +85,34 @@ const Login = ({ onLogin }) => {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
+        {workspace?.logoUrl && <img src={workspace.logoUrl} alt={`${workspace.name} logo`} className="mx-auto mb-4 h-16 max-w-[14rem] object-contain" />}
         <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-          Welcome to <span className="text-emerald-600">YakFlow</span>
+          {workspace?.kind === 'platform' ? (
+            <>Super Admin <span className="text-emerald-600">console</span></>
+          ) : (
+            <>Welcome to <span className="text-emerald-600">{workspace?.name ?? 'YakFlow'}</span></>
+          )}
         </h2>
-        <p className="mt-2 text-sm text-slate-600">
-          Or{' '}
-          <Link to="/signup" className="font-medium text-emerald-600 hover:text-emerald-500">
-            create a new account
-          </Link>
-        </p>
+        {workspace?.kind === 'tenant' && workspace.allowSelfSignup && workspace.status === 'active' && (
+          <p className="mt-2 text-sm text-slate-600">
+            Or{' '}
+            <Link to="/signup" className="font-medium text-emerald-600 hover:text-emerald-500">
+              create a new account
+            </Link>
+          </p>
+        )}
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow-xl shadow-slate-200/50 sm:rounded-2xl sm:px-10 border border-slate-100">
+          {!workspaceLoading && !workspace && (
+            <p role="alert" className="text-sm text-center text-slate-600">
+              We couldn't find a workspace at this address. Check the link your administrator sent you.
+            </p>
+          )}
+          {workspace && !open && (
+            <p role="alert" className="text-sm text-center text-slate-600">{workspace.statusMessage}</p>
+          )}
           {step === 'login-otp' && (
             <OtpForm email={email} purpose="LOGIN" submitLabel="Verify and sign in" submitting={submitting} onSubmit={handleLoginOtp} />
           )}
@@ -107,7 +129,24 @@ const Login = ({ onLogin }) => {
           {step === 'verify-email' && (
             <OtpForm email={email} purpose="VERIFY_EMAIL" submitLabel="Verify email" submitting={submitting} onSubmit={handleVerifyEmail} />
           )}
-          {step === 'credentials' && (
+          {step === 'credentials' && sso && !usePassword && open && (
+            <div className="space-y-3">
+              <a
+                href={`${API_BASE_URL}/auth/sso/start`}
+                className="w-full flex justify-center py-3 px-4 rounded-xl shadow-sm text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-all"
+              >
+                Sign in with SSO ({sso.providerName})
+              </a>
+              <button
+                type="button"
+                onClick={() => setUsePassword(true)}
+                className="w-full flex justify-center py-3 px-4 border border-slate-300 rounded-xl text-sm font-bold text-slate-700 bg-white hover:bg-slate-50 transition-all"
+              >
+                Sign in with password
+              </button>
+            </div>
+          )}
+          {step === 'credentials' && (!sso || usePassword) && open && (
           <form className="space-y-6" onSubmit={handleCredentials}>
             {notice && <p className="text-sm text-emerald-700">{notice}</p>}
             <div>
@@ -184,6 +223,17 @@ const Login = ({ onLogin }) => {
               </button>
             </div>
           </form>
+          )}
+
+          {sso && usePassword && step === 'credentials' && (
+            <div className="mt-6">
+              <a
+                href={`${API_BASE_URL}/auth/sso/start`}
+                className="w-full flex justify-center py-3 px-4 border border-slate-300 rounded-xl text-sm font-bold text-slate-700 bg-white hover:bg-slate-50 transition-all"
+              >
+                Sign in with SSO ({sso.providerName})
+              </a>
+            </div>
           )}
 
           <div className="mt-6">
