@@ -40,18 +40,21 @@ describe('migrate-to-multitenant script', () => {
 
       const company = await conn.collection('companies').findOne({ slug: 'legacy' });
       expect(company).toBeTruthy();
-      const users = await conn.collection('users').find().toArray();
+      // Users now live in their company's own collection, and the shared one is parked
+      const users = await conn.collection('users.legacy').find().toArray();
+      expect(users).toHaveLength(2);
+      expect(await conn.collection('users').countDocuments()).toBe(0);
       expect(users.every((u) => String(u.companyId) === String(company._id))).toBe(true);
       expect((await conn.collection('departments').findOne({ name: 'Ops' })).companyId).toEqual(company._id);
 
-      // Pay figures are sealed and the old global email index is gone (same email may now exist in another company)
+      // Pay figures are sealed and the old global email index is gone (same email may now exist in another company; the per-company one lives on users.legacy)
       const salary = await conn.collection('salarystructures').findOne({ userId });
       expect(salary.basic).toMatch(/^enc:v1:/);
       expect(JSON.stringify(salary)).not.toContain('40000');
       const slip = await conn.collection('payslips').findOne({ userId });
       expect(slip.net).toMatch(/^enc:v1:/);
       expect(slip.earnings.basic).toMatch(/^enc:v1:/);
-      const indexes = (await conn.collection('users').indexes()).map((i) => i.name);
+      const indexes = (await conn.collection('users.legacy').indexes()).map((i) => i.name);
       expect(indexes).not.toContain('email_1');
       expect(indexes).toContain('companyId_1_email_1');
 

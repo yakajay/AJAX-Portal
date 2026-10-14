@@ -16,6 +16,7 @@ import { createCompany } from '../src/services/company.service.js';
 import { loadCompanyKey } from '../src/utils/tenants.js';
 import { runAsTenant } from '../src/utils/tenantContext.js';
 import { SalaryStructure, Payslip } from '../src/models/salary.model.js';
+import { segregateUsers } from '../src/utils/segregateUsers.js';
 import '../src/models/index.js';
 
 const name = process.env.COMPANY_NAME;
@@ -26,7 +27,7 @@ if (!name || !slug) {
 }
 
 // Old unique indexes that must now be per company
-const OLD_INDEXES = { users: 'email_1', departments: 'name_1', invoices: 'number_1' };
+const OLD_INDEXES = { departments: 'name_1', invoices: 'number_1' };
 const SEALED = {
   salarystructures: { model: SalaryStructure, paths: ['basic', 'hra', 'allowances', 'pfPercent', 'taxPercent', 'otherDeductions'] },
   payslips: { model: Payslip, paths: ['earnings.basic', 'earnings.hra', 'earnings.allowances', 'deductions.pf', 'deductions.tax', 'deductions.other', 'gross', 'totalDeductions', 'net'] }
@@ -41,6 +42,11 @@ try {
   console.log(`Company: ${company.name} (${company.slug})`);
 
   const collections = (await mongoose.connection.db.listCollections().toArray()).map((c) => c.name);
+  // Users are no longer a registered model (each company has its own collection), so stamp them directly
+  if (collections.includes('users')) {
+    const result = await mongoose.connection.collection('users').updateMany({ companyId: { $exists: false } }, { $set: { companyId: company._id } });
+    console.log(`  users: ${result.modifiedCount} document(s) assigned`);
+  }
   for (const model of Object.values(mongoose.models)) {
     if (model.schema.tenantExempt) continue;
     const coll = model.collection.collectionName;
@@ -58,6 +64,9 @@ try {
     }
   }
   await mongoose.syncIndexes();
+
+  // ...then into the company's own collection (users.<subdomain>)
+  await segregateUsers((line) => console.log(line));
 
   // Sealing goes through the models' setters, inside the company's scope
   await runAsTenant(company._id, async () => {

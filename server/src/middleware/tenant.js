@@ -54,7 +54,7 @@ export const resolveTenant = async (req, res, next) => {
   primeCompanyKey(company.id, company.dataKey);
   req.tenant = { kind: 'tenant' };
   req.company = company;
-  enterScope({ scope: 'tenant', companyId: company._id }, next);
+  enterScope({ scope: 'tenant', companyId: company._id, slug: company.slug }, next);
 };
 
 export const requireTenantHost = (req, res, next) =>

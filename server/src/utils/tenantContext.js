@@ -16,7 +16,18 @@ const toId = (id) => (id instanceof mongoose.Types.ObjectId ? id : new mongoose.
 const within = (store, fn) => storage.run(store, async () => await fn());
 
 export const tenantStore = () => storage.getStore();
-export const runAsTenant = (companyId, fn) => within({ scope: 'tenant', companyId: toId(companyId) }, fn);
+// The company's subdomain names its collection of user records (users.<slug>), so it travels with the scope.
+// Looked up each time rather than cached: a platform admin can rename a subdomain from any server instance.
+const slugOf = async (id) => {
+  const company = await mongoose.model('Company').collection.findOne({ _id: id }, { projection: { slug: 1 } });
+  if (!company) throw new Error('Unknown company.');
+  return company.slug;
+};
+
+export const runAsTenant = async (companyId, fn) => {
+  const id = toId(companyId);
+  return within({ scope: 'tenant', companyId: id, slug: await slugOf(id) }, fn);
+};
 export const runAsPlatform = (fn) => within({ scope: 'platform', companyId: null }, fn);
 export const runAcrossTenants = (fn) => within({ scope: 'all', companyId: null }, fn);
 // Express hands control to the next middleware inside this callback, so the rest of the request keeps the store

@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 import * as db from './helpers/db.js';
 import { api, platformApi, makeUser, makeAdmin, makeSuperAdmin, makePlatformAdmin, makeCompany, inTenant } from './helpers/fixtures.js';
 import { outbox } from './helpers/setup.js';
-import { User } from '../src/models/user.model.js';
+import { User, userModel } from '../src/models/user.model.js';
 import { Department } from '../src/models/department.model.js';
 import { Company } from '../src/models/company.model.js';
 import { SalaryStructure } from '../src/models/salary.model.js';
@@ -94,6 +94,30 @@ describe('tenants cannot see each other', () => {
     const hooliAfter = await runAsTenant(other.company._id, () => User.find({ designation: 'tenant-test' }));
     expect(touched.modifiedCount).toBeGreaterThan(0);
     expect(hooliAfter).toHaveLength(0);
+  });
+
+  it('keeps each company users in its own collection, and moves them when the subdomain changes', async () => {
+    const other = await makeCompany('stark');
+    const a = await makeUser({ name: 'Tony Acme' });
+    const s = await makeUser({ name: 'Pepper Stark' }, other.company);
+    const platform = await makePlatformAdmin();
+    const raw = (name, id) => mongoose.connection.collection(name).findOne({ _id: id });
+
+    expect(await raw('users.acme', a.user._id)).toBeTruthy();
+    expect(await raw('users.stark', s.user._id)).toBeTruthy();
+    expect(await raw('users.platform', platform.user._id)).toBeTruthy();
+    expect(await raw('users.stark', a.user._id)).toBeNull();
+    expect(await raw('users.acme', s.user._id)).toBeNull();
+
+    // A manager is resolved from the same company's collection
+    await inTenant(() => User.updateOne({ _id: a.user._id }, { managerId: a.user._id }));
+    const populated = await inTenant(() => userModel.findAll());
+    expect(populated.find((u) => u.id === a.user.id).manager.name).toBe('Tony Acme');
+
+    const sa = await makePlatformAdmin();
+    await platformApi().put(`/api/platform/companies/${other.company.id}`).set(sa.auth).send({ slug: 'stark-industries' }).expect(200);
+    expect(await raw('users.stark-industries', s.user._id)).toBeTruthy();
+    expect(await mongoose.connection.db.listCollections({ name: 'users.stark' }).toArray()).toHaveLength(0);
   });
 
   it('stamps new documents with the current company and refuses writes for another', async () => {
@@ -459,13 +483,13 @@ describe('sensitive data: encryption and masking', () => {
     await api().put(`/api/admin/users/${a.user.id}/sensitive`).set(saA.auth).send({ bankAccount: '111122223333' }).expect(200);
     await co.api().put(`/api/admin/users/${b.user.id}/sensitive`).set(saB.auth).send({ bankAccount: '111122223333' }).expect(200);
 
-    const rawA = await mongoose.connection.collection('users').findOne({ _id: a.user._id });
-    const rawB = await mongoose.connection.collection('users').findOne({ _id: b.user._id });
+    const rawA = await mongoose.connection.collection('users.acme').findOne({ _id: a.user._id });
+    const rawB = await mongoose.connection.collection(`users.${co.company.slug}`).findOne({ _id: b.user._id });
     expect(rawA.sensitive.bankAccount).toMatch(/^enc:v1:/);
     expect(rawA.sensitive.bankAccount).not.toBe(rawB.sensitive.bankAccount); // same value, different key and IV
 
     // Moving company A's ciphertext into company B's record makes it unreadable (authenticated per company)
-    await mongoose.connection.collection('users').updateOne({ _id: b.user._id }, { $set: { 'sensitive.bankAccount': rawA.sensitive.bankAccount } });
+    await mongoose.connection.collection(`users.${co.company.slug}`).updateOne({ _id: b.user._id }, { $set: { 'sensitive.bankAccount': rawA.sensitive.bankAccount } });
     await co.api().get(`/api/admin/users/${b.user.id}/sensitive`).set(saB.auth).expect(500);
   });
 
@@ -492,7 +516,7 @@ describe('sensitive data: encryption and masking', () => {
 
   it('stores passwords only as salted hashes', async () => {
     const u = await makeUser();
-    const raw = await mongoose.connection.collection('users').findOne({ _id: u.user._id });
+    const raw = await mongoose.connection.collection('users.acme').findOne({ _id: u.user._id });
     expect(raw.password).not.toContain('Password@1');
     expect(raw.password.split('$').length).toBeGreaterThan(1);
     expect(hashPassword('Password@1')).not.toBe(hashPassword('Password@1')); // salted

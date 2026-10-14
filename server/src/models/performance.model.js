@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { schemaOptions, userRef, withUserVirtual } from './schemaOptions.js';
+import { USER_REF } from './userScope.js';
 
 const cycleSchema = new mongoose.Schema(
   {
@@ -30,7 +31,7 @@ const reviewSchema = withUserVirtual(
   )
 );
 reviewSchema.index({ cycleId: 1, userId: 1 }, { unique: true });
-reviewSchema.virtual('reviewer', { ref: 'User', localField: 'reviewerId', foreignField: '_id', justOne: true });
+reviewSchema.virtual('reviewer', { ref: USER_REF, localField: 'reviewerId', foreignField: '_id', justOne: true });
 reviewSchema.virtual('cycle', { ref: 'ReviewCycle', localField: 'cycleId', foreignField: '_id', justOne: true });
 export const Review = mongoose.model('Review', reviewSchema);
 

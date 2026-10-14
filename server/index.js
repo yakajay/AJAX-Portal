@@ -3,9 +3,11 @@ import { env } from './src/config/env.js';
 import { connectDB } from './src/config/db.js';
 import { logger } from './src/utils/logger.js';
 import { startJobs } from './src/jobs.js';
+import { ensureAllUserCollections } from './src/models/user.model.js';
 
 try {
   await connectDB();
+  await ensureAllUserCollections();
 } catch (error) {
   logger.fatal({ err: error }, `Failed to connect to MongoDB: ${error.message}`);
   process.exit(1);

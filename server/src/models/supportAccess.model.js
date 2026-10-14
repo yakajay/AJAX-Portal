@@ -1,11 +1,12 @@
 import mongoose from 'mongoose';
 import { schemaOptions } from './schemaOptions.js';
+import { USER_REF } from './userScope.js';
 
 // A company admin's time-boxed permission for the platform's Super Admin to see this company's sensitive
 // data unmasked. It expires on its own; every use is counted here and logged in the company's audit log.
 const supportAccessSchema = new mongoose.Schema(
   {
-    grantedById: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    grantedById: { type: mongoose.Schema.Types.ObjectId, ref: USER_REF, required: true },
     grantedByName: { type: String, default: '' },
     reason: { type: String, default: '', trim: true },
     expiresAt: { type: Date, required: true, index: true },

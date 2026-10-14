@@ -100,7 +100,7 @@ describe('notifications', () => {
     expect(mails[0].text).toContain('Digest me');
     expect(outbox.some((m) => m.to === optedOut.user.email)).toBe(false);
     outbox.length = 0;
-    await sendDigests();
+    await inTenant(() => sendDigests());
     expect(outbox.filter((m) => m.to === optedIn.user.email)).toHaveLength(0);
   });
 

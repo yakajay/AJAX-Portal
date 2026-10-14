@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { schemaOptions, userRef, withUserVirtual, isValidId } from './schemaOptions.js';
+import { USER_REF } from './userScope.js';
 
 const leaveSchema = withUserVirtual(
   new mongoose.Schema(
@@ -14,8 +15,8 @@ const leaveSchema = withUserVirtual(
       status: { type: String, enum: ['Pending', 'Approved', 'Rejected', 'Cancelled'], default: 'Pending' },
       reason: { type: String, default: null },
       // Reporting manager when the request was made: they can review it as well as admins
-      approverId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
-      reviewedById: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      approverId: { type: mongoose.Schema.Types.ObjectId, ref: USER_REF, default: null, index: true },
+      reviewedById: { type: mongoose.Schema.Types.ObjectId, ref: USER_REF, default: null },
       reviewedAt: { type: Date, default: null },
       reviewNote: { type: String, default: '' }
     },

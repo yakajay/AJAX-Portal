@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { schemaOptions } from './schemaOptions.js';
+import { USER_REF } from './userScope.js';
 
 export const DELETE_STATUSES = ['Pending', 'Approved', 'Rejected'];
 // What can be deleted through a request, and which admin module guards raising it
@@ -19,7 +20,7 @@ const deleteRequestSchema = new mongoose.Schema(
     targetLabel: { type: String, default: '' }, // shown in lists even after the record is gone
     reason: { type: String, default: '', trim: true },
     status: { type: String, enum: DELETE_STATUSES, default: 'Pending', index: true },
-    requestedById: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    requestedById: { type: mongoose.Schema.Types.ObjectId, ref: USER_REF, required: true },
     requestedByName: { type: String, default: '' },
     decidedByName: { type: String, default: '' },
     decidedAt: { type: Date, default: null },

@@ -15,6 +15,7 @@ import { Review, Goal } from './performance.model.js';
 import { Expense } from './expense.model.js';
 import { Checklist } from './checklist.model.js';
 import { Department } from './department.model.js';
+import { USER_REF, PLATFORM_USERS, setUserModelFactory, scopedUserModel, userCollectionName } from './userScope.js';
 
 const userSchema = new mongoose.Schema(
   {
@@ -26,7 +27,7 @@ const userSchema = new mongoose.Schema(
     locked: { type: Boolean, default: false },
     emailVerified: { type: Boolean, default: true },
     password: { type: String, default: null }, // scrypt hash
-    managerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    managerId: { type: mongoose.Schema.Types.ObjectId, ref: USER_REF, default: null },
     designation: { type: String, default: '', trim: true },
     dateOfBirth: { type: String, default: null }, // YYYY-MM-DD (birthday reminders)
     joinDate: { type: String, default: null }, // YYYY-MM-DD (work anniversaries)
@@ -72,9 +73,52 @@ userSchema.pre('validate', function checkPlatformRole() {
   if (scope === 'platform' && this.role !== PLATFORM_ROLE) throw new Error('Only platform accounts exist outside a company.');
 });
 
-userSchema.virtual('manager', { ref: 'User', localField: 'managerId', foreignField: '_id', justOne: true });
+userSchema.virtual('manager', { ref: USER_REF, localField: 'managerId', foreignField: '_id', justOne: true });
 
-export const User = mongoose.model('User', userSchema);
+// One model (and so one collection, users.<slug>) per workspace, created the first time it is needed
+const models = new Map();
+export const userModelFor = (slug) => {
+  let model = models.get(slug);
+  if (!model) {
+    model = mongoose.model(`User:${slug}`, userSchema, userCollectionName(slug));
+    models.set(slug, model);
+  }
+  return model;
+};
+setUserModelFactory(userModelFor);
+
+// `User` always means "the users of the workspace this code is running for"
+export const User = new Proxy(
+  {},
+  {
+    get: (_, prop) => {
+      const model = scopedUserModel();
+      const value = model[prop];
+      return typeof value === 'function' ? value.bind(model) : value;
+    }
+  }
+);
+
+// Creates the workspace's collection and indexes up front, so it shows up in the database straight away
+export const ensureUserCollection = async (slug) => {
+  const model = userModelFor(slug);
+  await model.createCollection();
+  await model.syncIndexes();
+};
+
+// Makes sure the platform's and every company's collection exists (run at startup)
+export const ensureAllUserCollections = async () => {
+  await ensureUserCollection(PLATFORM_USERS);
+  const companies = await mongoose.model('Company').find().select('slug');
+  for (const { slug } of companies) await ensureUserCollection(slug);
+};
+
+// A subdomain change moves the company's user records with it
+export const renameUserCollection = async (fromSlug, toSlug) => {
+  const exists = (await mongoose.connection.db.listCollections({ name: userCollectionName(fromSlug) }).toArray()).length > 0;
+  if (exists) await mongoose.connection.db.renameCollection(userCollectionName(fromSlug), userCollectionName(toSlug));
+  else await ensureUserCollection(toSlug);
+};
 
 const withManager = { path: 'manager', select: 'name email' };
 

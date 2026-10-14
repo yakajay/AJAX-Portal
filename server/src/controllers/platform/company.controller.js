@@ -3,7 +3,7 @@ import { Company, COMPANY_STATUSES, PLANS, companyOrigin } from '../../models/co
 import { DeleteRequest } from '../../models/deleteRequest.model.js';
 import { SupportAccess } from '../../models/supportAccess.model.js';
 import { AuditLog } from '../../models/auditLog.model.js';
-import { User } from '../../models/user.model.js';
+import { User, renameUserCollection } from '../../models/user.model.js';
 import { SalaryStructure } from '../../models/salary.model.js';
 import { Session } from '../../models/session.model.js';
 import { runAsTenant, runAcrossTenants } from '../../utils/tenantContext.js';
@@ -105,6 +105,7 @@ export const update = async (req, res) => {
   if (company.status === 'deleted') return res.status(409).json({ message: 'This company has been deleted.' });
   const { name, slug, primaryContact, plan, seatLimit, modules, features, expiresAt } = req.body ?? {};
   const changed = [];
+  let movedUsers = null;
 
   if (name !== undefined) {
     if (!text(name)) return res.status(400).json({ message: 'Company name is required.' });
@@ -114,6 +115,7 @@ export const update = async (req, res) => {
   if (slug !== undefined && String(slug).trim().toLowerCase() !== company.slug) {
     const next = String(slug).trim().toLowerCase();
     await assertSlugAvailable(next, company._id);
+    movedUsers = { from: company.slug, to: next };
     company.slug = next; // moving the subdomain also moves the SSO redirect URIs their IdP knows about
     changed.push('slug');
   }
@@ -144,7 +146,14 @@ export const update = async (req, res) => {
     Object.assign(company.features, cleanFeatures(features));
     changed.push('features');
   }
-  await company.save();
+  // The company's user records live in users.<subdomain>, so they move with the subdomain
+  if (movedUsers) await renameUserCollection(movedUsers.from, movedUsers.to);
+  try {
+    await company.save();
+  } catch (error) {
+    if (movedUsers) await renameUserCollection(movedUsers.to, movedUsers.from);
+    throw error;
+  }
   await audit(req, { action: 'company.update', entity: 'company', entityId: company.id, companyId: company._id, summary: `Updated ${company.name}`, meta: [...new Set(changed)] });
   res.json(summary(company));
 };

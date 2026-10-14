@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { schemaOptions, userRef, withUserVirtual } from './schemaOptions.js';
+import { USER_REF } from './userScope.js';
 
 export const TICKET_PRIORITIES = ['Low', 'Medium', 'High', 'Urgent'];
 // Hours allowed to resolve a ticket, by priority
@@ -32,7 +33,7 @@ const ticketSchema = withUserVirtual(
     schemaOptions()
   )
 );
-ticketSchema.virtual('assignee', { ref: 'User', localField: 'assigneeId', foreignField: '_id', justOne: true });
+ticketSchema.virtual('assignee', { ref: USER_REF, localField: 'assigneeId', foreignField: '_id', justOne: true });
 
 export const slaDueAt = (createdAt, priority) =>
   new Date(new Date(createdAt).getTime() + SLA_HOURS[priority] * 3600 * 1000);

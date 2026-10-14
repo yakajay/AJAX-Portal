@@ -1,5 +1,5 @@
 import { Company, RESERVED_SLUGS, SLUG_PATTERN, PLANS, companyOrigin } from '../models/company.model.js';
-import { User } from '../models/user.model.js';
+import { User, ensureUserCollection } from '../models/user.model.js';
 import { Session } from '../models/session.model.js';
 import { generateWrappedCompanyKey, primeCompanyKey } from '../utils/crypto.js';
 import { runAsTenant, runAcrossTenants } from '../utils/tenantContext.js';
@@ -113,6 +113,7 @@ export const createCompany = async ({ name, slug, primaryContact = {}, plan = 't
   });
   const withKey = await Company.findById(company.id).select('+dataKey');
   primeCompanyKey(company.id, withKey.dataKey);
+  await ensureUserCollection(company.slug);
   return company;
 };
 
@@ -173,18 +174,24 @@ export const inviteCompanyAdmin = async (company, { name, email }, invitedBy = '
 
 // Usage figures for the platform console. Counts only - never employee content.
 export const usageByCompany = async () => {
-  const [users, sessions] = await runAcrossTenants(() =>
-    Promise.all([
-      User.aggregate([
-        { $match: { companyId: { $ne: null } } },
-        { $group: { _id: '$companyId', employees: { $sum: 1 }, admins: { $sum: { $cond: [{ $in: ['$role', ['ADMIN', 'SUPER_ADMIN']] }, 1, 0] } } } }
-      ]),
+  // Each company's users are in their own collection, so count them one company at a time
+  const companies = await Company.find().select('_id');
+  const [users, sessions] = await Promise.all([
+    Promise.all(
+      companies.map(async (company) => {
+        const [row] = await runAsTenant(company._id, () =>
+          User.aggregate([{ $group: { _id: null, employees: { $sum: 1 }, admins: { $sum: { $cond: [{ $in: ['$role', ['ADMIN', 'SUPER_ADMIN']] }, 1, 0] } } } }])
+        );
+        return row && { _id: company._id, employees: row.employees, admins: row.admins };
+      })
+    ).then((rows) => rows.filter(Boolean)),
+    runAcrossTenants(() =>
       Session.aggregate([
         { $match: { companyId: { $ne: null } } },
         { $group: { _id: '$companyId', lastActiveAt: { $max: '$lastUsedAt' } } }
       ])
-    ])
-  );
+    )
+  ]);
   const map = new Map();
   for (const u of users) map.set(String(u._id), { employees: u.employees, admins: u.admins, lastActiveAt: null });
   for (const s of sessions) {

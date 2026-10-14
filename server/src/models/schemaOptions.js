@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { tenantPlugin } from '../plugins/tenant.js';
+import { USER_REF } from './userScope.js';
 
 // Must run before any model is compiled; every model imports this file first
 mongoose.plugin(tenantPlugin);
@@ -26,13 +27,13 @@ export const schemaOptions = (extraTransform, { getters = false } = {}) => ({
 
 // Adds a `user` virtual that resolves `userId` to the owning user when populated
 export const withUserVirtual = (schema) => {
-  schema.virtual('user', { ref: 'User', localField: 'userId', foreignField: '_id', justOne: true });
+  schema.virtual('user', { ref: USER_REF, localField: 'userId', foreignField: '_id', justOne: true });
   return schema;
 };
 
 export const userRef = (required = true) => ({
   type: mongoose.Schema.Types.ObjectId,
-  ref: 'User',
+  ref: USER_REF,
   required,
   index: true,
   default: required ? undefined : null

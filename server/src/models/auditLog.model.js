@@ -1,9 +1,10 @@
 import mongoose from 'mongoose';
 import { schemaOptions } from './schemaOptions.js';
+import { USER_REF } from './userScope.js';
 
 const auditSchema = new mongoose.Schema(
   {
-    actorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
+    actorId: { type: mongoose.Schema.Types.ObjectId, ref: USER_REF, default: null, index: true },
     actorName: { type: String, default: 'System' },
     actorRole: { type: String, default: '' },
     action: { type: String, required: true, index: true }, // e.g. user.create, leave.approve

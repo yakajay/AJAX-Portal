@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { schemaOptions, userRef, withUserVirtual } from './schemaOptions.js';
+import { USER_REF } from './userScope.js';
 
 const attendanceSchema = withUserVirtual(new mongoose.Schema(
   {
@@ -19,7 +20,7 @@ const attendanceSchema = withUserVirtual(new mongoose.Schema(
     },
     ip: { type: String, default: '' },
     remote: { type: Boolean, default: false },
-    reviewedById: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    reviewedById: { type: mongoose.Schema.Types.ObjectId, ref: USER_REF, default: null },
     reviewedAt: { type: Date, default: null },
     reviewNote: { type: String, default: '' }
   },
