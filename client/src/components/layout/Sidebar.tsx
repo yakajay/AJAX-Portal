@@ -4,14 +4,16 @@ import type { User } from '../../types';
 import { visibleNav } from '../../lib/nav';
 import { useI18n } from '../../lib/i18n';
 import type { MessageKey } from '../../lib/locales';
+import { useWorkspace } from '../../lib/workspace';
 
-const GROUP_TITLES: Record<string, string | null> = { workspace: null, people: 'People & company', admin: 'Administration' };
+const GROUP_TITLES: Record<string, string | null> = { workspace: null, people: 'People & company', admin: 'Administration', platform: 'Super Admin console' };
 
 const Sidebar = ({ isOpen, toggleSidebar, user }: { isOpen: boolean; toggleSidebar: () => void; user: User | null }) => {
   const location = useLocation();
   const { t } = useI18n();
-  const items = visibleNav(user);
-  const groups = (['workspace', 'people', 'admin'] as const)
+  const { workspace } = useWorkspace();
+  const items = visibleNav(user, workspace?.modules);
+  const groups = (['workspace', 'people', 'admin', 'platform'] as const)
     .map((group) => ({ group, items: items.filter((i) => i.group === group) }))
     .filter((g) => g.items.length > 0);
 
@@ -24,7 +26,11 @@ const Sidebar = ({ isOpen, toggleSidebar, user }: { isOpen: boolean; toggleSideb
         } transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 lg:shrink-0 overflow-y-auto`}
       >
         <div className="flex items-center justify-between h-[68px] px-6 border-b border-slate-200 lg:hidden">
-          <span className="text-lg font-extrabold text-slate-900">Ajax HRMS</span>
+          {workspace?.logoUrl ? (
+            <img src={workspace.logoUrl} alt={`${workspace.name} logo`} className="h-9 max-w-[10rem] object-contain" />
+          ) : (
+            <span className="text-lg font-extrabold text-slate-900">Ajax Portal</span>
+          )}
           <button onClick={toggleSidebar} aria-label="Close menu">
             <X size={24} />
           </button>

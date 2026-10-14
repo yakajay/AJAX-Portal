@@ -52,12 +52,6 @@ export const updateTemplate = async (req, res) => {
   res.json(template);
 };
 
-export const deleteTemplate = async (req, res) => {
-  const result = valid(req.params.id) ? await ChecklistTemplate.deleteOne({ _id: req.params.id }) : { deletedCount: 0 };
-  if (!result.deletedCount) return res.status(404).json({ message: 'Template not found.' });
-  res.json({ message: 'Template deleted.' });
-};
-
 // ---------- Assigned checklists ----------
 export const assign = async (req, res) => {
   const { userId, templateId } = req.body;
@@ -89,12 +83,6 @@ export const listAll = async (req, res) => {
   if (valid(req.query.userId)) filter.userId = req.query.userId;
   if (CHECKLIST_KINDS.includes(req.query.kind)) filter.kind = req.query.kind;
   res.json(await Checklist.find(filter).sort({ createdAt: -1 }).populate(withUser));
-};
-
-export const deleteChecklist = async (req, res) => {
-  const result = valid(req.params.id) ? await Checklist.deleteOne({ _id: req.params.id }) : { deletedCount: 0 };
-  if (!result.deletedCount) return res.status(404).json({ message: 'Checklist not found.' });
-  res.json({ message: 'Checklist deleted.' });
 };
 
 export const listMine = async (req, res) => {

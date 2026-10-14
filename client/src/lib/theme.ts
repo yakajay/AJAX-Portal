@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 
 export type Theme = 'light' | 'dark';
 
@@ -21,27 +21,37 @@ const applyTheme = (theme: Theme) => {
 // Apply before React renders so the first paint is already in the right theme
 export const initTheme = () => applyTheme(readTheme());
 
+// One shared theme for the whole app: the navbar button and the command palette both read and change it,
+// so each stays in step with the other (separate per-component state left the navbar icon stale).
+let current: Theme = readTheme();
+const listeners = new Set<() => void>();
+
+const setTheme = (theme: Theme) => {
+  if (theme === current) return;
+  current = theme;
+  applyTheme(theme);
+  try {
+    localStorage.setItem(STORAGE_KEY, theme);
+  } catch {
+    // ignore: the choice just won't persist
+  }
+  listeners.forEach((notify) => notify());
+};
+
+const subscribe = (notify: () => void) => {
+  listeners.add(notify);
+  return () => listeners.delete(notify);
+};
+
+// Keep other open tabs in step
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key === STORAGE_KEY && (e.newValue === 'light' || e.newValue === 'dark')) setTheme(e.newValue);
+  });
+}
+
 export const useTheme = () => {
-  const [theme, setThemeState] = useState<Theme>(readTheme);
-
-  useEffect(() => {
-    applyTheme(theme);
-    try {
-      localStorage.setItem(STORAGE_KEY, theme);
-    } catch {
-      // ignore: the choice just won't persist
-    }
-  }, [theme]);
-
-  // Keep other open tabs in step
-  useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY && (e.newValue === 'light' || e.newValue === 'dark')) setThemeState(e.newValue);
-    };
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
-  }, []);
-
-  const toggle = useCallback(() => setThemeState((t) => (t === 'dark' ? 'light' : 'dark')), []);
+  const theme = useSyncExternalStore(subscribe, () => current, () => current);
+  const toggle = useCallback(() => setTheme(current === 'dark' ? 'light' : 'dark'), []);
   return { theme, toggle };
 };

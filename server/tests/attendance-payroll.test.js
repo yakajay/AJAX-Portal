@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 import { connectTestDb, disconnectTestDb } from './helpers/db.js';
-import { api, makeUser, makeAdmin, makeSuperAdmin, addHoliday } from './helpers/fixtures.js';
+import { api, makeUser, makeAdmin, makeSuperAdmin, addHoliday, inTenant } from './helpers/fixtures.js';
 import { Attendance } from '../src/models/attendance.model.js';
 import { Payslip } from '../src/models/salary.model.js';
 import { Transaction } from '../src/models/transaction.model.js';
@@ -62,11 +62,11 @@ describe('attendance', () => {
   it('summarizes a month and exports it as CSV', async () => {
     const me = await makeUser();
     const base = '2031-02';
-    await Attendance.create([
+    await inTenant(() => Attendance.create([
       { userId: me.user.id, checkInAt: new Date(`${base}-03T09:00:00Z`), checkOutAt: new Date(`${base}-03T18:00:00Z`) },
       { userId: me.user.id, checkInAt: new Date(`${base}-04T10:30:00Z`), checkOutAt: new Date(`${base}-04T16:00:00Z`) },
       { userId: me.user.id, checkInAt: new Date(`${base}-05T09:00:00Z`), checkOutAt: new Date(`${base}-05T18:00:00Z`), status: 'Rejected' }
-    ]);
+    ]));
     const summary = await api().get(`/api/user/attendance/summary?month=${base}&tz=UTC`).set(me.auth).expect(200);
     expect(summary.body).toMatchObject({ daysPresent: 2, totalHours: 14.5, lateDays: 1, earlyOutDays: 1 });
 
@@ -115,7 +115,7 @@ describe('attendance', () => {
   it('admin month report (JSON and CSV) is permission-gated', async () => {
     const admin = await makeAdmin();
     const user = await makeUser();
-    await Attendance.create({ userId: user.user.id, checkInAt: new Date('2031-04-01T09:00:00Z'), checkOutAt: new Date('2031-04-01T17:00:00Z') });
+    await inTenant(() => Attendance.create({ userId: user.user.id, checkInAt: new Date('2031-04-01T09:00:00Z'), checkOutAt: new Date('2031-04-01T17:00:00Z') }));
     const json = await api().get('/api/admin/attendance/report?month=2031-04&tz=UTC').set(admin.auth).expect(200);
     expect(json.body.rows.find((r) => r.userId === user.user.id)).toMatchObject({ daysPresent: 1, totalHours: 8 });
     const csv = await api().get('/api/admin/attendance/report?month=2031-04&tz=UTC&format=csv').set(admin.auth).expect(200);
@@ -173,10 +173,10 @@ describe('payroll and payslips', () => {
     await api().get(`/api/admin/payroll/payslips/${mine.body[0].id}/pdf`).set(admin.auth).expect(200);
 
     // Mark paid: payslip + ledger entry update, employee notified
-    const tx = await Transaction.findOne({ recipient: 'Payroll 2025-03' });
+    const tx = await inTenant(() => Transaction.findOne({ recipient: 'Payroll 2025-03' }));
     expect(tx.status).toBe('Processing');
     await api().post('/api/admin/payroll/payslips/mark-paid').set(admin.auth).send({ month: '2025-03' }).expect(200);
-    expect((await Transaction.findById(tx.id)).status).toBe('Success');
+    expect((await inTenant(() => Transaction.findById(tx.id))).status).toBe('Success');
     expect((await api().get('/api/user/payslips').set(emp.auth)).body[0].status).toBe('Paid');
     const inbox = await api().get('/api/user/notifications').set(emp.auth).expect(200);
     expect(inbox.body.items.some((n) => /payslip is ready/.test(n.title))).toBe(true);

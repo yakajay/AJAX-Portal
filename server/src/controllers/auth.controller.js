@@ -5,6 +5,9 @@ import { startSession, refreshSession, revokeSession, revokeAllSessions } from '
 import { matchTotp } from '../utils/totp.js';
 import { issueOtp, checkOtp, OTP_PURPOSE } from '../utils/otp.js';
 import { sanitizeUser } from '../utils/format.js';
+import { assertSeatAvailable } from '../services/company.service.js';
+import { ssoReady } from './sso.controller.js';
+import { Company } from '../models/company.model.js';
 
 const normalizeEmail = (email) => String(email ?? '').trim().toLowerCase();
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -16,6 +19,9 @@ export const register = async (req, res) => {
   const { name, password } = req.body;
   const email = normalizeEmail(req.body.email);
 
+  if (!req.company?.settings.allowSelfSignup) {
+    return res.status(403).json({ message: 'Self-signup is turned off for this workspace. Ask your administrator for an account.' });
+  }
   if (!name?.trim() || !EMAIL_PATTERN.test(email) || !password) {
     return res.status(400).json({ message: 'Name, a valid email, and password are required.' });
   }
@@ -32,6 +38,7 @@ export const register = async (req, res) => {
   if (existing) {
     await userModel.update(existing.id, { name: name.trim(), password: hashPassword(password) });
   } else {
+    await assertSeatAvailable(req.company);
     await userModel.create({
       email,
       name: name.trim(),
@@ -167,6 +174,44 @@ export const resetPassword = async (req, res) => {
   await userModel.update(user.id, { password: hashPassword(newPassword), emailVerified: true });
   await revokeAllSessions(user.id);
   res.json({ message: 'Password reset. You can now sign in.' });
+};
+
+// Only a company whose plan includes custom logos shows one; the version makes browsers refetch after a change
+const logoUrl = (company) =>
+  company.features.customLogo && company.logoUpdatedAt ? `/api/auth/logo?v=${company.logoUpdatedAt.getTime()}` : null;
+
+// GET /auth/logo - public (the login page needs it); the company comes from the address
+export const logo = async (req, res) => {
+  const company = req.company && (await Company.findById(req.company.id).select('+logoData'));
+  if (!company?.features.customLogo || !company.logoData?.length) return res.status(404).json({ message: 'No logo.' });
+  res.set({
+    'Content-Type': company.logoContentType,
+    'Cache-Control': 'public, max-age=86400',
+    // Served as an image only: never sniffed, never run as a page
+    'X-Content-Type-Options': 'nosniff',
+    'Content-Security-Policy': "default-src 'none'; sandbox"
+  });
+  res.send(company.logoData);
+};
+
+// GET /auth/workspace - public: who this address belongs to, so the login page can brand itself and offer SSO.
+// Works for a suspended company too, so its people are told why they cannot sign in.
+export const workspace = (req, res) => {
+  if (req.tenant.kind === 'platform') return res.json({ kind: 'platform', name: 'Platform console' });
+  const { company } = req;
+  const sso = ssoReady(company);
+  res.json({
+    kind: 'tenant',
+    name: company.name,
+    slug: company.slug,
+    status: company.status,
+    statusMessage: company.status === 'active' ? '' : 'This workspace is not available right now. Please contact your administrator.',
+    modules: company.modules,
+    features: company.features,
+    logoUrl: logoUrl(company),
+    allowSelfSignup: company.settings.allowSelfSignup,
+    sso: { enabled: sso, providerName: sso ? company.sso.providerName : '', protocol: sso ? company.sso.protocol : null }
+  });
 };
 
 // GET /auth/me

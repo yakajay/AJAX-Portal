@@ -103,3 +103,14 @@ export const downloadFile = async (path: string, fallbackName: string): Promise<
 };
 
 export const isAdminRole = (role?: string) => role === 'ADMIN' || role === 'SUPER_ADMIN';
+/** The platform owner's Super Admin: manages companies from the platform console. */
+export const isPlatformRole = (role?: string) => role === 'PLATFORM_ADMIN';
+
+/**
+ * Company admins cannot delete directly: a DELETE under /admin files a request that the platform's Super Admin
+ * approves or rejects. Resolves to the message to show the admin.
+ */
+export const requestDelete = async (path: string, reason?: string): Promise<string> => {
+  const body = await apiJson<{ message?: string }>(path, { method: 'DELETE', ...(reason ? { body: JSON.stringify({ reason }) } : {}) });
+  return body.message || 'Deletion needs approval. A request has been sent.';
+};

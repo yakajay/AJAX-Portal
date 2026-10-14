@@ -1,7 +1,9 @@
 import mongoose from 'mongoose';
 import { schemaOptions, userRef, withUserVirtual } from './schemaOptions.js';
+import { encrypted } from './encryptedField.js';
 
-const money = { type: Number, default: 0, min: 0 };
+// Pay figures are sealed with the company's key; the database never holds them in the clear
+const money = encrypted('number', { default: 0 });
 
 // Monthly salary components for one employee
 const salarySchema = withUserVirtual(
@@ -12,11 +14,11 @@ const salarySchema = withUserVirtual(
       basic: money,
       hra: money,
       allowances: money,
-      pfPercent: { type: Number, default: 12, min: 0, max: 100 }, // of basic
-      taxPercent: { type: Number, default: 10, min: 0, max: 100 }, // of gross
+      pfPercent: encrypted('number', { default: 12 }), // of basic
+      taxPercent: encrypted('number', { default: 10 }), // of gross
       otherDeductions: money
     },
-    schemaOptions()
+    schemaOptions(null, { getters: true })
   )
 );
 
@@ -28,11 +30,11 @@ const payslipSchema = withUserVirtual(
       userId: userRef(),
       month: { type: String, required: true }, // YYYY-MM
       currency: { type: String, default: 'INR' },
-      earnings: { basic: Number, hra: Number, allowances: Number },
-      deductions: { pf: Number, tax: Number, other: Number },
-      gross: { type: Number, required: true },
-      totalDeductions: { type: Number, required: true },
-      net: { type: Number, required: true },
+      earnings: { basic: encrypted('number'), hra: encrypted('number'), allowances: encrypted('number') },
+      deductions: { pf: encrypted('number'), tax: encrypted('number'), other: encrypted('number') },
+      gross: encrypted('number', { required: true }),
+      totalDeductions: encrypted('number', { required: true }),
+      net: encrypted('number', { required: true }),
       workingDays: { type: Number, required: true },
       paidDays: { type: Number, required: true },
       unpaidLeaveDays: { type: Number, default: 0 },
@@ -40,7 +42,7 @@ const payslipSchema = withUserVirtual(
       generatedById: userRef(false),
       paidAt: { type: Date, default: null }
     },
-    schemaOptions()
+    schemaOptions(null, { getters: true })
   )
 );
 payslipSchema.index({ userId: 1, month: 1 }, { unique: true });

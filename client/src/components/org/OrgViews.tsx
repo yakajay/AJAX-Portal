@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, Pencil, Plus, Trash2, Users } from 'lucide-react';
 import type { User } from '../../types';
-import { apiJson, apiSend } from '../../lib/api';
+import { apiJson, apiSend, requestDelete } from '../../lib/api';
 import { can } from '../../lib/permissions';
 import { errorMessage } from '../../lib/format';
 import { useAsync } from '../../lib/useAsync';
@@ -78,8 +78,8 @@ export const Departments = ({ user }: { user: User }) => {
     } catch (err) { setFormError(errorMessage(err)); }
   };
   const remove = async (d: Department) => {
-    if (!window.confirm(`Delete the ${d.name} department?`)) return;
-    try { setActionError(null); await apiSend('DELETE', `/admin/departments/${d.id}`); await reload(); } catch (err) { setActionError(errorMessage(err)); }
+    if (!window.confirm(`Request deletion of the ${d.name} department? The platform's Super Admin has to approve it.`)) return;
+    try { setActionError(null); alert(await requestDelete(`/admin/departments/${d.id}`)); await reload(); } catch (err) { setActionError(errorMessage(err)); }
   };
 
   return (

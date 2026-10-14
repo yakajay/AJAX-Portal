@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import { userModel } from '../models/user.model.js';
 import { Session } from '../models/session.model.js';
 import { verifyToken } from '../utils/token.js';
-import { ADMIN_ROLES } from '../utils/format.js';
+import { ADMIN_ROLES, PLATFORM_ROLE } from '../utils/format.js';
 import { hasPermission } from '../utils/permissions.js';
 
 // Verifies the Bearer JWT, checks its session hasn't been revoked, then reloads the user so role
@@ -43,12 +43,17 @@ export const requireRole = (...roles) => (req, res, next) => {
 };
 
 export const requireAdmin = requireRole(...ADMIN_ROLES);
+// Inside a company, SUPER_ADMIN is the company admin
 export const requireSuperAdmin = requireRole('SUPER_ADMIN');
+export const requirePlatformAdmin = requireRole(PLATFORM_ROLE);
 
 // Fine-grained checks for admins; SUPER_ADMIN always passes. `module` scopes the check
 // (e.g. `payroll:write`); global tokens like `write` still apply to every module.
 export const requirePermission = (permission, module) => {
   const handler = (req, res, next) => {
+    if (module && req.company && !req.company.modules.includes(module)) {
+      return res.status(403).json({ code: 'MODULE_DISABLED', message: `The ${module} module is not part of your company's plan.` });
+    }
     if (hasPermission(req.user, module, permission)) return next();
     const scope = module ? ` on ${module}` : '';
     res.status(403).json({ message: `Missing "${permission}" permission${scope}.` });
