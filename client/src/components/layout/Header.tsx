@@ -21,7 +21,7 @@ const Header = ({ toggleSidebar, user, onLogout, onOpenPalette }: {
         <Link to="/" className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-[10px] bg-blue-600 text-white flex items-center justify-center font-extrabold text-xl">A</div>
           <div className="hidden sm:flex flex-col leading-tight">
-            <span className="font-extrabold text-lg text-slate-900">Ajax HRMS</span>
+            <span className="font-extrabold text-lg text-slate-900">Ajax Portal</span>
             <span className="text-xs text-slate-500">{t('header.portal')}</span>
           </div>
         </Link>
