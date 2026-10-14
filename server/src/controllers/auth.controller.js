@@ -7,6 +7,7 @@ import { issueOtp, checkOtp, OTP_PURPOSE } from '../utils/otp.js';
 import { sanitizeUser } from '../utils/format.js';
 import { assertSeatAvailable } from '../services/company.service.js';
 import { ssoReady } from './sso.controller.js';
+import { Company } from '../models/company.model.js';
 
 const normalizeEmail = (email) => String(email ?? '').trim().toLowerCase();
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -175,6 +176,24 @@ export const resetPassword = async (req, res) => {
   res.json({ message: 'Password reset. You can now sign in.' });
 };
 
+// Only a company whose plan includes custom logos shows one; the version makes browsers refetch after a change
+const logoUrl = (company) =>
+  company.features.customLogo && company.logoUpdatedAt ? `/api/auth/logo?v=${company.logoUpdatedAt.getTime()}` : null;
+
+// GET /auth/logo - public (the login page needs it); the company comes from the address
+export const logo = async (req, res) => {
+  const company = req.company && (await Company.findById(req.company.id).select('+logoData'));
+  if (!company?.features.customLogo || !company.logoData?.length) return res.status(404).json({ message: 'No logo.' });
+  res.set({
+    'Content-Type': company.logoContentType,
+    'Cache-Control': 'public, max-age=86400',
+    // Served as an image only: never sniffed, never run as a page
+    'X-Content-Type-Options': 'nosniff',
+    'Content-Security-Policy': "default-src 'none'; sandbox"
+  });
+  res.send(company.logoData);
+};
+
 // GET /auth/workspace - public: who this address belongs to, so the login page can brand itself and offer SSO.
 // Works for a suspended company too, so its people are told why they cannot sign in.
 export const workspace = (req, res) => {
@@ -188,6 +207,8 @@ export const workspace = (req, res) => {
     status: company.status,
     statusMessage: company.status === 'active' ? '' : 'This workspace is not available right now. Please contact your administrator.',
     modules: company.modules,
+    features: company.features,
+    logoUrl: logoUrl(company),
     allowSelfSignup: company.settings.allowSelfSignup,
     sso: { enabled: sso, providerName: sso ? company.sso.providerName : '', protocol: sso ? company.sso.protocol : null }
   });

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Copy, ShieldCheck } from 'lucide-react';
-import { apiJson, apiSend } from '../lib/api';
+import { apiFetch, apiJson, apiSend, readError } from '../lib/api';
+import { loadWorkspace } from '../lib/workspace';
 import { errorMessage, formatDateTime } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
 import { Badge, Button, Card, Empty, ErrorNote, Field, PageHeader, Spinner, StatTile, Tabs, Th, inputClass } from '../components/ui';
@@ -15,6 +16,8 @@ interface CompanyRecord {
   profile: { industry: string; website: string; address: string; timezone: string };
   subscription: { plan: string; seatLimit: number; expiresAt: string | null };
   modules: string[];
+  features: { customLogo: boolean };
+  logoUpdatedAt: string | null;
   settings: { allowSelfSignup: boolean };
   usage: { employees: number; seatLimit: number };
 }
@@ -61,6 +64,77 @@ const CopyField = ({ label, value }: { label: string; value: string }) => (
     </div>
   </Field>
 );
+
+// ---------------------------------------------------------------- Logo
+const LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+const MAX_LOGO_BYTES = 256 * 1024;
+
+const BrandingCard = ({ company, onChanged }: { company: CompanyRecord; onChanged: () => void }) => {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const hasLogo = !!company.logoUpdatedAt;
+
+  const done = async () => {
+    await loadWorkspace(true);
+    window.location.reload(); // header, sidebar and login pick up the new logo
+    onChanged();
+  };
+
+  const upload = async (file: File | undefined) => {
+    if (!file) return;
+    setError(null);
+    if (!LOGO_TYPES.includes(file.type)) return setError('Choose a PNG, JPEG or WebP image.');
+    if (file.size > MAX_LOGO_BYTES) return setError('The logo must be 256 KB or smaller.');
+    setBusy(true);
+    try {
+      const res = await apiFetch('/admin/company/logo', { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
+      if (!res.ok) throw new Error(await readError(res, 'Upload failed'));
+      await done();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await apiSend('DELETE', '/admin/company/logo');
+      await done();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card title="Company logo" actions={<Badge tone={company.features.customLogo ? 'green' : 'slate'}>{company.features.customLogo ? 'Included' : 'Not in your plan'}</Badge>}>
+      {!company.features.customLogo ? (
+        <p className="text-sm text-slate-500">Showing your logo instead of ours is an optional feature. Ask the platform administrator to enable it for your company.</p>
+      ) : (
+        <div className="space-y-4">
+          <div className="flex items-center gap-4">
+            <div className="w-40 h-20 rounded-xl border border-dashed border-slate-300 flex items-center justify-center bg-slate-50 overflow-hidden">
+              {hasLogo ? <img src={`/api/auth/logo?v=${company.logoUpdatedAt}`} alt="Current logo" className="max-h-full max-w-full object-contain" /> : <span className="text-xs text-slate-400">Platform logo</span>}
+            </div>
+            <p className="text-xs text-slate-400">PNG, JPEG or WebP, up to 256 KB. A wide image on a transparent background works best. It replaces our logo in the header, menu and login page.</p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <label className={`inline-flex items-center rounded-xl bg-blue-600 text-white px-5 py-2.5 text-xs font-black uppercase tracking-widest cursor-pointer hover:bg-blue-700 ${busy ? 'opacity-50 pointer-events-none' : ''}`}>
+              {hasLogo ? 'Replace logo' : 'Upload logo'}
+              <input type="file" accept={LOGO_TYPES.join(',')} className="sr-only" onChange={(e) => void upload(e.target.files?.[0])} />
+            </label>
+            {hasLogo && <Button variant="secondary" disabled={busy} onClick={() => void remove()}>Remove logo</Button>}
+          </div>
+          <ErrorNote error={error} />
+        </div>
+      )}
+    </Card>
+  );
+};
 
 // ---------------------------------------------------------------- Details & domain
 const DetailsTab = () => {
@@ -131,6 +205,7 @@ const DetailsTab = () => {
             A custom domain (for example hr.yourcompany.com) is an optional upgrade.
           </p>
         </Card>
+        <BrandingCard company={data} onChanged={() => void reload()} />
         <StatTile label="Employees" value={`${data.usage.employees} / ${data.usage.seatLimit}`} hint={`${data.subscription.plan} plan`} />
         <Card title="Modules in your plan">
           <div className="flex flex-wrap gap-2">{data.modules.map((m) => <Badge key={m} tone="blue">{m}</Badge>)}</div>

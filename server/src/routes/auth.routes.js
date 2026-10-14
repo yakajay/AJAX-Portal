@@ -10,6 +10,7 @@ const router = Router();
 const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 40 });
 
 router.get('/workspace', auth.workspace);
+router.get('/logo', auth.logo);
 router.get('/sso/config', sso.config);
 router.get('/sso/start', limiter, sso.start);
 router.get('/sso/callback', limiter, sso.callback);

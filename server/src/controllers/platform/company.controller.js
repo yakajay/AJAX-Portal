@@ -11,7 +11,7 @@ import { notify } from '../../utils/notify.js';
 import { audit } from '../../utils/audit.js';
 import { MODULES } from '../../utils/permissions.js';
 import {
-  ServiceError, createCompany, inviteCompanyAdmin, assertSlugAvailable, cleanModules, cleanPlan, cleanEmail, usageByCompany
+  ServiceError, createCompany, cleanFeatures, inviteCompanyAdmin, assertSlugAvailable, cleanModules, cleanPlan, cleanEmail, usageByCompany
 } from '../../services/company.service.js';
 import { executeDeleteRequest } from '../../services/deletion.service.js';
 
@@ -65,11 +65,11 @@ export const list = async (req, res) => {
 
 // POST /platform/companies - onboard a company; its subdomain is created from the name unless one is given
 export const create = async (req, res) => {
-  const { name, slug, primaryContact, plan, seatLimit, modules, profile, firstAdmin } = req.body ?? {};
+  const { name, slug, primaryContact, plan, seatLimit, modules, features, profile, firstAdmin } = req.body ?? {};
   // Validate the admin up front so a bad email doesn't leave a half-onboarded company behind
   const adminEmail = firstAdmin?.email ? cleanEmail(firstAdmin.email, 'admin email') : null;
 
-  const company = await createCompany({ name, slug, primaryContact, plan, seatLimit, modules, profile });
+  const company = await createCompany({ name, slug, primaryContact, plan, seatLimit, modules, features, profile });
   let admin = null;
   if (adminEmail) admin = (await inviteCompanyAdmin(company, { name: firstAdmin.name, email: adminEmail }, 'The platform team')).user;
 
@@ -103,7 +103,7 @@ export const update = async (req, res) => {
   const company = await loadCompany(req, res);
   if (!company) return;
   if (company.status === 'deleted') return res.status(409).json({ message: 'This company has been deleted.' });
-  const { name, slug, primaryContact, plan, seatLimit, modules, expiresAt } = req.body ?? {};
+  const { name, slug, primaryContact, plan, seatLimit, modules, features, expiresAt } = req.body ?? {};
   const changed = [];
 
   if (name !== undefined) {
@@ -139,6 +139,10 @@ export const update = async (req, res) => {
   if (modules !== undefined) {
     company.modules = cleanModules(modules);
     changed.push('modules');
+  }
+  if (features !== undefined) {
+    Object.assign(company.features, cleanFeatures(features));
+    changed.push('features');
   }
   await company.save();
   await audit(req, { action: 'company.update', entity: 'company', entityId: company.id, companyId: company._id, summary: `Updated ${company.name}`, meta: [...new Set(changed)] });

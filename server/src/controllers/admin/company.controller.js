@@ -60,6 +60,44 @@ export const update = async (req, res) => {
   res.json(await view(company));
 };
 
+// ---------------------------------------------------------------- Logo (a feature the platform enables per company)
+export const MAX_LOGO_BYTES = 256 * 1024;
+
+// Identifies the image by its first bytes rather than trusting the declared type. SVG is refused on purpose:
+// it can carry scripts.
+export const sniffImageType = (buf) => {
+  if (buf.length > 8 && buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'image/png';
+  if (buf.length > 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'image/jpeg';
+  if (buf.length > 12 && buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP') return 'image/webp';
+  return null;
+};
+
+const requireLogoFeature = (req, res) => {
+  if (req.company.features.customLogo) return true;
+  res.status(403).json({ code: 'FEATURE_DISABLED', message: 'Custom logos are not part of your plan. Ask the platform administrator to enable them.' });
+  return false;
+};
+
+// PUT /admin/company/logo - the request body is the image itself (image/png, image/jpeg or image/webp)
+export const uploadLogo = async (req, res) => {
+  if (!requireLogoFeature(req, res)) return;
+  const body = req.body;
+  if (!Buffer.isBuffer(body) || !body.length) return bad(res, 'Send the image as the request body (PNG, JPEG or WebP, up to 256 KB).');
+  const type = sniffImageType(body);
+  if (!type) return bad(res, 'The logo must be a PNG, JPEG or WebP image.');
+  await Company.updateOne({ _id: req.company.id }, { logoData: body, logoContentType: type, logoUpdatedAt: new Date() });
+  await audit(req, { action: 'company.logo', entity: 'company', entityId: req.company.id, summary: 'Uploaded the company logo', meta: { type, bytes: body.length } });
+  res.json({ hasLogo: true, logoUpdatedAt: new Date() });
+};
+
+// DELETE /admin/company/logo - goes back to the platform's logo (a setting, not a record, so it is immediate)
+export const removeLogo = async (req, res) => {
+  if (!requireLogoFeature(req, res)) return;
+  await Company.updateOne({ _id: req.company.id }, { logoData: null, logoContentType: '', logoUpdatedAt: null });
+  await audit(req, { action: 'company.logo', entity: 'company', entityId: req.company.id, summary: 'Removed the company logo' });
+  res.json({ hasLogo: false });
+};
+
 // ---------------------------------------------------------------- SSO
 const ssoView = (company) => {
   const origin = companyOrigin(company);

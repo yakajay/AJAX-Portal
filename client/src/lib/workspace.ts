@@ -10,6 +10,9 @@ export interface Workspace {
   status?: 'active' | 'suspended' | 'inactive' | 'deleted';
   statusMessage?: string;
   modules?: Module[];
+  features?: { customLogo: boolean };
+  /** The company's own logo (only when the platform enabled it for them); otherwise our logo is shown */
+  logoUrl?: string | null;
   allowSelfSignup?: boolean;
   sso?: { enabled: boolean; providerName: string; protocol: 'oidc' | 'saml' | null };
 }

@@ -83,7 +83,16 @@ export const cleanEmail = (email, label = 'email') => {
   return value;
 };
 
-export const createCompany = async ({ name, slug, primaryContact = {}, plan = 'trial', seatLimit, modules, profile = {} }) => {
+export const FEATURES = ['customLogo'];
+export const cleanFeatures = (features) => {
+  if (features === undefined) return undefined;
+  if (!features || typeof features !== 'object') throw new ServiceError(400, 'features must be an object.');
+  const unknown = Object.keys(features).find((f) => !FEATURES.includes(f));
+  if (unknown) throw new ServiceError(400, `Unknown feature "${unknown}".`);
+  return Object.fromEntries(Object.entries(features).map(([k, v]) => [k, !!v]));
+};
+
+export const createCompany = async ({ name, slug, primaryContact = {}, plan = 'trial', seatLimit, modules, features, profile = {} }) => {
   const cleanName = String(name ?? '').trim();
   if (!cleanName) throw new ServiceError(400, 'Company name is required.');
   const subscription = cleanPlan(plan, seatLimit);
@@ -99,6 +108,7 @@ export const createCompany = async ({ name, slug, primaryContact = {}, plan = 't
     profile: { industry: profile.industry ?? '', website: profile.website ?? '', address: profile.address ?? '', timezone: profile.timezone || 'UTC' },
     subscription,
     ...(modules !== undefined ? { modules: cleanModules(modules) } : {}),
+    ...(features !== undefined ? { features: cleanFeatures(features) } : {}),
     dataKey: generateWrappedCompanyKey()
   });
   const withKey = await Company.findById(company.id).select('+dataKey');

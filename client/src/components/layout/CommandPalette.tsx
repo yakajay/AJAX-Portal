@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, User as UserIcon, Moon, LogOut, CalendarPlus, LogIn } from 'lucide-react';
+import { Search, User as UserIcon, Moon, Sun, LogOut, CalendarPlus, LogIn } from 'lucide-react';
 import type { User } from '../../types';
 import { apiJson } from '../../lib/api';
 import { visibleNav } from '../../lib/nav';
@@ -28,7 +28,7 @@ const CommandPalette = ({ open, onClose, user, onLogout }: { open: boolean; onCl
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { t } = useI18n();
-  const { toggle: toggleTheme } = useTheme();
+  const { theme, toggle: toggleTheme } = useTheme();
   const { workspace } = useWorkspace();
 
   useEffect(() => {
@@ -49,7 +49,8 @@ const CommandPalette = ({ open, onClose, user, onLogout }: { open: boolean; onCl
     const actions: Entry[] = [
       { id: 'act:leave', group: 'palette.actions', label: 'Request leave', haystack: 'request apply leave vacation time off', icon: CalendarPlus, run: go('/leave') },
       { id: 'act:clock', group: 'palette.actions', label: 'Clock in / out', haystack: 'clock in out attendance', icon: LogIn, run: go('/') },
-      { id: 'act:theme', group: 'palette.actions', label: 'Toggle dark mode', haystack: 'theme dark light mode appearance', icon: Moon, run: toggleTheme },
+      // Names what the click will do, so it flips between dark and light along with the theme
+      { id: 'act:theme', group: 'palette.actions', label: theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode', haystack: 'theme dark light mode appearance toggle', icon: theme === 'dark' ? Sun : Moon, run: toggleTheme },
       { id: 'act:logout', group: 'palette.actions', label: t('header.signOut'), haystack: 'sign out log out logout', icon: LogOut, run: onLogout }
     ];
     const folks: Entry[] = (people ?? []).map((p) => ({
@@ -58,7 +59,7 @@ const CommandPalette = ({ open, onClose, user, onLogout }: { open: boolean; onCl
       run: () => navigate(`/directory?q=${encodeURIComponent(p.name)}`)
     }));
     return [...pages, ...actions, ...folks];
-  }, [user, workspace, people, navigate, t, toggleTheme, onLogout]);
+  }, [user, workspace, people, navigate, t, theme, toggleTheme, onLogout]);
 
   const results = useMemo(() => {
     const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);

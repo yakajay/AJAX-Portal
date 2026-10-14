@@ -26,7 +26,11 @@ const Sidebar = ({ isOpen, toggleSidebar, user }: { isOpen: boolean; toggleSideb
         } transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 lg:shrink-0 overflow-y-auto`}
       >
         <div className="flex items-center justify-between h-[68px] px-6 border-b border-slate-200 lg:hidden">
-          <span className="text-lg font-extrabold text-slate-900">Ajax Portal</span>
+          {workspace?.logoUrl ? (
+            <img src={workspace.logoUrl} alt={`${workspace.name} logo`} className="h-9 max-w-[10rem] object-contain" />
+          ) : (
+            <span className="text-lg font-extrabold text-slate-900">Ajax Portal</span>
+          )}
           <button onClick={toggleSidebar} aria-label="Close menu">
             <X size={24} />
           </button>

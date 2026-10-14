@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, raw } from 'express';
 import { authenticate, requireAdmin, requireSuperAdmin, can } from '../middleware/auth.js';
 import * as users from '../controllers/admin/user.controller.js';
 import * as leaves from '../controllers/admin/leave.controller.js';
@@ -104,6 +104,9 @@ router.get('/company', requireSuperAdmin, company.get);
 router.put('/company', requireSuperAdmin, company.update);
 router.get('/company/sso', requireSuperAdmin, company.getSso);
 router.put('/company/sso', requireSuperAdmin, company.updateSso);
+// The logo is uploaded as the raw image body (the JSON parser would reject it)
+router.put('/company/logo', requireSuperAdmin, raw({ type: ['image/png', 'image/jpeg', 'image/webp'], limit: company.MAX_LOGO_BYTES }), company.uploadLogo);
+router.delete('/company/logo', requireSuperAdmin, company.removeLogo);
 router.get('/support-access', requireSuperAdmin, company.listSupportAccess);
 router.post('/support-access', requireSuperAdmin, company.grantSupportAccess);
 router.post('/support-access/:id/revoke', requireSuperAdmin, company.revokeSupportAccess);

@@ -45,6 +45,15 @@ const companySchema = new mongoose.Schema(
       expiresAt: { type: Date, default: null }
     },
     modules: { type: [String], default: () => [...MODULES] },
+    // Optional extras the platform switches on per company (part of what we provide to them)
+    features: {
+      customLogo: { type: Boolean, default: false }
+    },
+    // The company's own logo, shown instead of ours. The image bytes live in `logo` and are only loaded
+    // by the logo endpoint; `logoUpdatedAt` tells everyone else whether one exists.
+    logoUpdatedAt: { type: Date, default: null },
+    logoContentType: { type: String, default: '' },
+    logoData: { type: Buffer, select: false },
     settings: {
       // Self-signup is off by default: a workspace belongs to one company, so people are added by its admins or SSO
       allowSelfSignup: { type: Boolean, default: false }
@@ -74,6 +83,7 @@ const companySchema = new mongoose.Schema(
   },
   schemaOptions((ret) => {
     delete ret.dataKey;
+    delete ret.logoData;
     if (ret.sso?.oidc) {
       ret.sso.oidc.clientSecretSet = !!ret.sso.oidc.clientSecret;
       delete ret.sso.oidc.clientSecret;

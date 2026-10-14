@@ -18,7 +18,7 @@ React + Vite client (`client/`) and Express + MongoDB API (`server/`).
 | **Multi-tenancy** | Each client company gets its own workspace at `<company>.yourplatform.com`, onboarded by the platform's Super Admin (plan, enabled modules, first admin, suspend / deactivate). Companies are isolated at the data layer, admins raise delete requests instead of deleting, and the Super Admin sees platform-level data only unless a company grants temporary support access. See [Multi-tenancy](#multi-tenancy-companies-subdomains-and-sso). |
 | **UX** | `Ctrl/Cmd+K` command palette, dashboard charts, English / Hindi / Spanish shell, dark mode, mobile-friendly layout. |
 
-Not included: file uploads / storage (receipts and ticket attachments take a reference or link instead; HR documents stay metadata-only).
+Not included: general file uploads / storage; the only upload is the optional company logo (below) (receipts and ticket attachments take a reference or link instead; HR documents stay metadata-only).
 
 ## Run with Docker
 
@@ -128,6 +128,8 @@ Scheduled jobs run inside the API process (hourly). To run them from cron instea
 **Company admins** (`SUPER_ADMIN` inside the workspace) edit their company's details under **Company settings**. Plan, modules, status and subdomain are the platform's. Enabled modules are enforced on both the employee and admin APIs, and the seat limit is enforced when adding people.
 
 **Deleting.** Company admins cannot delete directly. Every delete action under `/api/admin` (employee, department, announcement, checklist, checklist template) and *Request company deletion* files a request with status **Pending** instead. The platform Super Admin **approves** (the deletion is carried out with the same safety checks as before) or **rejects** it with a reason; the status is shown to the company under **Delete requests**, and each step is in the audit log. An approved company deletion closes the workspace and signs everyone out; the records are retained, not purged.
+
+**Optional features.** The platform switches features on per company, when onboarding or later under *Manage*. Today that is **Custom logo**: the company admin can then upload a PNG, JPEG or WebP (up to 256 KB) under *Company settings* to replace our logo in the header, menu and login page. SVG is refused on purpose, the image type is checked from the file contents, and the logo is served with headers that stop browsers treating it as a page. Turning the feature off hides the logo without deleting it.
 
 **Domains.** A subdomain is all a company needs. Production needs wildcard DNS (`*.example.com`) and a wildcard TLS certificate pointing at the web container, with `BASE_DOMAIN`, `PUBLIC_SCHEME` and `TRUST_PROXY` set. Single-company installs without wildcard DNS can set `DEFAULT_TENANT_SLUG` so any other host serves that company. *Custom domains* (e.g. `hr.company.com`) are not built: they would need DNS CNAME and TXT-based ownership verification and certificate provisioning per domain.
 

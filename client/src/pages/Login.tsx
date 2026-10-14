@@ -85,6 +85,7 @@ const Login = ({ onLogin }) => {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
+        {workspace?.logoUrl && <img src={workspace.logoUrl} alt={`${workspace.name} logo`} className="mx-auto mb-4 h-16 max-w-[14rem] object-contain" />}
         <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
           {workspace?.kind === 'platform' ? (
             <>Super Admin <span className="text-emerald-600">console</span></>

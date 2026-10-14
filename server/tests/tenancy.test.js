@@ -593,3 +593,67 @@ describe('data-layer details', () => {
     expect(await runAsPlatform(() => SalaryStructure.countDocuments())).toBe(0);
   });
 });
+
+describe('custom company logo (a feature the platform enables)', () => {
+  // Smallest valid-looking headers; the server only checks the leading bytes
+  const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(64, 1)]);
+  const upload = (co, admin, body, type = 'image/png') =>
+    co.api().put('/api/admin/company/logo').set(admin.auth).set('Content-Type', type).send(body);
+
+  it('is off until the platform enables it, then the company admin can upload, see and remove one', async () => {
+    const sa = await makePlatformAdmin();
+    const co = await makeCompany('brandco');
+    const admin = await makeSuperAdmin({}, co.company);
+
+    expect((await co.api().get('/api/auth/workspace')).body).toMatchObject({ features: { customLogo: false }, logoUrl: null });
+    const blocked = await upload(co, admin, png).expect(403);
+    expect(blocked.body.code).toBe('FEATURE_DISABLED');
+    await co.api().get('/api/auth/logo').expect(404);
+
+    await platformApi().put(`/api/platform/companies/${co.company.id}`).set(sa.auth).send({ features: { customLogo: true } }).expect(200);
+    await platformApi().put(`/api/platform/companies/${co.company.id}`).set(sa.auth).send({ features: { nonsense: true } }).expect(400);
+    await upload(co, admin, png).expect(200);
+
+    const ws = (await co.api().get('/api/auth/workspace')).body;
+    expect(ws.logoUrl).toMatch(/^\/api\/auth\/logo\?v=\d+$/);
+    const img = await co.api().get('/api/auth/logo').buffer(true).parse((res, cb) => { const c = []; res.on('data', (d) => c.push(d)); res.on('end', () => cb(null, Buffer.concat(c))); }).expect(200);
+    expect(img.headers['content-type']).toBe('image/png');
+    expect(img.headers['x-content-type-options']).toBe('nosniff');
+    expect(img.body.equals(png)).toBe(true);
+    // The image bytes never appear in JSON responses
+    expect(JSON.stringify((await co.api().get('/api/admin/company').set(admin.auth)).body)).not.toContain('logoData');
+
+    // Another company still shows the platform's logo
+    await api().get('/api/auth/logo').expect(404);
+
+    // Switching the feature off hides it without deleting it
+    await platformApi().put(`/api/platform/companies/${co.company.id}`).set(sa.auth).send({ features: { customLogo: false } }).expect(200);
+    await co.api().get('/api/auth/logo').expect(404);
+    expect((await co.api().get('/api/auth/workspace')).body.logoUrl).toBeNull();
+    await platformApi().put(`/api/platform/companies/${co.company.id}`).set(sa.auth).send({ features: { customLogo: true } }).expect(200);
+    await co.api().delete('/api/admin/company/logo').set(admin.auth).expect(200);
+    await co.api().get('/api/auth/logo').expect(404);
+  });
+
+  it('only accepts real PNG, JPEG and WebP images of a sensible size, from the company admin', async () => {
+    const co = await makeCompany('logorules', { features: { customLogo: true } });
+    const admin = await makeSuperAdmin({}, co.company);
+    const plain = await makeAdmin({}, co.company);
+
+    await upload(co, admin, Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'), 'image/png').expect(400); // not an image
+    await upload(co, admin, png, 'image/svg+xml').expect(400); // type not accepted, body not parsed
+    await upload(co, admin, Buffer.concat([png, Buffer.alloc(300 * 1024)])).expect(413);
+    await upload(co, admin, Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), Buffer.alloc(32)]), 'image/jpeg').expect(200);
+    await upload(co, plain, png).expect(403);
+    await co.api().delete('/api/admin/company/logo').set(plain.auth).expect(403);
+    // Logo changes are audited
+    const log = await co.api().get('/api/admin/audit?q=logo').set(admin.auth).expect(200);
+    expect(log.body.items.some((i) => i.action === 'company.logo')).toBe(true);
+  });
+
+  it('lets the platform grant the feature when onboarding', async () => {
+    const sa = await makePlatformAdmin();
+    const res = await platformApi().post('/api/platform/companies').set(sa.auth).send({ name: 'Logo Onboard', features: { customLogo: true } }).expect(201);
+    expect(res.body.features.customLogo).toBe(true);
+  });
+});
