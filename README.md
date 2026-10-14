@@ -27,7 +27,7 @@ Requires Docker Desktop (Compose v2).
 ```bash
 cp server/.env.example server/.env      # then edit it (see below)
 docker compose up --build
-docker compose run --rm api npm run seed   # first run only: sample accounts + holidays
+# then create the platform Super Admin (see "Creating your own admins" below)
 ```
 
 - Platform (Super Admin) console: `http://admin.localhost:5173` - company workspaces: `http://<company>.localhost:5173` (browsers resolve `*.localhost` themselves; see [Multi-tenancy](#multi-tenancy-companies-subdomains-and-sso))
@@ -44,7 +44,6 @@ Edit `server/.env`:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.localdb.yml up --build
-docker compose -f docker-compose.yml -f docker-compose.localdb.yml run --rm api npm run seed
 ```
 
 This starts a local MongoDB container (data kept in the `mongo-data` volume; `down -v` wipes it) and overrides `MONGODB_URI` for the API.
@@ -59,29 +58,11 @@ docker compose logs -f api
 
 For a real deployment set `NODE_ENV=production`, `JWT_SECRET` and the `SMTP_*` variables.
 
-### Test accounts (from `npm run seed`)
+### First run
 
-The seed creates the sample company **Demo Company** (workspace `demo.localhost`) and the platform's own Super Admin. Sign in to the right address for each account.
+There is no sample data. Create the platform Super Admin, sign in at `http://admin.localhost:5173`, and onboard a company from **Companies**; its admin gets an emailed invitation (in development the email is printed in the API log). See "Creating your own admins" below.
 
-| Address | Email | Password | Role / purpose |
-|---|---|---|---|
-| `admin.localhost:5173` | `platform@yakflow.local` | `Platform@123` | Platform Super Admin: onboards and manages companies |
-
-Everything below belongs to the demo company (`demo.localhost:5173`):
-
-| Email | Password | Role / purpose |
-|---|---|---|
-| `admin@organization.com` | `Admin@123` | Company admin (the `SUPER_ADMIN` role inside a workspace: read/write/delete, manages admins, company settings, SSO) |
-| `hr.admin@organization.com` | `Admin@123` | Admin with read/write |
-| `readonly.admin@organization.com` | `Admin@123` | Admin with read only (write actions return 403) |
-| `jane@organization.com` | `Welcome@123` | User (has sample leaves, documents, attendance) |
-| `john@organization.com` | `Welcome@123` | User |
-| `alice@organization.com` | `Welcome@123` | User |
-| `bob@organization.com` | `Welcome@123` | User |
-| `locked@organization.com` | `Welcome@123` | Locked account (login is refused) |
-| `unverified@organization.com` | `Welcome@123` | Email not verified (login asks for a verification code) |
-
-The seed also adds sample leave requests, HR documents, attendance, contractors and payroll transactions, but only into empty collections, so re-running it never duplicates them. Re-running does reset the account passwords above. Change them before using real data.
+If an earlier version of this project seeded sample accounts (`@organization.com`, `platform@yakflow.local`, the `demo` company), remove them with `node scripts/remove-demo-data.js` (a dry run) and then `--apply`. Create your own platform admin first.
 
 ### Changing ports or hostnames
 
@@ -186,6 +167,6 @@ Set `MONGODB_TEST_URI=mongodb://127.0.0.1:27017` to run the API tests against an
 ## Run without Docker
 
 ```bash
-cd server && cp .env.example .env && npm install && npm run seed && npm run dev
+cd server && cp .env.example .env && npm install && npm run dev
 cd client && npm install && npm run dev
 ```

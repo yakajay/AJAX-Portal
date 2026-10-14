@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "seed": "node seed.js",
+    "remove-demo-data": "node scripts/remove-demo-data.js",
     "digest": "node scripts/run-jobs.js digest",
     "jobs": "node scripts/run-jobs.js all",
     "test": "vitest run",
