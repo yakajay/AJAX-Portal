@@ -15,11 +15,11 @@ import { formatDate, formatTime, formatDuration, localDayKey, userTimeZone } fro
 import { apiFetch, downloadFile } from '../lib/api';
 import { can } from '../lib/permissions';
 import { getLocation } from '../lib/geolocation';
-import { MonthlySummary, CorrectionsQueue, AttendanceReport } from '../components/attendance/AttendanceExtras';
+import { MonthlySummary, CorrectionsQueue, AttendanceReport, AttendanceEditor, ShiftManager } from '../components/attendance/AttendanceExtras';
 
 type DayMode = 'leave' | 'regularize' | 'manual';
 
-const LEAVE_TYPES = ['Annual Leave', 'Sick Leave', 'Casual Leave'];
+const DEFAULT_LEAVE_TYPES = ['Annual Leave', 'Sick Leave', 'Casual Leave'];
 const STATUS_DOT: Record<string, string> = {
   Present: 'bg-emerald-500',
   Leave: 'bg-sky-500',
@@ -41,7 +41,14 @@ const DayPanel = ({ dayKey, logs, leaves, onLogAdded, onLeaveAdded }: {
   const dayLeave = leaves.find(l => l.status !== 'Rejected' && l.startDate <= dayKey && dayKey <= l.endDate);
 
   const [mode, setMode] = useState<DayMode>('manual');
-  const [leaveType, setLeaveType] = useState(LEAVE_TYPES[0]);
+  const [leaveTypes, setLeaveTypes] = useState(DEFAULT_LEAVE_TYPES);
+  const [leaveType, setLeaveType] = useState(DEFAULT_LEAVE_TYPES[0]);
+  useEffect(() => {
+    apiFetch('/user/leaves/types').then((r) => (r.ok ? r.json() : [])).then((rows: { type: string; yearly: number | null }[]) => {
+      const paid = rows.filter((t) => t.yearly !== null).map((t) => t.type);
+      if (paid.length) { setLeaveTypes(paid); setLeaveType(paid[0]); }
+    }).catch(() => {});
+  }, []);
   const [inTime, setInTime] = useState('09:00');
   const [outTime, setOutTime] = useState('18:00');
   const [reason, setReason] = useState('');
@@ -137,7 +144,7 @@ const DayPanel = ({ dayKey, logs, leaves, onLogAdded, onLeaveAdded }: {
           <div>
             <label className={labelCls} htmlFor="day-leave-type">Leave type</label>
             <select id="day-leave-type" className={inputCls} value={leaveType} onChange={e => setLeaveType(e.target.value)}>
-              {LEAVE_TYPES.map(t => <option key={t}>{t}</option>)}
+              {leaveTypes.map(t => <option key={t}>{t}</option>)}
             </select>
           </div>
         ) : (
@@ -272,7 +279,7 @@ const Attendance = ({ user }: { user: any }) => {
   const [leaves, setLeaves] = useState<any[]>([]);
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [activeView, setActiveView] = useState<'history' | 'calendar' | 'summary' | 'corrections' | 'report'>('calendar');
+  const [activeView, setActiveView] = useState<'history' | 'calendar' | 'summary' | 'corrections' | 'report' | 'edit' | 'shifts'>('calendar');
   const [pendingCorrections, setPendingCorrections] = useState(0);
   const isAdminUser = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
   const canSeeReport = can(user, 'attendance', 'read');
@@ -388,6 +395,22 @@ const Attendance = ({ user }: { user: any }) => {
                 Report
               </button>
             )}
+            {canSeeReport && (
+              <button 
+                onClick={() => setActiveView('edit')}
+                className={`px-6 py-2 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeView === 'edit' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                Edit
+              </button>
+            )}
+            {canSeeReport && (
+              <button 
+                onClick={() => setActiveView('shifts')}
+                className={`px-6 py-2 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeView === 'shifts' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                Shifts
+              </button>
+            )}
           </div>
           <div className="text-[10px] font-black uppercase tracking-widest bg-white px-4 py-2 rounded-xl border border-slate-200 text-slate-400 shadow-sm">
             Today: <span className="text-slate-900 ml-1">{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
@@ -466,6 +489,10 @@ const Attendance = ({ user }: { user: any }) => {
             <CorrectionsQueue user={user} onChanged={refreshCorrections} />
           ) : activeView === 'report' ? (
             <AttendanceReport />
+          ) : activeView === 'edit' ? (
+            <AttendanceEditor user={user} />
+          ) : activeView === 'shifts' ? (
+            <ShiftManager user={user} />
           ) : activeView === 'calendar' ? (
             <CalendarView
               logs={logs}

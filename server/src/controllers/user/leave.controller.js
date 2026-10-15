@@ -1,7 +1,7 @@
 import { leaveModel } from '../../models/leave.model.js';
 import { holidayModel } from '../../models/holiday.model.js';
 import { userModel } from '../../models/user.model.js';
-import { LEAVE_POLICY, LEAVE_TYPES, leaveBalances } from '../../utils/leavePolicy.js';
+import { policyFor, leaveBalances } from '../../utils/leavePolicy.js';
 import { isValidIso, isValidMonth, monthBounds, workingDays, labelToIso, overlaps, isoDate, currentMonth } from '../../utils/dates.js';
 import { holidaySet, decideLeave } from '../../services/leave.service.js';
 import { notify, adminIdsFor } from '../../utils/notify.js';
@@ -12,12 +12,13 @@ export const listMine = async (req, res) => {
 
 export const balance = async (req, res) => {
   const leaves = await leaveModel.findByUser(req.user.id);
-  res.json(leaveBalances(leaves, isoDate(new Date()), { joinDate: req.user.joinDate }));
+  res.json(leaveBalances(leaves, isoDate(new Date()), { joinDate: req.user.joinDate, policy: policyFor(req.company) }));
 };
 
 export const apply = async (req, res) => {
   const { type, startDate, endDate, reason, halfDay, halfDayPart } = req.body;
-  if (!LEAVE_TYPES.includes(type) || !isValidIso(startDate) || !isValidIso(endDate) || endDate < startDate) {
+  const policy = policyFor(req.company);
+  if (!Object.hasOwn(policy, type) || !isValidIso(startDate) || !isValidIso(endDate) || endDate < startDate) {
     return res.status(400).json({ message: 'A valid leave type and start/end dates are required.' });
   }
   if (halfDay && startDate !== endDate) {
@@ -44,8 +45,8 @@ export const apply = async (req, res) => {
     return res.status(409).json({ message: `This overlaps your ${clash.status.toLowerCase()} leave from ${clash.startDate} to ${clash.endDate}.` });
   }
 
-  if (LEAVE_POLICY[type].yearly !== null) {
-    const balanceFor = leaveBalances(mine, startDate, { joinDate: req.user.joinDate }).find((b) => b.type === type);
+  if (policy[type].yearly !== null) {
+    const balanceFor = leaveBalances(mine, startDate, { joinDate: req.user.joinDate, policy }).find((b) => b.type === type);
     if (days > balanceFor.remaining) {
       return res.status(400).json({
         message: `Not enough ${type} balance: ${balanceFor.remaining} day(s) available, ${days} requested.`
@@ -87,6 +88,11 @@ export const cancel = async (req, res) => {
 
 // Who is out in a month: approved and pending leave for everyone, plus public holidays.
 // Reasons are deliberately not exposed.
+// The company's leave types, for the application form
+export const types = async (req, res) => {
+  res.json(Object.entries(policyFor(req.company)).map(([type, p]) => ({ type, ...p })));
+};
+
 export const calendar = async (req, res) => {
   const month = req.query.month || currentMonth();
   if (!isValidMonth(month)) return res.status(400).json({ message: 'month must look like 2026-10.' });

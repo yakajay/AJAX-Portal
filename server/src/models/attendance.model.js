@@ -9,7 +9,7 @@ const attendanceSchema = withUserVirtual(new mongoose.Schema(
     checkOutAt: { type: Date, default: null },
     status: { type: String, default: 'Present' },
     // How the entry was created: a live clock-in, a manual punch, or a regularization request
-    source: { type: String, enum: ['clock', 'manual', 'regularization'], default: 'clock' },
+    source: { type: String, enum: ['clock', 'manual', 'regularization', 'admin'], default: 'clock' },
     reason: { type: String, default: null },
     // Where / from which address the clock-in happened (optional geolocation, always the request IP)
     location: {
@@ -21,7 +21,10 @@ const attendanceSchema = withUserVirtual(new mongoose.Schema(
     remote: { type: Boolean, default: false },
     reviewedById: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     reviewedAt: { type: Date, default: null },
-    reviewNote: { type: String, default: '' }
+    reviewNote: { type: String, default: '' },
+    // Set when an admin created or changed the entry directly
+    editedById: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    editedAt: { type: Date, default: null }
   },
   schemaOptions()
 ));
@@ -37,6 +40,7 @@ export const attendanceModel = {
     Attendance.find({ userId: { $in: userIds }, checkInAt: { $gte: from, $lt: to } }).sort({ checkInAt: 1 }),
   findOpen: (userId) => Attendance.findOne({ userId, checkOutAt: null }).sort({ createdAt: -1 }),
   create: (data) => Attendance.create(data),
+  remove: (id) => Attendance.findByIdAndDelete(id),
   setCheckOut: (id, checkOutAt) =>
     Attendance.findByIdAndUpdate(id, { checkOutAt }, { returnDocument: 'after' }).orFail()
 };

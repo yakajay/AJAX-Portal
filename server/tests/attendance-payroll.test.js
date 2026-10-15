@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 import { connectTestDb, disconnectTestDb } from './helpers/db.js';
-import { api, makeUser, makeAdmin, makeSuperAdmin, addHoliday, inTenant } from './helpers/fixtures.js';
+import { api, makeUser, makeAdmin, makeSuperAdmin, makeCompany, addHoliday, inTenant } from './helpers/fixtures.js';
 import { Attendance } from '../src/models/attendance.model.js';
 import { Payslip } from '../src/models/salary.model.js';
 import { Transaction } from '../src/models/transaction.model.js';
@@ -119,8 +119,170 @@ describe('attendance', () => {
     const json = await api().get('/api/admin/attendance/report?month=2031-04&tz=UTC').set(admin.auth).expect(200);
     expect(json.body.rows.find((r) => r.userId === user.user.id)).toMatchObject({ daysPresent: 1, totalHours: 8 });
     const csv = await api().get('/api/admin/attendance/report?month=2031-04&tz=UTC&format=csv').set(admin.auth).expect(200);
-    expect(csv.text).toContain('Employee,Department,Days present');
+    expect(csv.text).toContain('Employee,Department,Shift,Days present');
     await api().get('/api/admin/attendance/report').set(user.auth).expect(403);
+  });
+});
+
+describe('admin attendance edit', () => {
+  const day = '2025-03-12';
+  const times = (inH = '09:00', outH = '17:00') => ({ checkInAt: `${day}T${inH}:00Z`, checkOutAt: `${day}T${outH}:00Z`, tz: 'UTC' });
+
+  it('adds, corrects and removes entries with a reason, notifying and auditing', async () => {
+    const admin = await makeAdmin();
+    const sa = await makeSuperAdmin();
+    const emp = await makeUser();
+    const base = { userId: emp.user.id, ...times(), reason: 'Badge reader was down' };
+
+    await api().post('/api/admin/attendance').set(emp.auth).send(base).expect(403);
+    await api().post('/api/admin/attendance').set(admin.auth).send({ ...base, reason: ' ' }).expect(400);
+    await api().post('/api/admin/attendance').set(admin.auth).send({ ...base, checkOutAt: `${day}T08:00:00Z` }).expect(400);
+    await api().post('/api/admin/attendance').set(admin.auth).send({ ...base, checkOutAt: '2999-01-01T00:00:00Z' }).expect(400);
+    await api().post('/api/admin/attendance').set(admin.auth).send({ ...base, userId: admin.user.id }).expect(403);
+
+    const created = await api().post('/api/admin/attendance').set(admin.auth).send(base).expect(201);
+    expect(created.body).toMatchObject({ status: 'Present', source: 'admin' });
+    await api().post('/api/admin/attendance').set(admin.auth).send(base).expect(409); // one entry per day
+
+    const summary = await api().get('/api/user/attendance/summary?month=2025-03&tz=UTC').set(emp.auth).expect(200);
+    expect(summary.body).toMatchObject({ daysPresent: 1, totalHours: 8 });
+
+    const listed = await api().get(`/api/admin/attendance/records?userId=${emp.user.id}&month=2025-03&tz=UTC`).set(admin.auth).expect(200);
+    expect(listed.body).toHaveLength(1);
+
+    await api().put(`/api/admin/attendance/${created.body.id}`).set(admin.auth).send(times('09:00', '18:00')).expect(400); // reason
+    await api().put(`/api/admin/attendance/${created.body.id}`).set(admin.auth).send({ ...times('09:00', '18:00'), status: 'Bogus', reason: 'x' }).expect(400);
+    const edited = await api().put(`/api/admin/attendance/${created.body.id}`).set(admin.auth).send({ ...times('09:00', '18:00'), reason: 'Left later' }).expect(200);
+    expect(edited.body.checkOutAt).toBe(`${day}T18:00:00.000Z`);
+
+    const inbox = await api().get('/api/user/notifications').set(emp.auth).expect(200);
+    expect(inbox.body.items.some((n) => /admin corrected/.test(n.title))).toBe(true);
+    const audit = await api().get('/api/admin/audit').set(sa.auth).expect(200);
+    expect(JSON.stringify(audit.body)).toContain('attendance.admin_update');
+
+    await api().delete(`/api/admin/attendance/${created.body.id}`).set(admin.auth).send({ reason: 'dup' }).expect(403); // delete permission needed
+    await api().delete(`/api/admin/attendance/${created.body.id}`).set(sa.auth).send({}).expect(400);
+    await api().delete(`/api/admin/attendance/${created.body.id}`).set(sa.auth).send({ reason: 'Entered by mistake' }).expect(200);
+    expect(await Attendance.countDocuments({ userId: emp.user.id })).toBe(0);
+  });
+
+  it('approves a pending correction by editing it, and cannot move an entry onto a taken day', async () => {
+    const admin = await makeAdmin();
+    const emp = await makeUser();
+    const other = `2025-03-13T09:00:00Z`;
+    await inTenant(() => Attendance.create([
+      { userId: emp.user.id, checkInAt: new Date(`${day}T09:00:00Z`), checkOutAt: new Date(`${day}T17:00:00Z`) },
+      { userId: emp.user.id, checkInAt: new Date(other), checkOutAt: new Date('2025-03-13T17:00:00Z'), status: 'Regularization Pending', source: 'regularization' }
+    ]));
+    const records = (await api().get(`/api/admin/attendance/records?userId=${emp.user.id}&month=2025-03&tz=UTC`).set(admin.auth).expect(200)).body;
+    const pending = records.find((e) => e.status === 'Regularization Pending');
+    const clash = await api().put(`/api/admin/attendance/${pending.id}`).set(admin.auth).send({ ...times('10:00', '16:00'), reason: 'move' }).expect(409);
+    expect(clash.body.message).toMatch(/another attendance entry/);
+    const ok = await api().put(`/api/admin/attendance/${pending.id}`).set(admin.auth).send({ checkInAt: other, reason: 'Confirmed with manager' }).expect(200);
+    expect(ok.body.status).toBe('Present');
+  });
+});
+
+describe('shifts', () => {
+  const shiftBody = (extra = {}) => ({ name: `Shift ${Math.random().toString(36).slice(2, 7)}`, startTime: '09:00', endTime: '18:00', graceMinutes: 60, ...extra });
+
+  it('validates, creates, updates and deletes shifts (permission-gated, names unique)', async () => {
+    const admin = await makeAdmin();
+    const user = await makeUser();
+    await api().post('/api/admin/shifts').set(user.auth).send(shiftBody()).expect(403);
+    await api().post('/api/admin/shifts').set(admin.auth).send(shiftBody({ startTime: '25:00' })).expect(400);
+    await api().post('/api/admin/shifts').set(admin.auth).send(shiftBody({ endTime: '08:00' })).expect(400); // no overnight shifts
+    await api().post('/api/admin/shifts').set(admin.auth).send(shiftBody({ graceMinutes: -5 })).expect(400);
+    const body = shiftBody();
+    const made = await api().post('/api/admin/shifts').set(admin.auth).send(body).expect(201);
+    await api().post('/api/admin/shifts').set(admin.auth).send(body).expect(409);
+    const edited = await api().put(`/api/admin/shifts/${made.body.id}`).set(admin.auth).send({ endTime: '17:00' }).expect(200);
+    expect(edited.body).toMatchObject({ startTime: '09:00', endTime: '17:00' });
+    await api().put(`/api/admin/shifts/${made.body.id}`).set(admin.auth).send({ endTime: '08:00' }).expect(400);
+
+    const listed = await api().get('/api/admin/shifts').set(admin.auth).expect(200);
+    expect(listed.body.find((x) => x.id === made.body.id).memberCount).toBe(0);
+    await api().delete(`/api/admin/shifts/${made.body.id}`).set(admin.auth).expect(200);
+    await api().delete(`/api/admin/shifts/${made.body.id}`).set(admin.auth).expect(404);
+  });
+
+  it('judges late and early-out against the employee\'s own shift, and unassigns on delete', async () => {
+    const admin = await makeAdmin();
+    const emp = await makeUser();
+    const base = '2031-05';
+    await inTenant(() => Attendance.create({ userId: emp.user.id, checkInAt: new Date(`${base}-06T09:45:00Z`), checkOutAt: new Date(`${base}-06T17:45:00Z`) }));
+    const month = () => api().get(`/api/user/attendance/summary?month=${base}&tz=UTC`).set(emp.auth).expect(200);
+
+    const before = await month(); // company defaults: late after 09:30, early before 17:30
+    expect(before.body).toMatchObject({ lateDays: 1, earlyOutDays: 0, shift: null });
+
+    const shift = (await api().post('/api/admin/shifts').set(admin.auth).send(shiftBody()).expect(201)).body; // 09:00-18:00, 60 min grace
+    await api().put('/api/admin/shifts/assign').set(admin.auth).send({ shiftId: shift.id, userIds: [emp.user.id, 'nope'] }).expect(404);
+    await api().put('/api/admin/shifts/assign').set(admin.auth).send({ shiftId: shift.id, userIds: [] }).expect(400);
+    await api().put('/api/admin/shifts/assign').set(admin.auth).send({ shiftId: shift.id, userIds: [emp.user.id] }).expect(200);
+
+    const on = await month();
+    expect(on.body).toMatchObject({ lateDays: 0, earlyOutDays: 1, shift: { name: shift.name } });
+    const report = await api().get(`/api/admin/attendance/report?month=${base}&tz=UTC`).set(admin.auth).expect(200);
+    expect(report.body.rows.find((r) => r.userId === emp.user.id)).toMatchObject({ shift: shift.name, lateDays: 0, earlyOutDays: 1 });
+
+    const del = await api().delete(`/api/admin/shifts/${shift.id}`).set(admin.auth).expect(200);
+    expect(del.body.unassigned).toBe(1);
+    expect((await month()).body).toMatchObject({ lateDays: 1, shift: null });
+  });
+});
+
+describe('payroll tax slabs and deduction items', () => {
+  const slabs = [{ upTo: 100000, ratePercent: 0 }, { upTo: 300000, ratePercent: 10 }, { upTo: null, ratePercent: 20 }];
+
+  it('validates and stores the tax policy, and the deduction items on a structure', async () => {
+    const co = await makeCompany('taxpolicy');
+    const admin = await makeAdmin({}, co.company);
+    const user = await makeUser({}, co.company);
+    await co.api().put('/api/admin/payroll/tax-policy').set(user.auth).send({ slabs }).expect(403);
+    expect((await co.api().get('/api/admin/payroll/tax-policy').set(admin.auth).expect(200)).body.slabs).toEqual([]);
+    await co.api().put('/api/admin/payroll/tax-policy').set(admin.auth).send({ slabs: [{ upTo: 100, ratePercent: 5 }] }).expect(400);
+    const saved = await co.api().put('/api/admin/payroll/tax-policy').set(admin.auth).send({ slabs, standardDeduction: 12000 }).expect(200);
+    expect(saved.body).toMatchObject({ slabs, standardDeduction: 12000, pfReducesTaxable: true });
+    expect((await co.api().get('/api/admin/payroll/tax-policy').set(admin.auth).expect(200)).body.slabs).toHaveLength(3);
+
+    const url = `/api/admin/payroll/structures/${user.user.id}`;
+    await co.api().put(url).set(admin.auth).send({ deductionItems: [{ name: 'X', type: 'nope', value: 1 }] }).expect(400);
+    const items = [{ name: 'Insurance', type: 'fixed', value: 500, preTax: true }];
+    const ok = await co.api().put(url).set(admin.auth).send({ basic: 10000, hra: 2000, deductionItems: items }).expect(200);
+    expect(ok.body.deductionItems).toEqual(items);
+    const list = await co.api().get('/api/admin/payroll/structures').set(admin.auth).expect(200);
+    expect(list.body.find((r) => r.user.id === user.user.id).structure.deductionItems).toEqual(items);
+    expect(JSON.stringify(list.body)).not.toContain('deductionItemsJson');
+  });
+
+  it('applies slabs and itemised deductions to a monthly run, and clearing the policy restores flat tax', async () => {
+    const co = await makeCompany('taxrun');
+    const admin = await makeAdmin({}, co.company);
+    const emp = await makeUser({}, co.company);
+    const items = [{ name: 'Insurance', type: 'fixed', value: 500, preTax: true }, { name: 'Loan', type: 'fixed', value: 300, preTax: false }];
+    await co.api().put(`/api/admin/payroll/structures/${emp.user.id}`).set(admin.auth)
+      .send({ basic: 10000, hra: 2000, allowances: 0, pfPercent: 12, taxPercent: 99, otherDeductions: 0, deductionItems: items }).expect(200);
+    await co.api().put('/api/admin/payroll/tax-policy').set(admin.auth).send({ slabs, standardDeduction: 12000 }).expect(200);
+
+    await co.api().post('/api/admin/payroll/run-monthly').set(admin.auth).send({ month: '2025-04' }).expect(201);
+    const [slip] = (await co.api().get('/api/user/payslips').set(emp.auth).expect(200)).body;
+    expect(slip).toMatchObject({ gross: 12000, taxMethod: 'slabs', totalDeductions: 2096.67, net: 9903.33 });
+    expect(slip.deductions).toEqual({ pf: 1200, tax: 96.67, other: 800 });
+    expect(slip.deductionItems).toEqual([{ name: 'Insurance', amount: 500 }, { name: 'Loan', amount: 300 }]);
+    expect(JSON.stringify(slip)).not.toContain('deductionItemsJson');
+    const pdf = await co.api().get(`/api/user/payslips/${slip.id}/pdf`).set(emp.auth).buffer(true).parse((res, cb) => {
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => cb(null, Buffer.concat(chunks)));
+    }).expect(200);
+    expect(pdf.body.subarray(0, 5).toString()).toBe('%PDF-');
+
+    await co.api().put('/api/admin/payroll/tax-policy').set(admin.auth).send({ slabs: [] }).expect(200);
+    await co.api().post('/api/admin/payroll/run-monthly').set(admin.auth).send({ month: '2025-05' }).expect(201);
+    const may = (await co.api().get('/api/user/payslips').set(emp.auth).expect(200)).body.find((p) => p.month === '2025-05');
+    expect(may).toMatchObject({ taxMethod: 'flat' });
+    expect(may.deductions.tax).toBe(Math.round(may.gross * 99) / 100);
   });
 });
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Copy, ShieldCheck } from 'lucide-react';
+import { Copy, Mail, ShieldCheck } from 'lucide-react';
 import { apiFetch, apiJson, apiSend, readError } from '../lib/api';
 import { loadWorkspace } from '../lib/workspace';
 import { errorMessage, formatDateTime } from '../lib/format';
@@ -33,6 +33,19 @@ interface SsoSettings {
   registration: { oidcRedirectUri: string; samlAcsUrl: string; samlEntityId: string; samlMetadataUrl: string };
 }
 
+interface MailSettings {
+  enabled: boolean;
+  host: string;
+  port: number;
+  secure: boolean;
+  username: string;
+  passwordSet: boolean;
+  fromName: string;
+  fromEmail: string;
+  lastTestAt: string | null;
+  lastTestOk: boolean | null;
+}
+
 interface SupportGrant {
   id: string;
   reason: string;
@@ -44,7 +57,7 @@ interface SupportGrant {
   lastViewedAt: string | null;
 }
 
-type TabId = 'details' | 'sso' | 'support';
+type TabId = 'details' | 'sso' | 'mail' | 'support';
 
 const Toggle = ({ label, checked, onChange, hint }: { label: string; checked: boolean; onChange: (v: boolean) => void; hint?: string }) => (
   <label className="flex items-start gap-3 cursor-pointer">
@@ -345,6 +358,96 @@ const SsoTab = () => {
   );
 };
 
+// ---------------------------------------------------------------- Outgoing mail
+const MailTab = () => {
+  const { data, error, loading, reload } = useAsync(() => apiJson<MailSettings>('/admin/company/mail'), []);
+  const [form, setForm] = useState<MailSettings | null>(null);
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  if (loading && !data) return <Spinner />;
+  if (!data) return <ErrorNote error={error} />;
+  const value = form ?? data;
+  const patch = (changes: Partial<MailSettings>) => setForm({ ...value, ...changes });
+
+  const run = async (action: () => Promise<unknown>, done: string) => {
+    setBusy(true);
+    setFormError(null);
+    setMessage(null);
+    try {
+      await action();
+      await reload();
+      setMessage(done);
+    } catch (err) {
+      setFormError(errorMessage(err));
+      await reload();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const save = async () => {
+    await apiSend('PUT', '/admin/company/mail', {
+      host: value.host, port: value.port, secure: value.secure, username: value.username,
+      password, fromName: value.fromName, fromEmail: value.fromEmail
+    });
+    setForm(null);
+    setPassword('');
+  };
+
+  return (
+    <div className="grid lg:grid-cols-3 gap-6">
+      <form className="lg:col-span-2 space-y-6" onSubmit={(e) => { e.preventDefault(); void run(save, 'Mail settings saved. Send a test email, then turn it on.'); }}>
+        <Card title="Company email" actions={<Badge tone={data.enabled ? 'green' : 'slate'}>{data.enabled ? 'Sending from your mailbox' : 'Using platform sender'}</Badge>}>
+          <p className="text-sm text-slate-500 mb-5">
+            Send sign-in codes, password resets, attendance, leave and approval emails from your own mailbox instead of the platform&apos;s.
+            Use an app password if your provider requires one (Gmail, Microsoft 365, Zoho…).
+          </p>
+          <div className="grid sm:grid-cols-3 gap-4">
+            <div className="sm:col-span-2"><Field label="SMTP server"><input className={inputClass} placeholder="smtp.office365.com" value={value.host} onChange={(e) => patch({ host: e.target.value })} /></Field></div>
+            <Field label="Port"><input type="number" className={inputClass} value={value.port} onChange={(e) => patch({ port: Number(e.target.value) })} /></Field>
+          </div>
+          <div className="mt-4">
+            <Toggle label="Use SSL/TLS from the start (port 465)" hint="Leave off for port 587; the connection is still encrypted (STARTTLS)." checked={value.secure} onChange={(v) => patch({ secure: v, port: v ? 465 : 587 })} />
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4 mt-4">
+            <Field label="Email address / username"><input className={inputClass} autoComplete="off" value={value.username} onChange={(e) => patch({ username: e.target.value })} placeholder="hr@yourcompany.com" /></Field>
+            <Field label="Password" hint={value.passwordSet ? 'A password is saved. Leave blank to keep it.' : 'Stored encrypted. It is never shown again.'}>
+              <input type="password" autoComplete="new-password" className={inputClass} value={password} onChange={(e) => setPassword(e.target.value)} placeholder={value.passwordSet ? '••••••••' : ''} />
+            </Field>
+            <Field label="Sender name"><input className={inputClass} value={value.fromName} onChange={(e) => patch({ fromName: e.target.value })} placeholder="Acme HR" /></Field>
+            <Field label="Sender email address" hint="Must be allowed by your mail provider."><input type="email" className={inputClass} value={value.fromEmail} onChange={(e) => patch({ fromEmail: e.target.value })} placeholder="hr@yourcompany.com" /></Field>
+          </div>
+
+          <ErrorNote error={formError} />
+          {message && <p role="status" className="mt-4 text-sm font-semibold text-emerald-700">{message}</p>}
+          {data.lastTestAt && (
+            <p className="mt-4 text-xs text-slate-400">
+              Last test: {data.lastTestOk ? 'sent' : 'failed'} · {formatDateTime(data.lastTestAt)}
+            </p>
+          )}
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Button type="submit" disabled={busy}>Save settings</Button>
+            <Button variant="secondary" disabled={busy || !data.host || !data.fromEmail || form !== null} onClick={() => void run(() => apiSend('POST', '/admin/company/mail/test', {}), 'Test email sent to your address.')}>
+              <Mail size={14} />Send test email
+            </Button>
+            {data.enabled ? (
+              <Button variant="danger" disabled={busy} onClick={() => void run(() => apiSend('PUT', '/admin/company/mail', { enabled: false }), 'Switched back to the platform sender.')}>Turn off</Button>
+            ) : (
+              <Button variant="secondary" disabled={busy || !data.lastTestOk || form !== null} onClick={() => void run(() => apiSend('PUT', '/admin/company/mail', { enabled: true }), 'Emails now go out from your mailbox.')}>
+                <ShieldCheck size={14} />Turn on
+              </Button>
+            )}
+          </div>
+          <p className="mt-3 text-xs text-slate-400">Save first, then send a test email; it can only be turned on after a test succeeds. If your mailbox later stops working, sign-in codes will fail, so keep the platform sender in mind as a fallback by turning this off.</p>
+        </Card>
+      </form>
+    </div>
+  );
+};
+
 // ---------------------------------------------------------------- Support access
 const SupportTab = () => {
   const { data, error, loading, reload } = useAsync(() => apiJson<SupportGrant[]>('/admin/support-access'), []);
@@ -417,14 +520,15 @@ const CompanySettings = () => {
   const [tab, setTab] = useState<TabId>('details');
   return (
     <div className="space-y-6">
-      <PageHeader title="Company settings" subtitle="Your company profile, workspace address, single sign-on and support access." />
+      <PageHeader title="Company settings" subtitle="Your company profile, workspace address, single sign-on, email and support access." />
       <Tabs
-        tabs={[{ id: 'details', label: 'Company & domain' }, { id: 'sso', label: 'Single sign-on' }, { id: 'support', label: 'Support access' }]}
+        tabs={[{ id: 'details', label: 'Company & domain' }, { id: 'sso', label: 'Single sign-on' }, { id: 'mail', label: 'Email' }, { id: 'support', label: 'Support access' }]}
         value={tab}
         onChange={setTab}
       />
       {tab === 'details' && <DetailsTab />}
       {tab === 'sso' && <SsoTab />}
+      {tab === 'mail' && <MailTab />}
       {tab === 'support' && <SupportTab />}
     </div>
   );
