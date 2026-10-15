@@ -28,6 +28,8 @@ const userSchema = new mongoose.Schema(
     password: { type: String, default: null }, // scrypt hash
     managerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     designation: { type: String, default: '', trim: true },
+    phone: { type: String, default: '', trim: true },
+    employeeId: { type: String, default: null, trim: true }, // unique per company when set
     dateOfBirth: { type: String, default: null }, // YYYY-MM-DD (birthday reminders)
     joinDate: { type: String, default: null }, // YYYY-MM-DD (work anniversaries)
     preferences: {
@@ -62,6 +64,8 @@ const userSchema = new mongoose.Schema(
 
 // The same email can exist in different companies; within one it is unique
 userSchema.index({ companyId: 1, email: 1 }, { unique: true });
+// Employee IDs are optional on old accounts, but never shared once set
+userSchema.index({ companyId: 1, employeeId: 1 }, { unique: true, partialFilterExpression: { employeeId: { $type: 'string' } } });
 
 // Platform staff live outside every company; company users can never hold the platform role
 userSchema.pre('validate', function checkPlatformRole() {
@@ -88,6 +92,7 @@ export const userModel = {
   // Atomically records a used TOTP step; false if that step (or a later one) was already used
   consumeTotpStep: async (id, step) =>
     (await User.updateOne({ _id: id, 'totp.lastStep': { $lt: step } }, { $set: { 'totp.lastStep': step } })).modifiedCount === 1,
+  findByEmployeeId: (employeeId) => User.findOne({ employeeId }),
   findByEmail: (email) => User.findOne({ email: String(email).toLowerCase() }),
   create: async (data) => (await User.create(data)).populate(withManager),
   update: (id, data) =>

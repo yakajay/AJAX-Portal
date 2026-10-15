@@ -78,7 +78,7 @@ export const ImportUsers = ({ open, onClose, onImported }: { open: boolean; onCl
       ) : (
         <div className="space-y-4">
           <p className="text-sm text-slate-600">
-            Columns: <code>name</code>, <code>email</code> (required), <code>department</code>, <code>designation</code>, <code>manager_email</code>, <code>join_date</code>, <code>date_of_birth</code> (YYYY-MM-DD).
+            Required columns: <code>name</code>, <code>email</code>, <code>phone</code>, <code>employee_id</code>. Optional: <code>department</code>, <code>designation</code>, <code>manager_email</code>, <code>join_date</code>, <code>date_of_birth</code> (YYYY-MM-DD).
             Everyone is created as a regular employee. Up to 500 rows.{' '}
             <button type="button" className="text-blue-600 font-bold hover:underline" onClick={() => downloadFile('/admin/users/import/template', 'employee-import-template.csv').catch((e) => setError(errorMessage(e)))}>Download template</button>
           </p>

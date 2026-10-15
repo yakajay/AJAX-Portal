@@ -13,6 +13,8 @@ const UserModal = ({ isOpen, onClose, onSave, editingUser }) => {
     permissions: ['read'],
     department: 'Engineering',
     designation: '',
+    phone: '',
+    employeeId: '',
     managerId: '',
     joinDate: '',
     dateOfBirth: ''
@@ -36,6 +38,8 @@ const UserModal = ({ isOpen, onClose, onSave, editingUser }) => {
         password: '',
         managerId: editingUser.managerId || '',
         designation: editingUser.designation || '',
+        phone: editingUser.phone || '',
+        employeeId: editingUser.employeeId || '',
         joinDate: editingUser.joinDate || '',
         dateOfBirth: editingUser.dateOfBirth || '',
         permissions: Array.isArray(editingUser.permissions) 
@@ -56,6 +60,7 @@ const UserModal = ({ isOpen, onClose, onSave, editingUser }) => {
     onSave({
       ...rest,
       ...(editingUser ? {} : { password }),
+      employeeId: formData.employeeId || null,
       managerId: formData.managerId || null,
       joinDate: formData.joinDate || null,
       dateOfBirth: formData.dateOfBirth || null
@@ -97,6 +102,16 @@ const UserModal = ({ isOpen, onClose, onSave, editingUser }) => {
               placeholder="user@yaksofts.com"
               disabled={!!editingUser}
             />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Employee ID</label>
+              <input type="text" required className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" value={formData.employeeId} onChange={(e) => setFormData({...formData, employeeId: e.target.value})} placeholder="e.g. EMP-001" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Phone Number</label>
+              <input type="tel" required className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} placeholder="+91 98765 43210" />
+            </div>
           </div>
           {!editingUser && (
             <div>

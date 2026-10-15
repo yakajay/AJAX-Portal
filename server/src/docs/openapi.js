@@ -25,7 +25,7 @@ const DESCRIPTIONS = {
   'GET /user/attendance/summary': 'Monthly summary (`?month=YYYY-MM&tz=Area/City`): days present, hours, late and early-out days.',
   'GET /user/attendance/export': 'CSV download of the monthly attendance summary.',
   'GET /user/payslips/{id}/pdf': 'Downloads one of your payslips as a PDF.',
-  'POST /admin/users/import': 'Bulk-creates employees from a CSV body (`Content-Type: text/csv`; columns name, email, department, designation, manager_email, join_date, date_of_birth). All-or-nothing: any invalid row returns 422 with line numbers. `?dryRun=1` only validates. Returns one-time temporary passwords.',
+  'POST /admin/users/import': 'Bulk-creates employees from a CSV body (`Content-Type: text/csv`; required columns name, email, phone, employee_id; optional department, designation, manager_email, join_date, date_of_birth). All-or-nothing: any invalid row returns 422 with line numbers. `?dryRun=1` only validates. Returns one-time temporary passwords.',
   'GET /admin/users/import/template': 'Example CSV for the bulk import.',
   'GET /admin/attendance/records': 'One employee\'s attendance entries for a month (`?userId=&month=YYYY-MM`).',
   'POST /admin/attendance': 'Adds an attendance entry for an employee: `{ userId, checkInAt, checkOutAt, reason }`. Refused when the day already has an entry.',
