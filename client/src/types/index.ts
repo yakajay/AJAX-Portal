@@ -11,6 +11,8 @@ export interface User {
   /** Comma separated permission tokens, e.g. "read,write,payroll:delete" */
   permissions?: string;
   totpEnabled?: boolean;
+  /** Upload time of the profile photo (ms), or null when there is none */
+  avatarVersion?: number | null;
   preferences?: { language: string; emailNotifications: boolean; emailDigest: boolean };
 }
 

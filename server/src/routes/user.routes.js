@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, raw } from 'express';
 import { authenticate } from '../middleware/auth.js';
 import { requireModule } from '../middleware/tenant.js';
 import * as profile from '../controllers/user/profile.controller.js';
@@ -22,6 +22,9 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/profile', profile.getProfile);
+router.put('/profile/avatar', raw({ type: profile.AVATAR_CONTENT_TYPES, limit: profile.MAX_AVATAR_BYTES }), profile.uploadAvatar);
+router.delete('/profile/avatar', profile.removeAvatar);
+router.get('/avatars/:id', profile.getAvatar);
 router.put('/profile', profile.updateProfile);
 router.get('/profile/sensitive', profile.getSensitive);
 router.put('/profile/sensitive', profile.updateSensitive);

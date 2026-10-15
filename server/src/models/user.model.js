@@ -28,6 +28,11 @@ const userSchema = new mongoose.Schema(
     password: { type: String, default: null }, // scrypt hash
     managerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     designation: { type: String, default: '', trim: true },
+    // Profile photo (a small PNG/JPEG/WebP). The bytes are never part of normal queries or JSON;
+    // `avatarVersion` (the upload time) tells clients whether one exists and when to refetch it.
+    avatarData: { type: Buffer, select: false, default: undefined },
+    avatarType: { type: String, default: '' },
+    avatarUpdatedAt: { type: Date, default: null },
     shiftId: { type: mongoose.Schema.Types.ObjectId, ref: 'Shift', default: null },
     phone: { type: String, default: '', trim: true },
     employeeId: { type: String, default: null, trim: true }, // unique per company when set
@@ -59,6 +64,10 @@ const userSchema = new mongoose.Schema(
   schemaOptions((ret) => {
     delete ret.password;
     ret.totpEnabled = !!ret.totp?.enabled;
+    ret.avatarVersion = ret.avatarUpdatedAt ? new Date(ret.avatarUpdatedAt).getTime() : null;
+    delete ret.avatarData;
+    delete ret.avatarType;
+    delete ret.avatarUpdatedAt;
     delete ret.totp;
   })
 );
@@ -87,8 +96,9 @@ export const userModel = {
   findAll: () => User.find().populate(withManager),
   // Limited columns for the employee directory visible to every role
   findDirectory: () =>
-    User.find().select('name email employeeId role department designation managerId dateOfBirth joinDate').populate(withManager),
+    User.find().select('name email employeeId avatarUpdatedAt role department designation managerId dateOfBirth joinDate').populate(withManager),
   findById: (id) => (isValidId(id) ? User.findById(id) : null),
+  findWithAvatar: (id) => (isValidId(id) ? User.findById(id).select('+avatarData') : null),
   findWithTotpSecret: (id) => User.findById(id),
   // Atomically records a used TOTP step; false if that step (or a later one) was already used
   consumeTotpStep: async (id, step) =>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Upload, UserPlus, Shield, User, Lock, X, Check, Search, Trash2, Key, Unlock, AlertCircle } from 'lucide-react';
 import { apiFetch, readError, requestDelete } from '../lib/api';
 import PermissionEditor from '../components/admin/PermissionEditor';
+import { Avatar } from '../components/Avatar';
 import { ImportUsers } from '../components/admin/ImportUsers';
 
 const UserModal = ({ isOpen, onClose, onSave, editingUser }) => {
@@ -329,12 +330,12 @@ const UserManagement = () => {
               <tr key={u.id} className="hover:bg-slate-50 transition-colors">
                 <td className="px-6 py-4">
                   <div className="flex items-center">
-                    <div className={`w-8 h-8 rounded-full mr-3 flex items-center justify-center font-bold text-xs ${
+                    <div className={`w-8 h-8 rounded-full mr-3 overflow-hidden flex items-center justify-center font-bold text-xs ${
                       u.role === 'SUPER_ADMIN' ? 'bg-emerald-100 text-emerald-700' :
                       u.role === 'ADMIN' ? 'bg-blue-100 text-blue-700' :
                       'bg-slate-100 text-slate-700'
                     }`}>
-                      {u.name.substring(0, 2).toUpperCase()}
+                      <Avatar person={u} initials={u.name.substring(0, 2).toUpperCase()} />
                     </div>
                     <div>
                       <p className="font-medium text-slate-900">{u.name}</p>

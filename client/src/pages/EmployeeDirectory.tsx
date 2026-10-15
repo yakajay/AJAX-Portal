@@ -17,6 +17,7 @@ import type { User } from '../types';
 import { useSearchParams } from 'react-router-dom';
 import { apiFetch } from '../lib/api';
 import { Tabs } from '../components/ui';
+import { Avatar } from '../components/Avatar';
 import { OrgChart, Departments } from '../components/org/OrgViews';
 
 interface Employee {
@@ -24,6 +25,7 @@ interface Employee {
   name: string;
   email: string;
   employeeId?: string | null;
+  avatarVersion?: number | null;
   role: string;
   department: string;
   managerId?: string | null;
@@ -243,8 +245,8 @@ const ProfileModal = ({
         <div className="px-8 pb-8">
           <div className="relative -mt-16 mb-6">
             <div className="w-32 h-32 rounded-3xl bg-white p-1.5 shadow-xl border border-slate-100">
-              <div className="w-full h-full rounded-2xl bg-slate-100 flex items-center justify-center text-4xl font-black text-blue-700">
-                {employee.name.substring(0, 2).toUpperCase()}
+              <div className="w-full h-full rounded-2xl bg-slate-100 overflow-hidden flex items-center justify-center text-4xl font-black text-blue-700">
+                <Avatar person={employee} initials={employee.name.substring(0, 2).toUpperCase()} />
               </div>
             </div>
           </div>
@@ -487,8 +489,8 @@ const DirectoryView = ({ user }: { user: User | null }) => {
               </div>
               <div className="px-6 pb-6 -mt-10 relative">
                 <div className="w-20 h-20 rounded-2xl bg-white p-1 shadow-md mb-3 border border-slate-100">
-                  <div className="w-full h-full rounded-xl bg-slate-100 flex items-center justify-center text-xl font-black text-blue-700">
-                    {emp.name.substring(0, 2).toUpperCase()}
+                  <div className="w-full h-full rounded-xl bg-slate-100 overflow-hidden flex items-center justify-center text-xl font-black text-blue-700">
+                    <Avatar person={emp} initials={emp.name.substring(0, 2).toUpperCase()} />
                   </div>
                 </div>
                 

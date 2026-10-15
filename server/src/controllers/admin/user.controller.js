@@ -133,6 +133,16 @@ export const update = async (req, res) => {
   res.json(sanitizeUser(updated));
 };
 
+// Lets an admin remove an inappropriate profile photo (people upload their own)
+export const removeAvatar = async (req, res) => {
+  const target = await loadTarget(req, res);
+  if (!target) return;
+  if (!canManage(req.user, target)) return forbidden(res);
+  const updated = await userModel.update(target.id, { avatarData: null, avatarType: '', avatarUpdatedAt: null });
+  await audit(req, { action: 'user.avatar_remove', entity: 'user', entityId: target.id, summary: `Removed the profile photo of ${target.email}` });
+  res.json(sanitizeUser(updated));
+};
+
 export const setLock = async (req, res) => {
   const target = await loadTarget(req, res);
   if (!target) return;
