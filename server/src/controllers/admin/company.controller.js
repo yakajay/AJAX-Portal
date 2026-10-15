@@ -3,8 +3,10 @@ import { Company, companyOrigin } from '../../models/company.model.js';
 import { DeleteRequest, DELETE_TARGETS } from '../../models/deleteRequest.model.js';
 import { SupportAccess } from '../../models/supportAccess.model.js';
 import { userModel } from '../../models/user.model.js';
-import { encryptValue } from '../../utils/crypto.js';
-import { assertPublicUrl } from '../../utils/safeFetch.js';
+import { encryptValue, decryptValue, primeCompanyKey } from '../../utils/crypto.js';
+import { assertPublicUrl, assertPublicHost } from '../../utils/safeFetch.js';
+import { buildCompanyTransport, fromAddress } from '../../utils/mailTransport.js';
+import { env } from '../../config/env.js';
 import { hasPermission } from '../../utils/permissions.js';
 import { describeTarget } from '../../services/deletion.service.js';
 import { seatsUsed } from '../../services/company.service.js';
@@ -301,4 +303,116 @@ export const deleteViaRequest = (targetType) => async (req, res) => {
       ? { ...body.toJSON(), message: 'Deletion needs approval. A request has been sent to the platform administrator.' }
       : body
   );
+};
+
+// ---------------------------------------------------------------- Outgoing mail
+const mailView = (company) => company.toJSON().mail;
+
+// GET /admin/company/mail
+export const getMail = (req, res) => res.json(mailView(req.company));
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// PUT /admin/company/mail - send this company's mail (sign-in codes, approvals, alerts) from its own mailbox
+export const updateMail = async (req, res) => {
+  const body = req.body ?? {};
+  const company = await Company.findById(req.company.id);
+  const mail = company.mail;
+  const touched = [];
+  const connection = () => JSON.stringify([mail.host, mail.port, mail.secure, mail.username, mail.password, mail.fromEmail]);
+  const before = connection();
+
+  try {
+    if (body.host !== undefined) {
+      const host = text(body.host, 253).toLowerCase();
+      if (host) await assertPublicHost(host);
+      mail.host = host;
+      touched.push('host');
+    }
+    if (body.port !== undefined) {
+      const port = Number(body.port);
+      if (!Number.isInteger(port) || port < 1 || port > 65535) return bad(res, 'Port must be between 1 and 65535.');
+      mail.port = port;
+      touched.push('port');
+    }
+    if (body.secure !== undefined) { mail.secure = !!body.secure; touched.push('secure'); }
+    if (body.username !== undefined) { mail.username = text(body.username, 254); touched.push('username'); }
+    // Write-only: an empty value keeps the stored password
+    if (body.password) {
+      mail.password = encryptValue(company.id, String(body.password));
+      touched.push('password');
+    }
+    if (body.fromName !== undefined) { mail.fromName = text(body.fromName, 80).replace(/[\r\n<>"]/g, ''); touched.push('fromName'); }
+    if (body.fromEmail !== undefined) {
+      const fromEmail = text(body.fromEmail, 254).toLowerCase();
+      if (fromEmail && !EMAIL.test(fromEmail)) return bad(res, 'The sender email address is not valid.');
+      mail.fromEmail = fromEmail;
+      touched.push('fromEmail');
+    }
+
+    if (body.enabled !== undefined) {
+      const enable = !!body.enabled;
+      if (enable) {
+        if (!mail.host || !mail.fromEmail) return bad(res, 'Enter the mail server and sender email address before turning this on.');
+        if (!mail.lastTestOk || connection() !== before) {
+          return bad(res, 'Send a test email successfully before turning this on.');
+        }
+      }
+      mail.enabled = enable;
+      touched.push('enabled');
+    }
+  } catch (error) {
+    return bad(res, error.message);
+  }
+
+  // Any change to the connection invalidates the last successful test and switches the mailbox off
+  if (connection() !== before) {
+    mail.lastTestOk = null;
+    mail.lastTestAt = null;
+    mail.enabled = false;
+  }
+
+  await company.save();
+  await audit(req, {
+    action: touched.includes('enabled') ? (mail.enabled ? 'mail.enable' : 'mail.disable') : 'mail.update',
+    entity: 'company', entityId: company.id,
+    summary: touched.includes('enabled') ? `${mail.enabled ? 'Enabled' : 'Disabled'} the company mailbox` : 'Updated outgoing mail settings',
+    meta: touched // field names only; never values
+  });
+  res.json(mailView(company));
+};
+
+// POST /admin/company/mail/test - send a test message with the saved settings to the admin's own address
+export const testMail = async (req, res) => {
+  const company = await Company.findById(req.company.id).select('+dataKey');
+  const mail = company.mail;
+  if (!mail.host || !mail.fromEmail) return bad(res, 'Save the mail server and sender email address first.');
+  primeCompanyKey(company.id, company.dataKey);
+
+  let ok = false;
+  let reason = '';
+  try {
+    await assertPublicHost(mail.host);
+    const transport = buildCompanyTransport(mail, mail.password ? decryptValue(company.id, mail.password) : undefined);
+    await transport.sendMail({
+      from: fromAddress(mail),
+      to: req.user.email,
+      subject: `${env.appName} - test email`,
+      text: `This is a test from ${company.name}'s ${env.appName} workspace. Sign-in codes and notifications can now be sent from this mailbox.`
+    });
+    ok = true;
+  } catch (error) {
+    reason = String(error.message || 'Could not send the test email.').slice(0, 300);
+  }
+
+  company.mail.lastTestAt = new Date();
+  company.mail.lastTestOk = ok;
+  if (!ok) company.mail.enabled = false;
+  await company.save();
+  await audit(req, {
+    action: 'mail.test', entity: 'company', entityId: company.id,
+    summary: ok ? 'Sent a test email from the company mailbox' : 'Test email from the company mailbox failed'
+  });
+  if (!ok) return res.status(422).json({ message: `Test email failed: ${reason}` });
+  res.json({ ...mailView(company), sentTo: req.user.email });
 };
