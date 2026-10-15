@@ -86,7 +86,7 @@ export const userModel = {
   findAll: () => User.find().populate(withManager),
   // Limited columns for the employee directory visible to every role
   findDirectory: () =>
-    User.find().select('name email role department designation managerId dateOfBirth joinDate').populate(withManager),
+    User.find().select('name email employeeId role department designation managerId dateOfBirth joinDate').populate(withManager),
   findById: (id) => (isValidId(id) ? User.findById(id) : null),
   findWithTotpSecret: (id) => User.findById(id),
   // Atomically records a used TOTP step; false if that step (or a later one) was already used

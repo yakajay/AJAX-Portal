@@ -17,7 +17,7 @@ export const listDepartments = async (req, res) => {
 export const orgChart = async (req, res) => {
   const users = await userModel.findDirectory();
   const nodes = new Map(
-    users.map((u) => [u.id, { id: u.id, name: u.name, email: u.email, department: u.department, designation: u.designation, reports: [] }])
+    users.map((u) => [u.id, { id: u.id, name: u.name, email: u.email, employeeId: u.employeeId, department: u.department, designation: u.designation, reports: [] }])
   );
   const roots = [];
   for (const u of users) {

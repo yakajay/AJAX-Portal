@@ -7,7 +7,7 @@ import { errorMessage } from '../../lib/format';
 import { useAsync } from '../../lib/useAsync';
 import { Button, Card, Empty, ErrorNote, Field, Modal, Spinner, inputClass } from '../ui';
 
-interface OrgNode { id: string; name: string; email: string; department?: string; designation?: string; reports: OrgNode[] }
+interface OrgNode { id: string; name: string; email: string; employeeId?: string | null; department?: string; designation?: string; reports: OrgNode[] }
 
 const initials = (name: string) => name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
 
@@ -20,7 +20,7 @@ const Node = ({ node, depth, query }: { node: OrgNode; depth: number; query: str
         <span className="w-9 h-9 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0" aria-hidden="true">{initials(node.name)}</span>
         <span className="min-w-0">
           <span className="block text-sm font-bold text-slate-900">{node.name}</span>
-          <span className="block text-xs text-slate-400">{[node.designation, node.department].filter(Boolean).join(' · ') || node.email}</span>
+          <span className="block text-xs text-slate-400">{[node.employeeId, node.designation, node.department].filter(Boolean).join(' · ') || node.email}</span>
         </span>
         {node.reports.length > 0 && (
           <button onClick={() => setOpen(!open)} aria-expanded={open} aria-label={`${open ? 'Collapse' : 'Expand'} ${node.name}'s team`} className="ml-2 inline-flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-blue-600">
