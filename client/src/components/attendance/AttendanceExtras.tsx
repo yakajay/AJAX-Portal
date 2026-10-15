@@ -1,11 +1,11 @@
-import { useState } from 'react';
-import { Check, Download, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { Check, Download, Pencil, Plus, Trash2, X } from 'lucide-react';
 import type { User } from '../../types';
 import { apiJson, apiSend, downloadFile } from '../../lib/api';
 import { can } from '../../lib/permissions';
 import { currentMonth, errorMessage, formatDate, formatDateTime } from '../../lib/format';
 import { useAsync } from '../../lib/useAsync';
-import { Badge, Button, Card, Empty, ErrorNote, Spinner, StatTile, Th, inputClass } from '../ui';
+import { Badge, Button, Card, Empty, ErrorNote, Field, Modal, Spinner, StatTile, Th, inputClass, statusTone } from '../ui';
 
 const tz = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 const time = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—');
@@ -169,6 +169,137 @@ export const AttendanceReport = () => {
           </div>
         )}
       </Card>
+    </div>
+  );
+};
+
+interface Record { id: string; checkInAt: string; checkOutAt: string | null; status: string; source: string; reason: string | null; reviewNote: string }
+interface EditorForm { id: string | null; date: string; inTime: string; outTime: string; status: string; reason: string }
+
+const pad = (n: number) => String(n).padStart(2, '0');
+const localDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const localTime = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+// Admins add, correct or remove one employee's entries directly; every change needs a reason and is audited
+export const AttendanceEditor = ({ user }: { user: User }) => {
+  const canWrite = can(user, 'attendance', 'write');
+  const canDelete = can(user, 'attendance', 'delete');
+  const [month, setMonth] = useState(currentMonth());
+  const [userId, setUserId] = useState('');
+  const [form, setForm] = useState<EditorForm | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const people = useAsync(() => apiJson<{ rows: ReportRow[] }>(`/admin/attendance/report?month=${month}&tz=${encodeURIComponent(tz())}`), []);
+  const records = useAsync(
+    () => (userId ? apiJson<Record[]>(`/admin/attendance/records?userId=${userId}&month=${month}&tz=${encodeURIComponent(tz())}`) : Promise.resolve([] as Record[])),
+    [userId, month]
+  );
+
+  const openNew = () => setForm({ id: null, date: localDate(new Date()), inTime: '09:00', outTime: '18:00', status: 'Present', reason: '' });
+  const openEdit = (r: Record) => {
+    const start = new Date(r.checkInAt);
+    setForm({ id: r.id, date: localDate(start), inTime: localTime(start), outTime: r.checkOutAt ? localTime(new Date(r.checkOutAt)) : '', status: r.status === 'Rejected' ? 'Rejected' : 'Present', reason: '' });
+  };
+  const set = (patch: Partial<EditorForm>) => setForm((f) => (f ? { ...f, ...patch } : f));
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form) return;
+    setBusy(true);
+    setFormError(null);
+    const checkInAt = new Date(`${form.date}T${form.inTime}`).toISOString();
+    const checkOutAt = new Date(`${form.date}T${form.outTime}`).toISOString();
+    try {
+      if (form.id) await apiSend('PUT', `/admin/attendance/${form.id}`, { checkInAt, checkOutAt, status: form.status, reason: form.reason, tz: tz() });
+      else await apiSend('POST', '/admin/attendance', { userId, checkInAt, checkOutAt, reason: form.reason, tz: tz() });
+      setForm(null);
+      await records.reload();
+    } catch (err) {
+      setFormError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async (r: Record) => {
+    const reason = window.prompt('Reason for removing this entry (shown to the employee):');
+    if (!reason?.trim()) return;
+    try {
+      setActionError(null);
+      await apiSend('DELETE', `/admin/attendance/${r.id}`, { reason });
+      await records.reload();
+    } catch (err) {
+      setActionError(errorMessage(err));
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <select aria-label="Employee" className={`${inputClass} w-56`} value={userId} onChange={(e) => setUserId(e.target.value)}>
+            <option value="">Select an employee…</option>
+            {people.data?.rows.filter((r) => r.userId !== user.id).map((r) => <option key={r.userId} value={r.userId}>{r.name}</option>)}
+          </select>
+          <MonthPicker value={month} onChange={setMonth} />
+        </div>
+        {canWrite && <Button disabled={!userId} onClick={openNew}><Plus size={14} />Add entry</Button>}
+      </div>
+      <ErrorNote error={people.error ?? records.error ?? actionError} />
+      <Card flush>
+        {!userId ? <Empty>Pick an employee to review their entries.</Empty> : records.loading && !records.data ? <Spinner /> : !records.data?.length ? <Empty>No entries for this month.</Empty> : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-slate-50"><tr><Th>Date</Th><Th>In</Th><Th>Out</Th><Th>Status</Th><Th>Note</Th><Th right>Actions</Th></tr></thead>
+              <tbody className="divide-y divide-slate-100">
+                {records.data.map((r) => (
+                  <tr key={r.id}>
+                    <td className="px-6 py-3 text-sm font-bold text-slate-900">{formatDate(r.checkInAt)}</td>
+                    <td className="px-6 py-3 text-sm text-slate-600">{time(r.checkInAt)}</td>
+                    <td className="px-6 py-3 text-sm text-slate-600">{time(r.checkOutAt)}</td>
+                    <td className="px-6 py-3"><Badge tone={statusTone(r.status)}>{r.status}</Badge></td>
+                    <td className="px-6 py-3 text-sm text-slate-500 max-w-xs">{r.source === 'admin' ? r.reviewNote || r.reason : r.reason}</td>
+                    <td className="px-6 py-3">
+                      <div className="flex justify-end gap-2">
+                        {canWrite && r.checkOutAt && <Button small variant="secondary" aria-label="Edit entry" onClick={() => openEdit(r)}><Pencil size={13} />Edit</Button>}
+                        {canDelete && <Button small variant="ghost" aria-label="Remove entry" onClick={() => remove(r)}><Trash2 size={13} />Remove</Button>}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      <Modal open={!!form} title={form?.id ? 'Edit attendance entry' : 'Add attendance entry'} onClose={() => setForm(null)}>
+        {form && (
+          <form onSubmit={save} className="space-y-4">
+            <Field label="Date"><input type="date" required max={localDate(new Date())} disabled={!!form.id} className={inputClass} value={form.date} onChange={(e) => set({ date: e.target.value })} /></Field>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Login time"><input type="time" required className={inputClass} value={form.inTime} onChange={(e) => set({ inTime: e.target.value })} /></Field>
+              <Field label="Logout time"><input type="time" required className={inputClass} value={form.outTime} onChange={(e) => set({ outTime: e.target.value })} /></Field>
+            </div>
+            {form.id && (
+              <Field label="Status">
+                <select className={inputClass} value={form.status} onChange={(e) => set({ status: e.target.value })}>
+                  <option value="Present">Present</option>
+                  <option value="Rejected">Rejected (not counted)</option>
+                </select>
+              </Field>
+            )}
+            <Field label="Reason" hint="Shown to the employee and recorded in the audit log."><textarea required rows={2} className={inputClass} value={form.reason} onChange={(e) => set({ reason: e.target.value })} /></Field>
+            <ErrorNote error={formError} />
+            <div className="flex justify-end gap-3">
+              <Button variant="ghost" onClick={() => setForm(null)}>Cancel</Button>
+              <Button type="submit" disabled={busy}>{busy ? 'Saving…' : 'Save'}</Button>
+            </div>
+          </form>
+        )}
+      </Modal>
     </div>
   );
 };

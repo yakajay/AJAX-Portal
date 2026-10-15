@@ -41,6 +41,10 @@ router.put('/leaves/:id', can('leave').write, leaves.setStatus);
 
 router.get('/attendance/report', can('attendance').read, attendance.report);
 router.get('/attendance/regularizations', can('attendance').read, attendance.listRegularizations);
+router.get('/attendance/records', can('attendance').read, attendance.listRecords);
+router.post('/attendance', can('attendance').write, attendance.createRecord);
+router.put('/attendance/:id', can('attendance').write, attendance.updateRecord);
+router.delete('/attendance/:id', can('attendance').delete, attendance.deleteRecord);
 router.put('/attendance/:id/review', can('attendance').write, attendance.reviewRequest);
 
 router.get('/leave-policy', can('leave').read, leaves.getPolicy);

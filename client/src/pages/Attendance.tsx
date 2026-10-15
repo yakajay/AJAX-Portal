@@ -15,7 +15,7 @@ import { formatDate, formatTime, formatDuration, localDayKey, userTimeZone } fro
 import { apiFetch, downloadFile } from '../lib/api';
 import { can } from '../lib/permissions';
 import { getLocation } from '../lib/geolocation';
-import { MonthlySummary, CorrectionsQueue, AttendanceReport } from '../components/attendance/AttendanceExtras';
+import { MonthlySummary, CorrectionsQueue, AttendanceReport, AttendanceEditor } from '../components/attendance/AttendanceExtras';
 
 type DayMode = 'leave' | 'regularize' | 'manual';
 
@@ -279,7 +279,7 @@ const Attendance = ({ user }: { user: any }) => {
   const [leaves, setLeaves] = useState<any[]>([]);
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [activeView, setActiveView] = useState<'history' | 'calendar' | 'summary' | 'corrections' | 'report'>('calendar');
+  const [activeView, setActiveView] = useState<'history' | 'calendar' | 'summary' | 'corrections' | 'report' | 'edit'>('calendar');
   const [pendingCorrections, setPendingCorrections] = useState(0);
   const isAdminUser = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
   const canSeeReport = can(user, 'attendance', 'read');
@@ -395,6 +395,14 @@ const Attendance = ({ user }: { user: any }) => {
                 Report
               </button>
             )}
+            {canSeeReport && (
+              <button 
+                onClick={() => setActiveView('edit')}
+                className={`px-6 py-2 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeView === 'edit' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                Edit
+              </button>
+            )}
           </div>
           <div className="text-[10px] font-black uppercase tracking-widest bg-white px-4 py-2 rounded-xl border border-slate-200 text-slate-400 shadow-sm">
             Today: <span className="text-slate-900 ml-1">{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
@@ -473,6 +481,8 @@ const Attendance = ({ user }: { user: any }) => {
             <CorrectionsQueue user={user} onChanged={refreshCorrections} />
           ) : activeView === 'report' ? (
             <AttendanceReport />
+          ) : activeView === 'edit' ? (
+            <AttendanceEditor user={user} />
           ) : activeView === 'calendar' ? (
             <CalendarView
               logs={logs}

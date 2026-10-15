@@ -124,6 +124,65 @@ describe('attendance', () => {
   });
 });
 
+describe('admin attendance edit', () => {
+  const day = '2025-03-12';
+  const times = (inH = '09:00', outH = '17:00') => ({ checkInAt: `${day}T${inH}:00Z`, checkOutAt: `${day}T${outH}:00Z`, tz: 'UTC' });
+
+  it('adds, corrects and removes entries with a reason, notifying and auditing', async () => {
+    const admin = await makeAdmin();
+    const sa = await makeSuperAdmin();
+    const emp = await makeUser();
+    const base = { userId: emp.user.id, ...times(), reason: 'Badge reader was down' };
+
+    await api().post('/api/admin/attendance').set(emp.auth).send(base).expect(403);
+    await api().post('/api/admin/attendance').set(admin.auth).send({ ...base, reason: ' ' }).expect(400);
+    await api().post('/api/admin/attendance').set(admin.auth).send({ ...base, checkOutAt: `${day}T08:00:00Z` }).expect(400);
+    await api().post('/api/admin/attendance').set(admin.auth).send({ ...base, checkOutAt: '2999-01-01T00:00:00Z' }).expect(400);
+    await api().post('/api/admin/attendance').set(admin.auth).send({ ...base, userId: admin.user.id }).expect(403);
+
+    const created = await api().post('/api/admin/attendance').set(admin.auth).send(base).expect(201);
+    expect(created.body).toMatchObject({ status: 'Present', source: 'admin' });
+    await api().post('/api/admin/attendance').set(admin.auth).send(base).expect(409); // one entry per day
+
+    const summary = await api().get('/api/user/attendance/summary?month=2025-03&tz=UTC').set(emp.auth).expect(200);
+    expect(summary.body).toMatchObject({ daysPresent: 1, totalHours: 8 });
+
+    const listed = await api().get(`/api/admin/attendance/records?userId=${emp.user.id}&month=2025-03&tz=UTC`).set(admin.auth).expect(200);
+    expect(listed.body).toHaveLength(1);
+
+    await api().put(`/api/admin/attendance/${created.body.id}`).set(admin.auth).send(times('09:00', '18:00')).expect(400); // reason
+    await api().put(`/api/admin/attendance/${created.body.id}`).set(admin.auth).send({ ...times('09:00', '18:00'), status: 'Bogus', reason: 'x' }).expect(400);
+    const edited = await api().put(`/api/admin/attendance/${created.body.id}`).set(admin.auth).send({ ...times('09:00', '18:00'), reason: 'Left later' }).expect(200);
+    expect(edited.body.checkOutAt).toBe(`${day}T18:00:00.000Z`);
+
+    const inbox = await api().get('/api/user/notifications').set(emp.auth).expect(200);
+    expect(inbox.body.items.some((n) => /admin corrected/.test(n.title))).toBe(true);
+    const audit = await api().get('/api/admin/audit').set(sa.auth).expect(200);
+    expect(JSON.stringify(audit.body)).toContain('attendance.admin_update');
+
+    await api().delete(`/api/admin/attendance/${created.body.id}`).set(admin.auth).send({ reason: 'dup' }).expect(403); // delete permission needed
+    await api().delete(`/api/admin/attendance/${created.body.id}`).set(sa.auth).send({}).expect(400);
+    await api().delete(`/api/admin/attendance/${created.body.id}`).set(sa.auth).send({ reason: 'Entered by mistake' }).expect(200);
+    expect(await Attendance.countDocuments({ userId: emp.user.id })).toBe(0);
+  });
+
+  it('approves a pending correction by editing it, and cannot move an entry onto a taken day', async () => {
+    const admin = await makeAdmin();
+    const emp = await makeUser();
+    const other = `2025-03-13T09:00:00Z`;
+    await inTenant(() => Attendance.create([
+      { userId: emp.user.id, checkInAt: new Date(`${day}T09:00:00Z`), checkOutAt: new Date(`${day}T17:00:00Z`) },
+      { userId: emp.user.id, checkInAt: new Date(other), checkOutAt: new Date('2025-03-13T17:00:00Z'), status: 'Regularization Pending', source: 'regularization' }
+    ]));
+    const records = (await api().get(`/api/admin/attendance/records?userId=${emp.user.id}&month=2025-03&tz=UTC`).set(admin.auth).expect(200)).body;
+    const pending = records.find((e) => e.status === 'Regularization Pending');
+    const clash = await api().put(`/api/admin/attendance/${pending.id}`).set(admin.auth).send({ ...times('10:00', '16:00'), reason: 'move' }).expect(409);
+    expect(clash.body.message).toMatch(/another attendance entry/);
+    const ok = await api().put(`/api/admin/attendance/${pending.id}`).set(admin.auth).send({ checkInAt: other, reason: 'Confirmed with manager' }).expect(200);
+    expect(ok.body.status).toBe('Present');
+  });
+});
+
 describe('payroll and payslips', () => {
   it('stores salary structures and validates them', async () => {
     const admin = await makeAdmin();
