@@ -5,6 +5,8 @@ import { reviewRegularization, loadPendingRegularization } from '../../services/
 import { safeTimeZone, dayKey } from '../../utils/time.js';
 import { isValidMonth } from '../../utils/dates.js';
 import { sendCsv } from '../../utils/csv.js';
+import { shiftModel } from '../../models/shift.model.js';
+import { shiftThresholds } from '../../utils/shifts.js';
 import { notify } from '../../utils/notify.js';
 import { audit } from '../../utils/audit.js';
 
@@ -27,15 +29,18 @@ export const report = async (req, res) => {
     byUser.get(key).push(e);
   }
 
+  const shifts = new Map((await shiftModel.findAll()).map((s) => [s.id, s]));
   const rows = users.map((u) => {
-    const { days, ...totals } = summarizeAttendance(byUser.get(u.id) || [], { timeZone, month });
-    return { userId: u.id, name: u.name, department: u.department, ...totals };
+    const shift = u.shiftId ? shifts.get(String(u.shiftId)) : undefined;
+    const { days, ...totals } = summarizeAttendance(byUser.get(u.id) || [], { timeZone, month, ...shiftThresholds(shift) });
+    return { userId: u.id, name: u.name, department: u.department, shiftId: shift?.id ?? null, shift: shift?.name ?? null, ...totals };
   });
 
   if (req.query.format === 'csv') {
     return sendCsv(res, `attendance-report-${month}.csv`, rows, [
       { header: 'Employee', value: (r) => r.name },
       { header: 'Department', value: (r) => r.department },
+      { header: 'Shift', value: (r) => r.shift || '' },
       { header: 'Days present', value: (r) => r.daysPresent },
       { header: 'Total hours', value: (r) => r.totalHours },
       { header: 'Average hours/day', value: (r) => r.avgHours },

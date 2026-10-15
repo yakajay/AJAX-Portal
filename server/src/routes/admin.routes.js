@@ -2,6 +2,7 @@ import { Router, raw, text } from 'express';
 import { authenticate, requireAdmin, requireSuperAdmin, can } from '../middleware/auth.js';
 import * as users from '../controllers/admin/user.controller.js';
 import * as leaves from '../controllers/admin/leave.controller.js';
+import * as shifts from '../controllers/admin/shift.controller.js';
 import * as attendance from '../controllers/admin/attendance.controller.js';
 import * as hr from '../controllers/admin/hr.controller.js';
 import * as outsourcing from '../controllers/admin/outsourcing.controller.js';
@@ -48,6 +49,12 @@ router.post('/attendance', can('attendance').write, attendance.createRecord);
 router.put('/attendance/:id', can('attendance').write, attendance.updateRecord);
 router.delete('/attendance/:id', can('attendance').delete, attendance.deleteRecord);
 router.put('/attendance/:id/review', can('attendance').write, attendance.reviewRequest);
+
+router.get('/shifts', can('attendance').read, shifts.list);
+router.post('/shifts', can('attendance').write, shifts.create);
+router.put('/shifts/assign', can('attendance').write, shifts.assign);
+router.put('/shifts/:id', can('attendance').write, shifts.update);
+router.delete('/shifts/:id', can('attendance').write, shifts.remove);
 
 router.get('/leave-policy', can('leave').read, leaves.getPolicy);
 router.put('/leave-policy', can('leave').write, leaves.updatePolicy);

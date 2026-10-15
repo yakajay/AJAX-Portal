@@ -28,6 +28,7 @@ const userSchema = new mongoose.Schema(
     password: { type: String, default: null }, // scrypt hash
     managerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     designation: { type: String, default: '', trim: true },
+    shiftId: { type: mongoose.Schema.Types.ObjectId, ref: 'Shift', default: null },
     phone: { type: String, default: '', trim: true },
     employeeId: { type: String, default: null, trim: true }, // unique per company when set
     dateOfBirth: { type: String, default: null }, // YYYY-MM-DD (birthday reminders)

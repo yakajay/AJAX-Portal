@@ -119,7 +119,7 @@ describe('attendance', () => {
     const json = await api().get('/api/admin/attendance/report?month=2031-04&tz=UTC').set(admin.auth).expect(200);
     expect(json.body.rows.find((r) => r.userId === user.user.id)).toMatchObject({ daysPresent: 1, totalHours: 8 });
     const csv = await api().get('/api/admin/attendance/report?month=2031-04&tz=UTC&format=csv').set(admin.auth).expect(200);
-    expect(csv.text).toContain('Employee,Department,Days present');
+    expect(csv.text).toContain('Employee,Department,Shift,Days present');
     await api().get('/api/admin/attendance/report').set(user.auth).expect(403);
   });
 });
@@ -180,6 +180,55 @@ describe('admin attendance edit', () => {
     expect(clash.body.message).toMatch(/another attendance entry/);
     const ok = await api().put(`/api/admin/attendance/${pending.id}`).set(admin.auth).send({ checkInAt: other, reason: 'Confirmed with manager' }).expect(200);
     expect(ok.body.status).toBe('Present');
+  });
+});
+
+describe('shifts', () => {
+  const shiftBody = (extra = {}) => ({ name: `Shift ${Math.random().toString(36).slice(2, 7)}`, startTime: '09:00', endTime: '18:00', graceMinutes: 60, ...extra });
+
+  it('validates, creates, updates and deletes shifts (permission-gated, names unique)', async () => {
+    const admin = await makeAdmin();
+    const user = await makeUser();
+    await api().post('/api/admin/shifts').set(user.auth).send(shiftBody()).expect(403);
+    await api().post('/api/admin/shifts').set(admin.auth).send(shiftBody({ startTime: '25:00' })).expect(400);
+    await api().post('/api/admin/shifts').set(admin.auth).send(shiftBody({ endTime: '08:00' })).expect(400); // no overnight shifts
+    await api().post('/api/admin/shifts').set(admin.auth).send(shiftBody({ graceMinutes: -5 })).expect(400);
+    const body = shiftBody();
+    const made = await api().post('/api/admin/shifts').set(admin.auth).send(body).expect(201);
+    await api().post('/api/admin/shifts').set(admin.auth).send(body).expect(409);
+    const edited = await api().put(`/api/admin/shifts/${made.body.id}`).set(admin.auth).send({ endTime: '17:00' }).expect(200);
+    expect(edited.body).toMatchObject({ startTime: '09:00', endTime: '17:00' });
+    await api().put(`/api/admin/shifts/${made.body.id}`).set(admin.auth).send({ endTime: '08:00' }).expect(400);
+
+    const listed = await api().get('/api/admin/shifts').set(admin.auth).expect(200);
+    expect(listed.body.find((x) => x.id === made.body.id).memberCount).toBe(0);
+    await api().delete(`/api/admin/shifts/${made.body.id}`).set(admin.auth).expect(200);
+    await api().delete(`/api/admin/shifts/${made.body.id}`).set(admin.auth).expect(404);
+  });
+
+  it('judges late and early-out against the employee\'s own shift, and unassigns on delete', async () => {
+    const admin = await makeAdmin();
+    const emp = await makeUser();
+    const base = '2031-05';
+    await inTenant(() => Attendance.create({ userId: emp.user.id, checkInAt: new Date(`${base}-06T09:45:00Z`), checkOutAt: new Date(`${base}-06T17:45:00Z`) }));
+    const month = () => api().get(`/api/user/attendance/summary?month=${base}&tz=UTC`).set(emp.auth).expect(200);
+
+    const before = await month(); // company defaults: late after 09:30, early before 17:30
+    expect(before.body).toMatchObject({ lateDays: 1, earlyOutDays: 0, shift: null });
+
+    const shift = (await api().post('/api/admin/shifts').set(admin.auth).send(shiftBody()).expect(201)).body; // 09:00-18:00, 60 min grace
+    await api().put('/api/admin/shifts/assign').set(admin.auth).send({ shiftId: shift.id, userIds: [emp.user.id, 'nope'] }).expect(404);
+    await api().put('/api/admin/shifts/assign').set(admin.auth).send({ shiftId: shift.id, userIds: [] }).expect(400);
+    await api().put('/api/admin/shifts/assign').set(admin.auth).send({ shiftId: shift.id, userIds: [emp.user.id] }).expect(200);
+
+    const on = await month();
+    expect(on.body).toMatchObject({ lateDays: 0, earlyOutDays: 1, shift: { name: shift.name } });
+    const report = await api().get(`/api/admin/attendance/report?month=${base}&tz=UTC`).set(admin.auth).expect(200);
+    expect(report.body.rows.find((r) => r.userId === emp.user.id)).toMatchObject({ shift: shift.name, lateDays: 0, earlyOutDays: 1 });
+
+    const del = await api().delete(`/api/admin/shifts/${shift.id}`).set(admin.auth).expect(200);
+    expect(del.body.unassigned).toBe(1);
+    expect((await month()).body).toMatchObject({ lateDays: 1, shift: null });
   });
 });
 

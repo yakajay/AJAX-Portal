@@ -17,6 +17,7 @@ import './performance.model.js';
 import './salary.model.js';
 import './samlRequest.model.js';
 import './session.model.js';
+import './shift.model.js';
 import './supportAccess.model.js';
 import './ticket.model.js';
 import './timesheet.model.js';
