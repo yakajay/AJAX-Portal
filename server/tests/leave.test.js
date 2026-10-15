@@ -157,3 +157,35 @@ describe('team calendar', () => {
     await api().get('/api/user/leaves/calendar?month=nope').set(other.auth).expect(400);
   });
 });
+
+describe('holidays and leave policy (admin)', () => {
+  it('lets an admin add and edit holidays, rejects duplicates, and routes deletes through a request', async () => {
+    const admin = await makeAdmin();
+    const created = await api().post('/api/admin/holidays').set(admin.auth).send({ date: '2031-01-01', name: 'New Year' }).expect(201);
+    expect(created.body).toMatchObject({ date: 'Jan 1, 2031', iso: '2031-01-01', name: 'New Year' });
+    await api().post('/api/admin/holidays').set(admin.auth).send({ date: '2031-01-01', name: 'Again' }).expect(409);
+    await api().post('/api/admin/holidays').set(admin.auth).send({ date: 'nope', name: 'Bad' }).expect(400);
+    const edited = await api().put(`/api/admin/holidays/${created.body.id}`).set(admin.auth).send({ date: '2031-01-02', name: 'Day after' }).expect(200);
+    expect(edited.body.iso).toBe('2031-01-02');
+    const del = await api().delete(`/api/admin/holidays/${created.body.id}`).set(admin.auth).expect(202);
+    expect(del.body.status).toBe('Pending');
+    const me = await makeUser();
+    await api().post('/api/admin/holidays').set(me.auth).send({ date: '2031-02-01', name: 'x' }).expect(403);
+  });
+
+  it('applies a custom leave policy to applications', async () => {
+    const admin = await makeAdmin();
+    const me = await makeUser({ joinDate: '2020-01-01' });
+    const policy = [
+      { type: 'Study Leave', yearly: 2, accrual: 'upfront', carryForwardMax: 0 },
+      { type: 'Unpaid Leave', yearly: null, accrual: 'none' }
+    ];
+    await api().put('/api/admin/leave-policy').set(admin.auth).send({ policy: [policy[0]] }).expect(400); // Unpaid Leave missing
+    await api().put('/api/admin/leave-policy').set(admin.auth).send({ policy }).expect(200);
+    const types = await api().get('/api/user/leaves/types').set(me.auth).expect(200);
+    expect(types.body.map((t) => t.type)).toEqual(['Study Leave', 'Unpaid Leave']);
+    await api().post('/api/user/leaves').set(me.auth).send({ type: 'Casual Leave', startDate: '2030-06-03', endDate: '2030-06-03' }).expect(400);
+    await api().post('/api/user/leaves').set(me.auth).send({ type: 'Study Leave', startDate: '2030-06-03', endDate: '2030-06-05' }).expect(400); // 3 > 2
+    await api().post('/api/user/leaves').set(me.auth).send({ type: 'Study Leave', startDate: '2030-06-03', endDate: '2030-06-04' }).expect(201);
+  });
+});

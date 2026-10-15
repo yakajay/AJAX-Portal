@@ -6,7 +6,7 @@ React + Vite client (`client/`) and Express + MongoDB API (`server/`).
 
 | Area | Highlights |
 |---|---|
-| **Leave** | Monthly accrual for annual leave, carry-forward (max 5 days), half days, working-day counting that skips weekends and public holidays, overlap and balance checks, cancel pending requests, a team calendar, and approvals by the employee's manager (or any admin with leave permission). |
+| **Leave** | Monthly accrual for annual leave, carry-forward (max 5 days), half days, working-day counting that skips weekends and public holidays, overlap and balance checks, cancel pending requests, a team calendar, and approvals by the employee's manager (or any admin with leave permission). Admins manage the company's public holidays and its leave types, yearly days, accrual and carry-forward under **Leave → Policy & holidays**. |
 | **Attendance** | Clock in/out (with optional geolocation), monthly summaries with late / early-out flags, CSV export, attendance corrections approved by the manager or HR, an all-employee month report, and optional office-IP / geofence rules. |
 | **Payroll** | Salary structures per employee, a monthly payroll run (unpaid leave prorates pay), PDF payslips for employees and admins, mark-as-paid, plus the existing partner payments ledger. |
 | **Notifications** | In-app bell + page, email for important events (leave, tickets, payroll, expenses…), per-user opt-out and an optional daily digest. |

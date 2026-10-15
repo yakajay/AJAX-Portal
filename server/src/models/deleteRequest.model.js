@@ -9,7 +9,8 @@ export const DELETE_TARGETS = {
   department: { label: 'Department', module: 'org' },
   announcement: { label: 'Announcement', module: 'announcements' },
   checklistTemplate: { label: 'Checklist template', module: 'onboarding' },
-  checklist: { label: 'Checklist', module: 'onboarding' }
+  checklist: { label: 'Checklist', module: 'onboarding' },
+  holiday: { label: 'Public holiday', module: 'hr' }
 };
 
 const deleteRequestSchema = new mongoose.Schema(

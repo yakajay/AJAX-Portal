@@ -4,6 +4,7 @@ import { User, userModel } from '../models/user.model.js';
 import { Department } from '../models/department.model.js';
 import { Announcement } from '../models/announcement.model.js';
 import { ChecklistTemplate, Checklist } from '../models/checklist.model.js';
+import { Holiday } from '../models/holiday.model.js';
 import { Session } from '../models/session.model.js';
 import { ServiceError } from './company.service.js';
 import { runAsTenant } from '../utils/tenantContext.js';
@@ -42,6 +43,12 @@ const EXECUTORS = {
     const result = valid(id) ? await Checklist.deleteOne({ _id: id }) : { deletedCount: 0 };
     if (!result.deletedCount) throw new ServiceError(404, 'That checklist no longer exists.');
     return 'checklist';
+  },
+  async holiday(id) {
+    const holiday = valid(id) ? await Holiday.findById(id) : null;
+    if (!holiday) throw new ServiceError(404, 'That holiday no longer exists.');
+    await holiday.deleteOne();
+    return holiday.name;
   }
 };
 
@@ -53,6 +60,7 @@ export const describeTarget = async (targetType, id) => {
     case 'announcement': return (await Announcement.findById(id))?.title ?? null;
     case 'checklistTemplate': return (await ChecklistTemplate.findById(id))?.name ?? null;
     case 'checklist': return (await Checklist.findById(id))?.title ?? null;
+    case 'holiday': return (await Holiday.findById(id))?.name ?? null;
     default: return null;
   }
 };

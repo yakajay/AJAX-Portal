@@ -3,7 +3,7 @@ import { hotp, totp, verifyTotp, base32Encode, base32Decode, generateSecret, otp
 import { hasPermission, findInvalidPermission } from '../src/utils/permissions.js';
 import { toCsv } from '../src/utils/csv.js';
 import { labelToIso, workingDays, monthBounds, isValidIso, isValidMonth, addDays, overlaps } from '../src/utils/dates.js';
-import { leaveBalances } from '../src/utils/leavePolicy.js';
+import { leaveBalances, validatePolicy } from '../src/utils/leavePolicy.js';
 import { computePayslip, buildPayslipPdf } from '../src/utils/payroll.js';
 import { summarizeAttendance, checkClockPolicy, localMinutes } from '../src/utils/attendanceReport.js';
 import { daysUntilNext } from '../src/controllers/announcement.controller.js';
@@ -270,5 +270,31 @@ describe('planMerges', () => {
     ], 'UTC');
     expect(plans).toHaveLength(1);
     expect(plans[0]).toMatchObject({ userId: 'u1', checkOutAt: null });
+  });
+});
+
+describe('custom leave policy', () => {
+  const ok = [
+    { type: 'Study Leave', yearly: 2, accrual: 'upfront', carryForwardMax: 1 },
+    { type: 'unpaid leave', yearly: null, accrual: 'none' }
+  ];
+  it('accepts a valid policy and normalises Unpaid Leave', () => {
+    const { policy, error } = validatePolicy(ok);
+    expect(error).toBeUndefined();
+    expect(policy.map((p) => p.type)).toEqual(['Study Leave', 'Unpaid Leave']);
+  });
+  it('rejects missing Unpaid Leave, duplicates, bad carry-forward and limited unpaid leave', () => {
+    expect(validatePolicy([ok[0]]).error).toMatch(/Unpaid Leave/);
+    expect(validatePolicy([ok[0], ok[0], ok[1]]).error).toMatch(/twice/);
+    expect(validatePolicy([{ ...ok[0], carryForwardMax: 5 }, ok[1]]).error).toMatch(/Carry-forward/);
+    expect(validatePolicy([ok[0], { type: 'Unpaid Leave', yearly: 3, accrual: 'upfront' }]).error).toMatch(/unlimited/);
+    expect(validatePolicy([]).error).toBeTruthy();
+  });
+  it('computes balances from a supplied policy', () => {
+    const { policy } = validatePolicy(ok);
+    const map = Object.fromEntries(policy.map((p) => [p.type, p]));
+    const balances = leaveBalances([], '2030-06-01', { policy: map });
+    expect(balances).toHaveLength(1);
+    expect(balances[0]).toMatchObject({ type: 'Study Leave', carriedForward: 1, remaining: 3 });
   });
 });
