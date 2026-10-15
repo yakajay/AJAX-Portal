@@ -83,7 +83,7 @@ export const cleanEmail = (email, label = 'email') => {
   return value;
 };
 
-export const FEATURES = ['customLogo'];
+export const FEATURES = ['customLogo', 'customEmail'];
 export const cleanFeatures = (features) => {
   if (features === undefined) return undefined;
   if (!features || typeof features !== 'object') throw new ServiceError(400, 'features must be an object.');

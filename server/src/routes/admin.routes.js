@@ -102,6 +102,9 @@ router.delete('/checklists/:id', can('onboarding').delete, company.deleteViaRequ
 // Company settings, single sign-on and support access: the company admin (SUPER_ADMIN) only
 router.get('/company', requireSuperAdmin, company.get);
 router.put('/company', requireSuperAdmin, company.update);
+router.get('/company/email', requireSuperAdmin, company.getEmail);
+router.put('/company/email', requireSuperAdmin, company.updateEmail);
+router.post('/company/email/test', requireSuperAdmin, company.testEmail);
 router.get('/company/sso', requireSuperAdmin, company.getSso);
 router.put('/company/sso', requireSuperAdmin, company.updateSso);
 // The logo is uploaded as the raw image body (the JSON parser would reject it)

@@ -16,7 +16,7 @@ interface CompanyRecord {
   profile: { industry: string; website: string; address: string; timezone: string };
   subscription: { plan: string; seatLimit: number; expiresAt: string | null };
   modules: string[];
-  features: { customLogo: boolean };
+  features: { customLogo: boolean; customEmail?: boolean };
   logoUpdatedAt: string | null;
   settings: { allowSelfSignup: boolean };
   usage: { employees: number; seatLimit: number };
@@ -44,7 +44,20 @@ interface SupportGrant {
   lastViewedAt: string | null;
 }
 
-type TabId = 'details' | 'sso' | 'support';
+interface EmailSettings {
+  enabled: boolean;
+  fromName: string;
+  email: string;
+  host: string;
+  port: number | null;
+  passwordSet: boolean;
+  verifiedAt: string | null;
+  lastError: string;
+  lastErrorAt: string | null;
+  resolved: { host: string; port: number } | null;
+}
+
+type TabId = 'details' | 'email' | 'sso' | 'support';
 
 const Toggle = ({ label, checked, onChange, hint }: { label: string; checked: boolean; onChange: (v: boolean) => void; hint?: string }) => (
   <label className="flex items-start gap-3 cursor-pointer">
@@ -213,6 +226,127 @@ const DetailsTab = () => {
       </div>
     </div>
   );
+};
+
+// ---------------------------------------------------------------- Own sender email
+const EmailForm = () => {
+  const { data, error, loading, reload } = useAsync(() => apiJson<EmailSettings>('/admin/company/email'), []);
+  const [form, setForm] = useState<{ fromName: string; email: string; host: string; port: string } | null>(null);
+  const [password, setPassword] = useState('');
+  const [advanced, setAdvanced] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  if (loading && !data) return <Spinner />;
+  if (!data) return <ErrorNote error={error} />;
+  const value = form ?? { fromName: data.fromName, email: data.email, host: data.host, port: data.port ? String(data.port) : '' };
+  const patch = (changes: Partial<typeof value>) => setForm({ ...value, ...changes });
+
+  const submit = async (enabled: boolean | undefined, done: string) => {
+    setBusy(true);
+    setFormError(null);
+    setMessage(null);
+    try {
+      await apiSend('PUT', '/admin/company/email', {
+        fromName: value.fromName, email: value.email, host: value.host, port: value.port,
+        ...(password ? { password } : {}),
+        ...(enabled === undefined ? {} : { enabled })
+      });
+      setForm(null);
+      setPassword('');
+      await reload();
+      setMessage(done);
+    } catch (err) {
+      setFormError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const sendTest = async () => {
+    setBusy(true);
+    setFormError(null);
+    setMessage(null);
+    try {
+      const res = await apiSend<{ message: string }>('POST', '/admin/company/email/test');
+      await reload();
+      setMessage(res.message);
+    } catch (err) {
+      setFormError(errorMessage(err));
+      await reload();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="grid lg:grid-cols-3 gap-6">
+      <form className="lg:col-span-2" onSubmit={(e) => { e.preventDefault(); void submit(undefined, 'Email settings saved.'); }}>
+        <Card title="Send from your own email address" actions={<Badge tone={data.enabled ? 'green' : 'slate'}>{data.enabled ? 'On' : 'Off'}</Badge>}>
+          <p className="text-sm text-slate-500 mb-5">
+            Sign-in codes, password resets and notifications are sent to your people from this address instead of ours. Use a mailbox made for this,
+            such as <strong>noreply@yourcompany.com</strong>. With Gmail or Microsoft 365 you may need an <em>app password</em> instead of your normal one.
+          </p>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Field label="Sender name" hint="Shown as the sender. Defaults to your company name."><input className={inputClass} value={value.fromName} onChange={(e) => patch({ fromName: e.target.value })} /></Field>
+            <Field label="Sender email"><input type="email" required className={inputClass} placeholder="noreply@yourcompany.com" value={value.email} onChange={(e) => patch({ email: e.target.value })} /></Field>
+            <Field label="Email password" hint={data.passwordSet ? 'A password is saved. Leave blank to keep it.' : 'Stored encrypted. It is never shown again.'}>
+              <input type="password" autoComplete="new-password" className={inputClass} value={password} onChange={(e) => setPassword(e.target.value)} placeholder={data.passwordSet ? '••••••••' : ''} />
+            </Field>
+            <div className="text-xs text-slate-400 self-end pb-2">
+              {data.resolved ? <>Mail server: <span className="font-mono">{data.resolved.host}:{data.resolved.port}</span></> : 'Enter your email address and we will pick the mail server for you.'}
+            </div>
+          </div>
+          <button type="button" className="mt-4 text-xs font-bold text-blue-700" onClick={() => setAdvanced(!advanced)}>{advanced ? 'Hide' : 'Show'} mail server settings</button>
+          {advanced && (
+            <div className="grid sm:grid-cols-2 gap-4 mt-3">
+              <Field label="SMTP host" hint="Only needed for company domains, e.g. smtp.office365.com."><input className={inputClass} value={value.host} onChange={(e) => patch({ host: e.target.value })} /></Field>
+              <Field label="SMTP port" hint="465 (SSL) or 587 (STARTTLS)."><input type="number" min={1} max={65535} className={inputClass} value={value.port} onChange={(e) => patch({ port: e.target.value })} /></Field>
+            </div>
+          )}
+          {data.verifiedAt && <p className="mt-4 text-xs text-slate-400">Last verified {formatDateTime(data.verifiedAt)}.</p>}
+          {data.lastError && (
+            <p role="alert" className="mt-4 text-sm text-amber-700">
+              Sending from your address failed {data.lastErrorAt ? `on ${formatDateTime(data.lastErrorAt)}` : 'recently'} ({data.lastError}); those emails went out from our address instead. Check the password.
+            </p>
+          )}
+          <ErrorNote error={formError} />
+          {message && <p role="status" className="mt-4 text-sm font-semibold text-emerald-700">{message}</p>}
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Button type="submit" disabled={busy}>Save settings</Button>
+            {data.enabled ? (
+              <Button variant="danger" disabled={busy} onClick={() => void submit(false, 'Back to sending from our address.')}>Turn off</Button>
+            ) : (
+              <Button variant="secondary" disabled={busy} onClick={() => void submit(true, 'Done. Emails now come from your address.')}><ShieldCheck size={14} />Save, test and turn on</Button>
+            )}
+            {data.passwordSet && <Button variant="secondary" disabled={busy} onClick={() => void sendTest()}>Send test email</Button>}
+          </div>
+        </Card>
+      </form>
+      <Card title="How it works">
+        <ul className="text-xs text-slate-500 space-y-2 list-disc pl-4">
+          <li>Turning it on sends a test email to you first. If it fails, nothing is changed.</li>
+          <li>If your mailbox stops working later, emails still reach people from our address so nobody is locked out.</li>
+          <li>The password is encrypted and never shown again. Changing the address needs its password again.</li>
+        </ul>
+      </Card>
+    </div>
+  );
+};
+
+const EmailTab = () => {
+  const { data, error, loading } = useAsync(() => apiJson<CompanyRecord>('/admin/company'), []);
+  if (loading && !data) return <Spinner />;
+  if (!data) return <ErrorNote error={error} />;
+  if (!data.features.customEmail) {
+    return (
+      <Card title="Send from your own email address" actions={<Badge tone="slate">Not in your plan</Badge>}>
+        <p className="text-sm text-slate-500">Sending sign-in codes and notifications from your own address is an optional feature. Ask the platform administrator to enable it for your company.</p>
+      </Card>
+    );
+  }
+  return <EmailForm />;
 };
 
 // ---------------------------------------------------------------- Single sign-on
@@ -417,13 +551,14 @@ const CompanySettings = () => {
   const [tab, setTab] = useState<TabId>('details');
   return (
     <div className="space-y-6">
-      <PageHeader title="Company settings" subtitle="Your company profile, workspace address, single sign-on and support access." />
+      <PageHeader title="Company settings" subtitle="Your company profile, workspace address, email, single sign-on and support access." />
       <Tabs
-        tabs={[{ id: 'details', label: 'Company & domain' }, { id: 'sso', label: 'Single sign-on' }, { id: 'support', label: 'Support access' }]}
+        tabs={[{ id: 'details', label: 'Company & domain' }, { id: 'email', label: 'Email' }, { id: 'sso', label: 'Single sign-on' }, { id: 'support', label: 'Support access' }]}
         value={tab}
         onChange={setTab}
       />
       {tab === 'details' && <DetailsTab />}
+      {tab === 'email' && <EmailTab />}
       {tab === 'sso' && <SsoTab />}
       {tab === 'support' && <SupportTab />}
     </div>

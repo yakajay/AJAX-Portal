@@ -47,7 +47,9 @@ const companySchema = new mongoose.Schema(
     modules: { type: [String], default: () => [...MODULES] },
     // Optional extras the platform switches on per company (part of what we provide to them)
     features: {
-      customLogo: { type: Boolean, default: false }
+      customLogo: { type: Boolean, default: false },
+      // Lets the company's admin send OTPs and notifications from their own mailbox (see emailConfig)
+      customEmail: { type: Boolean, default: false }
     },
     // The company's own logo, shown instead of ours. The image bytes live in `logo` and are only loaded
     // by the logo endpoint; `logoUpdatedAt` tells everyone else whether one exists.
@@ -78,6 +80,20 @@ const companySchema = new mongoose.Schema(
       }
     },
 
+    // The company's own sender mailbox, entered by its admin once the platform has enabled `features.customEmail`.
+    // The password is write-only and sealed with the company data key.
+    emailConfig: {
+      enabled: { type: Boolean, default: false },
+      fromName: { type: String, default: '', trim: true },
+      email: { type: String, default: '', trim: true, lowercase: true },
+      password: { type: String, default: '' }, // sealed with the company data key
+      host: { type: String, default: '', trim: true }, // blank: worked out from the email's domain
+      port: { type: Number, default: null },
+      verifiedAt: { type: Date, default: null }, // last time a test message went out with these settings
+      lastError: { type: String, default: '' }, // last send failure, so the admin can see why mail fell back
+      lastErrorAt: { type: Date, default: null }
+    },
+
     // This company's data-encryption key, wrapped with the master key. Never leaves the server.
     dataKey: { type: String, required: true, select: false }
   },
@@ -87,6 +103,10 @@ const companySchema = new mongoose.Schema(
     if (ret.sso?.oidc) {
       ret.sso.oidc.clientSecretSet = !!ret.sso.oidc.clientSecret;
       delete ret.sso.oidc.clientSecret;
+    }
+    if (ret.emailConfig) {
+      ret.emailConfig.passwordSet = !!ret.emailConfig.password;
+      delete ret.emailConfig.password;
     }
   })
 );
