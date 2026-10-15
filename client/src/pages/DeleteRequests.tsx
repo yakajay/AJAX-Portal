@@ -20,7 +20,7 @@ export interface DeleteRequestRecord {
 
 export const TARGET_LABELS: Record<string, string> = {
   company: 'Company account', user: 'Employee', department: 'Department', announcement: 'Announcement',
-  checklistTemplate: 'Checklist template', checklist: 'Checklist'
+  checklistTemplate: 'Checklist template', checklist: 'Checklist', holiday: 'Public holiday'
 };
 
 type Filter = 'all' | 'Pending' | 'Approved' | 'Rejected';

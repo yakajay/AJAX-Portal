@@ -43,6 +43,13 @@ router.get('/attendance/report', can('attendance').read, attendance.report);
 router.get('/attendance/regularizations', can('attendance').read, attendance.listRegularizations);
 router.put('/attendance/:id/review', can('attendance').write, attendance.reviewRequest);
 
+router.get('/leave-policy', can('leave').read, leaves.getPolicy);
+router.put('/leave-policy', can('leave').write, leaves.updatePolicy);
+
+router.post('/holidays', can('hr').write, hr.createHoliday);
+router.put('/holidays/:id', can('hr').write, hr.updateHoliday);
+router.delete('/holidays/:id', can('hr').delete, company.deleteViaRequest('holiday'));
+
 router.get('/documents', can('hr').read, hr.listDocuments);
 router.post('/documents', can('hr').write, hr.createDocument);
 

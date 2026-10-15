@@ -66,6 +66,7 @@ router.post('/attendance/manual', attendance.addManual);
 
 router.get('/leaves', leave.listMine);
 router.get('/leaves/balance', leave.balance);
+router.get('/leaves/types', leave.types);
 router.get('/leaves/calendar', leave.calendar);
 router.post('/leaves', leave.apply);
 router.patch('/leaves/:id/cancel', leave.cancel);

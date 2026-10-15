@@ -5,6 +5,7 @@ import { apiJson, apiSend } from '../lib/api';
 import { can } from '../lib/permissions';
 import { currentMonth, errorMessage, formatDate, monthLabel } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
+import { HolidayManager, LeavePolicyEditor } from '../components/leave/LeaveAdmin';
 import { Badge, Button, Card, Empty, ErrorNote, Field, Modal, PageHeader, Spinner, Tabs, Th, inputClass, statusTone } from '../components/ui';
 
 interface LeaveRequest {
@@ -20,7 +21,6 @@ interface CalendarData {
   holidays: { date: string; name: string }[];
 }
 
-const LEAVE_TYPES = ['Annual Leave', 'Sick Leave', 'Casual Leave', 'Unpaid Leave'];
 const TYPE_DOT: Record<string, string> = { 'Annual Leave': 'bg-blue-500', 'Sick Leave': 'bg-rose-500', 'Casual Leave': 'bg-amber-500', 'Unpaid Leave': 'bg-slate-400' };
 
 // "Oct 2, 2026" -> "2026-10-02"
@@ -39,10 +39,10 @@ const workingDaysBetween = (start: string, end: string, holidays: Set<string>) =
   return count;
 };
 
-const ApplyLeaveModal = ({ open, onClose, onApplied, balances, holidays }: {
-  open: boolean; onClose: () => void; onApplied: () => void; balances: Balance[]; holidays: Holiday[];
+const ApplyLeaveModal = ({ open, onClose, onApplied, balances, holidays, types }: {
+  open: boolean; onClose: () => void; onApplied: () => void; balances: Balance[]; holidays: Holiday[]; types: string[];
 }) => {
-  const blank = { type: 'Annual Leave', startDate: '', endDate: '', halfDay: false, halfDayPart: 'First Half', reason: '' };
+  const blank = { type: '', startDate: '', endDate: '', halfDay: false, halfDayPart: 'First Half', reason: '' };
   const [form, setForm] = useState(blank);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -50,7 +50,8 @@ const ApplyLeaveModal = ({ open, onClose, onApplied, balances, holidays }: {
   const holidaySet = useMemo(() => new Set(holidays.map((h) => holidayIso(h.date)).filter((d): d is string => !!d)), [holidays]);
   const valid = form.startDate && form.endDate && form.endDate >= form.startDate;
   const estimate = valid ? (form.halfDay ? 0.5 : workingDaysBetween(form.startDate, form.endDate, holidaySet)) : null;
-  const balance = balances.find((b) => b.type === form.type);
+  const chosen = form.type || types[0] || '';
+  const balance = balances.find((b) => b.type === chosen);
 
   const set = (patch: Partial<typeof form>) => setForm((f) => {
     const next = { ...f, ...patch };
@@ -64,7 +65,7 @@ const ApplyLeaveModal = ({ open, onClose, onApplied, balances, holidays }: {
     setSaving(true);
     setError(null);
     try {
-      await apiSend('POST', '/user/leaves', { ...form, halfDayPart: form.halfDay ? form.halfDayPart : undefined });
+      await apiSend('POST', '/user/leaves', { ...form, type: form.type || types[0], halfDayPart: form.halfDay ? form.halfDayPart : undefined });
       setForm(blank);
       onApplied();
       onClose();
@@ -80,7 +81,7 @@ const ApplyLeaveModal = ({ open, onClose, onApplied, balances, holidays }: {
       <form onSubmit={submit} className="space-y-4">
         <ErrorNote error={error} />
         <Field label="Leave type">
-          <select className={inputClass} value={form.type} onChange={(e) => set({ type: e.target.value })}>{LEAVE_TYPES.map((t) => <option key={t}>{t}</option>)}</select>
+          <select className={inputClass} value={chosen} onChange={(e) => set({ type: e.target.value })}>{types.map((t) => <option key={t}>{t}</option>)}</select>
         </Field>
         <div className="grid grid-cols-2 gap-4">
           <Field label="Start date"><input required type="date" className={inputClass} value={form.startDate} onChange={(e) => set({ startDate: e.target.value, endDate: form.endDate < e.target.value || form.halfDay ? e.target.value : form.endDate })} /></Field>
@@ -98,7 +99,7 @@ const ApplyLeaveModal = ({ open, onClose, onApplied, balances, holidays }: {
           {estimate === null ? 'Pick your dates to see the length.' : estimate === 0
             ? 'These dates are weekends or holidays only.'
             : <><strong className="text-slate-900">{estimate} working day{estimate === 1 ? '' : 's'}</strong> (weekends and public holidays are not counted).</>}
-          {balance && <span className="block text-xs text-slate-400 mt-1">You have {balance.remaining} {form.type.toLowerCase()} day(s) available.</span>}
+          {balance && <span className="block text-xs text-slate-400 mt-1">You have {balance.remaining} {chosen.toLowerCase()} day(s) available.</span>}
         </div>
         <Field label="Reason"><textarea required rows={3} className={inputClass} value={form.reason} onChange={(e) => set({ reason: e.target.value })} placeholder="Provide a brief reason for your leave…" /></Field>
         <Button type="submit" disabled={saving || estimate === 0} className="w-full">{saving ? 'Submitting…' : 'Submit request'}</Button>
@@ -191,7 +192,7 @@ const LeaveTable = ({ rows, showEmployee, actions }: { rows: LeaveRequest[]; sho
   </div>
 );
 
-type TabId = 'my' | 'calendar' | 'team' | 'approvals';
+type TabId = 'my' | 'calendar' | 'team' | 'approvals' | 'setup';
 
 const LeaveManagement = ({ user }: { user: User | null }) => {
   const isApprover = can(user, 'leave', 'read');
@@ -203,6 +204,8 @@ const LeaveManagement = ({ user }: { user: User | null }) => {
   const mine = useAsync(() => apiJson<LeaveRequest[]>('/user/leaves'));
   const balances = useAsync(() => apiJson<Balance[]>('/user/leaves/balance'));
   const holidays = useAsync(() => apiJson<Holiday[]>('/user/holidays'));
+  const leaveTypes = useAsync(() => apiJson<{ type: string }[]>('/user/leaves/types'));
+  const canSetup = can(user, 'leave', 'write') || can(user, 'hr', 'write');
   const team = useAsync(() => apiJson<LeaveRequest[]>('/user/team/leaves'));
   const everyone = useAsync(() => (isApprover ? apiJson<LeaveRequest[]>('/admin/leaves') : Promise.resolve([] as LeaveRequest[])), [isApprover]);
 
@@ -214,7 +217,8 @@ const LeaveManagement = ({ user }: { user: User | null }) => {
     { id: 'my', label: 'My leave' },
     { id: 'calendar', label: 'Team calendar' },
     ...((team.data?.length ?? 0) > 0 ? [{ id: 'team' as const, label: 'My team', badge: pendingTeam }] : []),
-    ...(isApprover ? [{ id: 'approvals' as const, label: 'All approvals', badge: pendingAll }] : [])
+    ...(isApprover ? [{ id: 'approvals' as const, label: 'All approvals', badge: pendingAll }] : []),
+    ...(canSetup ? [{ id: 'setup' as const, label: 'Policy & holidays' }] : [])
   ];
 
   const decide = async (l: LeaveRequest, status: 'Approved' | 'Rejected', viaTeam: boolean) => {
@@ -292,8 +296,8 @@ const LeaveManagement = ({ user }: { user: User | null }) => {
                   <h2 className="font-bold tracking-tight">Leave policy</h2>
                 </div>
                 <ul className="text-slate-300 text-xs leading-relaxed space-y-2 list-disc pl-4">
-                  <li>Annual leave accrues monthly (1.25 days); up to 5 unused days carry into next year.</li>
-                  <li>Sick and casual leave are granted in full on 1 January.</li>
+                  <li>Leave accrues monthly or is granted in full on 1 January, depending on the type.</li>
+                  <li>Unused days carry into next year up to each type's limit.</li>
                   <li>Weekends and public holidays aren't counted against your balance.</li>
                   <li>Unpaid leave is unlimited but reduces that month's pay.</li>
                 </ul>
@@ -318,6 +322,13 @@ const LeaveManagement = ({ user }: { user: User | null }) => {
 
       {tab === 'calendar' && <TeamCalendar />}
 
+      {tab === 'setup' && (
+        <div className="space-y-6">
+          {can(user, 'leave', 'write') && <LeavePolicyEditor onSaved={() => { void balances.reload(); void leaveTypes.reload(); }} />}
+          {can(user, 'hr', 'write') && <HolidayManager onChanged={() => void holidays.reload()} />}
+        </div>
+      )}
+
       {tab === 'team' && (
         <Card title="Requests from your direct reports" flush>
           {!team.data?.length ? <Empty>No requests.</Empty> : <LeaveTable rows={team.data} showEmployee actions={reviewActions(true, true)} />}
@@ -332,7 +343,7 @@ const LeaveManagement = ({ user }: { user: User | null }) => {
         </Card>
       )}
 
-      <ApplyLeaveModal open={applyOpen} onClose={() => setApplyOpen(false)} onApplied={refreshAll} balances={balances.data ?? []} holidays={holidays.data ?? []} />
+      <ApplyLeaveModal open={applyOpen} onClose={() => setApplyOpen(false)} onApplied={refreshAll} balances={balances.data ?? []} holidays={holidays.data ?? []} types={(leaveTypes.data ?? []).map((t) => t.type)} />
     </div>
   );
 };

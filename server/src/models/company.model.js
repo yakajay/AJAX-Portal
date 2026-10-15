@@ -56,7 +56,17 @@ const companySchema = new mongoose.Schema(
     logoData: { type: Buffer, select: false },
     settings: {
       // Self-signup is off by default: a workspace belongs to one company, so people are added by its admins or SSO
-      allowSelfSignup: { type: Boolean, default: false }
+      allowSelfSignup: { type: Boolean, default: false },
+      // Leave types and entitlements; empty means the built-in defaults (utils/leavePolicy.js)
+      leavePolicy: {
+        type: [new mongoose.Schema({
+          type: { type: String, required: true, trim: true },
+          yearly: { type: Number, default: null },
+          accrual: { type: String, enum: ['monthly', 'upfront', 'none'], default: 'upfront' },
+          carryForwardMax: { type: Number, default: 0 }
+        }, { _id: false })],
+        default: undefined
+      }
     },
 
     // Single sign-on, configured by the company's own admins. Secrets are write-only.

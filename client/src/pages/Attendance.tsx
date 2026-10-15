@@ -19,7 +19,7 @@ import { MonthlySummary, CorrectionsQueue, AttendanceReport } from '../component
 
 type DayMode = 'leave' | 'regularize' | 'manual';
 
-const LEAVE_TYPES = ['Annual Leave', 'Sick Leave', 'Casual Leave'];
+const DEFAULT_LEAVE_TYPES = ['Annual Leave', 'Sick Leave', 'Casual Leave'];
 const STATUS_DOT: Record<string, string> = {
   Present: 'bg-emerald-500',
   Leave: 'bg-sky-500',
@@ -41,7 +41,14 @@ const DayPanel = ({ dayKey, logs, leaves, onLogAdded, onLeaveAdded }: {
   const dayLeave = leaves.find(l => l.status !== 'Rejected' && l.startDate <= dayKey && dayKey <= l.endDate);
 
   const [mode, setMode] = useState<DayMode>('manual');
-  const [leaveType, setLeaveType] = useState(LEAVE_TYPES[0]);
+  const [leaveTypes, setLeaveTypes] = useState(DEFAULT_LEAVE_TYPES);
+  const [leaveType, setLeaveType] = useState(DEFAULT_LEAVE_TYPES[0]);
+  useEffect(() => {
+    apiFetch('/user/leaves/types').then((r) => (r.ok ? r.json() : [])).then((rows: { type: string; yearly: number | null }[]) => {
+      const paid = rows.filter((t) => t.yearly !== null).map((t) => t.type);
+      if (paid.length) { setLeaveTypes(paid); setLeaveType(paid[0]); }
+    }).catch(() => {});
+  }, []);
   const [inTime, setInTime] = useState('09:00');
   const [outTime, setOutTime] = useState('18:00');
   const [reason, setReason] = useState('');
@@ -137,7 +144,7 @@ const DayPanel = ({ dayKey, logs, leaves, onLogAdded, onLeaveAdded }: {
           <div>
             <label className={labelCls} htmlFor="day-leave-type">Leave type</label>
             <select id="day-leave-type" className={inputCls} value={leaveType} onChange={e => setLeaveType(e.target.value)}>
-              {LEAVE_TYPES.map(t => <option key={t}>{t}</option>)}
+              {leaveTypes.map(t => <option key={t}>{t}</option>)}
             </select>
           </div>
         ) : (
