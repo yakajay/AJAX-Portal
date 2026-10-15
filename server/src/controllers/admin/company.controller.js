@@ -10,7 +10,6 @@ import { describeTarget } from '../../services/deletion.service.js';
 import { seatsUsed } from '../../services/company.service.js';
 import { oidcRedirectUri, samlAcsUrl, samlEntityId } from '../sso.controller.js';
 import { audit } from '../../utils/audit.js';
-import { smtpSettings, sendFromCompany } from '../../utils/companyMail.js';
 
 // The company admin (SUPER_ADMIN inside a workspace) edits their own company here. Plan, modules,
 // status and subdomain belong to the platform and are read-only.
@@ -97,118 +96,6 @@ export const removeLogo = async (req, res) => {
   await Company.updateOne({ _id: req.company.id }, { logoData: null, logoContentType: '', logoUpdatedAt: null });
   await audit(req, { action: 'company.logo', entity: 'company', entityId: req.company.id, summary: 'Removed the company logo' });
   res.json({ hasLogo: false });
-};
-
-// ---------------------------------------------------------------- Own sender mailbox (a feature the platform enables per company)
-const requireEmailFeature = (req, res) => {
-  if (req.company.features.customEmail) return true;
-  res.status(403).json({ code: 'FEATURE_DISABLED', message: 'Sending from your own email address is not part of your plan. Ask the platform administrator to enable it.' });
-  return false;
-};
-
-const emailView = (company) => {
-  const { emailConfig } = company.toJSON();
-  let resolved = null;
-  try { resolved = emailConfig.email ? smtpSettings(emailConfig) : null; } catch { /* host still needed */ }
-  return { ...emailConfig, resolved };
-};
-
-const EMAIL_ADDRESS = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-// A message to the admin who is setting this up, sent with the settings being checked
-const sendTest = (company, to) =>
-  sendFromCompany(company, {
-    to,
-    subject: `${company.name} - email settings test`,
-    text: `This message was sent from ${company.emailConfig.email} by the ${company.name} workspace. Your portal emails (sign-in codes, notifications) will now come from this address.`
-  });
-
-// GET /admin/company/email
-export const getEmail = (req, res) => {
-  if (!requireEmailFeature(req, res)) return;
-  res.json(emailView(req.company));
-};
-
-// PUT /admin/company/email { enabled, fromName, email, password, host, port }
-// The password is write-only: an empty value keeps the stored one. Turning the mailbox on (or changing it while on)
-// first sends a test message to the signed-in admin, so a wrong password can never take sign-in codes offline.
-export const updateEmail = async (req, res) => {
-  if (!requireEmailFeature(req, res)) return;
-  const body = req.body ?? {};
-  const company = await Company.findById(req.company.id);
-  const cfg = company.emailConfig;
-  const touched = [];
-
-  if (body.fromName !== undefined) { cfg.fromName = text(body.fromName, 80); touched.push('fromName'); }
-  if (body.email !== undefined) {
-    const email = text(body.email, 200).toLowerCase();
-    if (email && !EMAIL_ADDRESS.test(email)) return bad(res, 'Enter a valid sender email address.');
-    // New address, new proof: never reuse the old mailbox's password for it
-    if (email !== cfg.email && !body.password) {
-      if (email && cfg.password) return bad(res, 'Enter the password for the new email address.');
-      cfg.password = '';
-    }
-    cfg.email = email;
-    touched.push('email');
-  }
-  if (body.host !== undefined) { cfg.host = text(body.host, 253).toLowerCase(); touched.push('host'); }
-  if (body.port !== undefined) { cfg.port = body.port === '' || body.port === null ? null : Number(body.port); touched.push('port'); }
-  if (body.password) {
-    cfg.password = encryptValue(company.id, String(body.password).slice(0, 500));
-    touched.push('password');
-  }
-
-  const enable = body.enabled !== undefined ? !!body.enabled : cfg.enabled;
-  try {
-    if (enable) {
-      if (!cfg.email) return bad(res, 'Enter the sender email address first.');
-      if (!cfg.password) return bad(res, 'Enter the email password first.');
-      smtpSettings(cfg); // throws a readable error when the server cannot be determined
-      if (touched.length || !cfg.enabled) {
-        try {
-          await sendTest(company, req.user.email);
-        } catch (error) {
-          return bad(res, `We could not send a test email with these settings, so nothing was changed. ${String(error.message).slice(0, 200)}`);
-        }
-        cfg.verifiedAt = new Date();
-        cfg.lastError = '';
-        cfg.lastErrorAt = null;
-      }
-    }
-  } catch (error) {
-    return bad(res, error.message);
-  }
-  if (body.enabled !== undefined) touched.push('enabled');
-  cfg.enabled = enable;
-
-  await company.save();
-  await audit(req, {
-    action: touched.includes('enabled') ? (enable ? 'email.enable' : 'email.disable') : 'email.update',
-    entity: 'company', entityId: company.id,
-    summary: touched.includes('enabled') ? `${enable ? 'Enabled' : 'Disabled'} sending from the company's own email address` : 'Updated the company email settings',
-    meta: touched // field names only; never values
-  });
-  res.json(emailView(company));
-};
-
-// POST /admin/company/email/test - sends a test message to the signed-in admin using the saved settings
-export const testEmail = async (req, res) => {
-  if (!requireEmailFeature(req, res)) return;
-  const company = await Company.findById(req.company.id);
-  if (!company.emailConfig.email || !company.emailConfig.password) return bad(res, 'Save the sender email and password first.');
-  try {
-    await sendTest(company, req.user.email);
-  } catch (error) {
-    company.emailConfig.lastError = String(error.message).slice(0, 300);
-    company.emailConfig.lastErrorAt = new Date();
-    await company.save();
-    return bad(res, `The test email failed. ${String(error.message).slice(0, 200)}`);
-  }
-  company.emailConfig.verifiedAt = new Date();
-  company.emailConfig.lastError = '';
-  company.emailConfig.lastErrorAt = null;
-  await company.save();
-  res.json({ message: `Test email sent to ${req.user.email}.`, ...emailView(company) });
 };
 
 // ---------------------------------------------------------------- SSO

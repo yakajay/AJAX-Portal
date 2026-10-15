@@ -28,7 +28,6 @@ const DESCRIPTIONS = {
   'GET /admin/attendance/report': 'Month report for all employees. Add `format=csv` for a spreadsheet export.',
   'POST /admin/payroll/run-monthly': 'Generates payslips for every employee with a salary structure (skips ones that already exist). Unpaid leave prorates pay.',
   'GET /admin/audit': 'Company admin (SUPER_ADMIN) only. Filterable, paginated audit trail for the company, including actions the platform took on it.',
-  'PUT /admin/company/email': 'Company admin (SUPER_ADMIN) only, and only when the platform enabled the `customEmail` feature for the company. Saves the company\'s own sender mailbox (email + write-only password). Enabling first sends a test message to the signed-in admin; on failure nothing changes.',
   'GET /auth/workspace': 'Public. Who the request address belongs to (a company or the platform console), its enabled modules and whether single sign-on is available.',
   'POST /auth/sso/saml/acs': 'SAML 2.0 assertion consumer service: the identity provider posts the signed response here.',
   'DELETE /admin/users/{id}': 'Company admins cannot delete directly: this files a delete request (202, status Pending) for the platform Super Admin to approve or reject. The other admin DELETE routes behave the same way.',

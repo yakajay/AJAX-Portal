@@ -46,16 +46,3 @@ export const providerFetch = async (rawUrl, init = {}) => {
   const url = await assertPublicUrl(rawUrl);
   return fetch(url, { ...init, redirect: 'error', signal: AbortSignal.timeout(env.sso.requestTimeoutMs) });
 };
-
-// Resolves a mail server chosen by a company admin to one public address (so the connection cannot be
-// aimed at internal services). The caller connects to the returned address and keeps the name for TLS.
-export const resolvePublicHost = async (hostname) => {
-  const host = String(hostname || '').replace(/^\[|\]$/g, '');
-  if (!host) throw new Error('A mail server host is required.');
-  const addresses = net.isIP(host) ? [{ address: host }] : await dns.lookup(host, { all: true });
-  if (!addresses.length) throw new Error('The mail server host could not be found.');
-  if (!env.sso.allowPrivateHosts && addresses.some((a) => isPrivateAddress(a.address))) {
-    throw new Error('The mail server must be on a public address.');
-  }
-  return addresses[0].address;
-};
