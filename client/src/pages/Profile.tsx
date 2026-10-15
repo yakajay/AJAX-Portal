@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { apiFetch } from '../lib/api';
 import { User, Mail, Lock, Save, Camera, Shield, Bell, Key } from 'lucide-react';
+import { ProfilePhoto } from '../components/profile/ProfilePhoto';
 
 const Profile = ({ user, onUserUpdate }) => {
   const [formData, setFormData] = useState({
@@ -79,14 +80,7 @@ const Profile = ({ user, onUserUpdate }) => {
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm text-center relative overflow-hidden group">
             <div className="absolute top-0 inset-x-0 h-1.5 bg-cyan-600"></div>
-            <div className="relative inline-block mt-4">
-              <div className="w-28 h-28 rounded-3xl bg-cyan-50 flex items-center justify-center text-cyan-700 text-4xl font-black border-4 border-white shadow-xl mx-auto group-hover:scale-105 transition-transform duration-500">
-                {formData.name.substring(0, 2).toUpperCase()}
-              </div>
-              <button className="absolute -bottom-2 -right-2 p-2.5 bg-slate-900 text-white rounded-2xl border-4 border-white shadow-lg hover:bg-slate-800 transition-all hover:scale-110">
-                <Camera size={18} />
-              </button>
-            </div>
+            <div className="mt-4"><ProfilePhoto user={user} onUserUpdate={onUserUpdate} /></div>
             <h3 className="mt-6 text-xl font-black text-slate-900 tracking-tight">{formData.name}</h3>
             <div className="inline-flex items-center px-3 py-1 bg-cyan-50 text-cyan-700 rounded-lg text-[10px] font-black uppercase tracking-widest mt-2 border border-cyan-100">
               {user?.role?.replace('_', ' ')}

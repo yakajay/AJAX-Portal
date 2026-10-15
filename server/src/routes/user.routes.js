@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, raw } from 'express';
 import { authenticate } from '../middleware/auth.js';
 import { requireModule } from '../middleware/tenant.js';
 import * as profile from '../controllers/user/profile.controller.js';
@@ -22,6 +22,9 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/profile', profile.getProfile);
+router.put('/profile/avatar', raw({ type: profile.AVATAR_CONTENT_TYPES, limit: profile.MAX_AVATAR_BYTES }), profile.uploadAvatar);
+router.delete('/profile/avatar', profile.removeAvatar);
+router.get('/avatars/:id', profile.getAvatar);
 router.put('/profile', profile.updateProfile);
 router.get('/profile/sensitive', profile.getSensitive);
 router.put('/profile/sensitive', profile.updateSensitive);
@@ -66,11 +69,13 @@ router.post('/attendance/manual', attendance.addManual);
 
 router.get('/leaves', leave.listMine);
 router.get('/leaves/balance', leave.balance);
+router.get('/leaves/types', leave.types);
 router.get('/leaves/calendar', leave.calendar);
 router.post('/leaves', leave.apply);
 router.patch('/leaves/:id/cancel', leave.cancel);
 
 router.get('/documents', hr.myDocuments);
+router.get('/documents/:id/file', hr.downloadMyDocument);
 router.get('/holidays', hr.holidays);
 router.get('/directory', hr.directory);
 router.get('/departments', org.listDepartments);

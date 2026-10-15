@@ -15,3 +15,31 @@ export const sendCsv = (res, filename, rows, columns) => {
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   res.send('﻿' + toCsv(rows, columns));
 };
+
+// Minimal CSV reader (RFC 4180: quoted cells, doubled quotes, newlines inside quotes). Returns an array of
+// rows, each an array of strings; blank lines are skipped. A leading BOM is ignored.
+export const parseCsv = (text) => {
+  const rows = [];
+  let row = [];
+  let value = '';
+  let quoted = false;
+  const src = String(text).replace(/^\uFEFF/, '');
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+    if (quoted) {
+      if (ch === '"' && src[i + 1] === '"') { value += '"'; i++; }
+      else if (ch === '"') quoted = false;
+      else value += ch;
+    } else if (ch === '"') quoted = true;
+    else if (ch === ',') { row.push(value); value = ''; }
+    else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && src[i + 1] === '\n') i++;
+      row.push(value); value = '';
+      if (row.some((c) => c.trim() !== '')) rows.push(row);
+      row = [];
+    } else value += ch;
+  }
+  row.push(value);
+  if (row.some((c) => c.trim() !== '')) rows.push(row);
+  return rows;
+};

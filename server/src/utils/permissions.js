@@ -5,7 +5,7 @@
 // `hr:read`, `users:*`). An admin with `read,payroll:write` can read everything but only change payroll.
 export const MODULES = [
   'users', 'leave', 'attendance', 'hr', 'payroll', 'outsourcing', 'support',
-  'org', 'announcements', 'performance', 'expenses', 'onboarding'
+  'org', 'announcements', 'performance', 'expenses', 'onboarding', 'recruitment'
 ];
 export const ACTIONS = ['read', 'write', 'delete'];
 

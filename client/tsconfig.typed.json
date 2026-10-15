@@ -6,7 +6,7 @@
     "src/vite-env.d.ts", "src/config.ts", "src/lib/**/*.ts", "src/lib/**/*.tsx", "src/types/**/*.ts", "src/components/ui.tsx", "src/components/charts/**/*.tsx",
     "src/components/layout/CommandPalette.tsx", "src/components/layout/NotificationBell.tsx", "src/components/layout/Header.tsx", "src/components/layout/Sidebar.tsx",
     "src/pages/Notifications.tsx", "src/pages/Payslips.tsx", "src/pages/Announcements.tsx", "src/pages/AuditLog.tsx", "src/pages/Expenses.tsx",
-    "src/pages/Onboarding.tsx", "src/pages/LeaveManagement.tsx", "src/components/attendance/AttendanceExtras.tsx", "src/components/payroll/PayrollExtras.tsx", "src/components/outsourcing/OutsourcingExtras.tsx", "src/components/support/TicketViews.tsx", "src/components/dashboard/DashboardPanels.tsx", "src/components/org/OrgViews.tsx", "src/components/admin/PermissionEditor.tsx", "src/pages/Performance.tsx", "src/pages/Preferences.tsx",
+    "src/pages/Onboarding.tsx", "src/pages/Recruitment.tsx", "src/pages/LeaveManagement.tsx", "src/components/attendance/AttendanceExtras.tsx", "src/components/payroll/PayrollExtras.tsx", "src/components/outsourcing/OutsourcingExtras.tsx", "src/components/support/TicketViews.tsx", "src/components/dashboard/DashboardPanels.tsx", "src/components/org/OrgViews.tsx", "src/components/admin/PermissionEditor.tsx", "src/components/Avatar.tsx", "src/components/profile/ProfilePhoto.tsx", "src/components/admin/ImportUsers.tsx", "src/pages/Performance.tsx", "src/pages/Preferences.tsx",
     "src/pages/CompanySettings.tsx", "src/pages/DeleteRequests.tsx", "src/pages/platform/*.tsx"
   ]
 }

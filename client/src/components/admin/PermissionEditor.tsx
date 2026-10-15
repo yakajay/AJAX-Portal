@@ -3,7 +3,7 @@ import { MODULES, type Action, type Module } from '../../lib/permissions';
 const LABELS: Record<Module, string> = {
   users: 'Users & accounts', leave: 'Leave', attendance: 'Attendance', hr: 'HR documents', payroll: 'Payroll',
   outsourcing: 'Outsourcing', support: 'Support tickets', org: 'Departments', announcements: 'Announcements',
-  performance: 'Performance', expenses: 'Expenses', onboarding: 'Onboarding'
+  performance: 'Performance', expenses: 'Expenses', onboarding: 'Onboarding', recruitment: 'Recruitment'
 };
 
 /**

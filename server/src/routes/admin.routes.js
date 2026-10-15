@@ -1,7 +1,11 @@
-import { Router, raw } from 'express';
+import { Router, raw, text } from 'express';
 import { authenticate, requireAdmin, requireSuperAdmin, can } from '../middleware/auth.js';
 import * as users from '../controllers/admin/user.controller.js';
 import * as leaves from '../controllers/admin/leave.controller.js';
+import { DOCUMENT_TYPES, MAX_DOCUMENT_BYTES } from '../utils/documentFiles.js';
+import * as recruitment from '../controllers/admin/recruitment.controller.js';
+import { requireModule } from '../middleware/tenant.js';
+import * as shifts from '../controllers/admin/shift.controller.js';
 import * as attendance from '../controllers/admin/attendance.controller.js';
 import * as hr from '../controllers/admin/hr.controller.js';
 import * as outsourcing from '../controllers/admin/outsourcing.controller.js';
@@ -28,6 +32,9 @@ router.get('/dashboard/stats', dashboard.stats);
 router.get('/dashboard/analytics', dashboard.analytics);
 
 router.get('/users', can('users').read, users.list);
+router.delete('/users/:id/avatar', can('users').write, users.removeAvatar);
+router.get('/users/import/template', can('users').write, users.importTemplate);
+router.post('/users/import', can('users').write, text({ type: 'text/csv', limit: users.MAX_IMPORT_BYTES }), users.importUsers);
 router.post('/users', can('users').write, users.create);
 router.put('/users/:id', can('users').write, users.update);
 router.patch('/users/:id/lock', can('users').write, users.setLock);
@@ -41,10 +48,43 @@ router.put('/leaves/:id', can('leave').write, leaves.setStatus);
 
 router.get('/attendance/report', can('attendance').read, attendance.report);
 router.get('/attendance/regularizations', can('attendance').read, attendance.listRegularizations);
+router.get('/attendance/records', can('attendance').read, attendance.listRecords);
+router.post('/attendance', can('attendance').write, attendance.createRecord);
+router.put('/attendance/:id', can('attendance').write, attendance.updateRecord);
+router.delete('/attendance/:id', can('attendance').delete, attendance.deleteRecord);
 router.put('/attendance/:id/review', can('attendance').write, attendance.reviewRequest);
+
+router.get('/shifts', can('attendance').read, shifts.list);
+router.post('/shifts', can('attendance').write, shifts.create);
+router.put('/shifts/assign', can('attendance').write, shifts.assign);
+router.put('/shifts/:id', can('attendance').write, shifts.update);
+router.delete('/shifts/:id', can('attendance').write, shifts.remove);
+
+// Recruitment: jobs, a candidate pipeline, resumes, and hiring (which creates the employee account)
+router.use('/recruitment', requireModule('recruitment'));
+router.get('/recruitment/jobs', can('recruitment').read, recruitment.listJobs);
+router.post('/recruitment/jobs', can('recruitment').write, recruitment.createJob);
+router.put('/recruitment/jobs/:id', can('recruitment').write, recruitment.updateJob);
+router.get('/recruitment/candidates', can('recruitment').read, recruitment.listCandidates);
+router.post('/recruitment/candidates', can('recruitment').write, recruitment.createCandidate);
+router.put('/recruitment/candidates/:id', can('recruitment').write, recruitment.updateCandidate);
+router.put('/recruitment/candidates/:id/stage', can('recruitment').write, recruitment.setStage);
+router.post('/recruitment/candidates/:id/notes', can('recruitment').write, recruitment.addNote);
+router.put('/recruitment/candidates/:id/resume', can('recruitment').write, raw({ type: recruitment.RESUME_CONTENT_TYPES, limit: MAX_DOCUMENT_BYTES }), recruitment.uploadResume);
+router.get('/recruitment/candidates/:id/resume', can('recruitment').read, recruitment.downloadResume);
+router.post('/recruitment/candidates/:id/hire', can('recruitment').write, can('users').write, recruitment.hire);
+
+router.get('/leave-policy', can('leave').read, leaves.getPolicy);
+router.put('/leave-policy', can('leave').write, leaves.updatePolicy);
+
+router.post('/holidays', can('hr').write, hr.createHoliday);
+router.put('/holidays/:id', can('hr').write, hr.updateHoliday);
+router.delete('/holidays/:id', can('hr').delete, company.deleteViaRequest('holiday'));
 
 router.get('/documents', can('hr').read, hr.listDocuments);
 router.post('/documents', can('hr').write, hr.createDocument);
+router.put('/documents/:id/file', can('hr').write, raw({ type: Object.keys(DOCUMENT_TYPES), limit: MAX_DOCUMENT_BYTES }), hr.uploadDocumentFile);
+router.get('/documents/:id/file', can('hr').read, hr.downloadDocumentFile);
 
 router.get('/contractors', can('outsourcing').read, outsourcing.list);
 router.get('/contractors/alerts', can('outsourcing').read, outsourcing.alerts);
@@ -59,6 +99,8 @@ router.put('/invoices/:id', can('outsourcing').write, outsourcing.updateInvoice)
 
 router.get('/transactions', can('payroll').read, payroll.listTransactions);
 router.post('/payroll/run', can('payroll').write, payroll.run);
+router.get('/payroll/tax-policy', can('payroll').read, payroll.getTaxPolicy);
+router.put('/payroll/tax-policy', can('payroll').write, payroll.setTaxPolicy);
 router.get('/payroll/structures', can('payroll').read, payroll.listStructures);
 router.put('/payroll/structures/:userId', can('payroll').write, payroll.setStructure);
 router.post('/payroll/run-monthly', can('payroll').write, payroll.runMonthly);

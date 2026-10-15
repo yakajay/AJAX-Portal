@@ -1,4 +1,7 @@
 import { attendanceModel } from '../../models/attendance.model.js';
+import { shiftModel } from '../../models/shift.model.js';
+import { shiftThresholds } from '../../utils/shifts.js';
+import { userModel } from '../../models/user.model.js';
 import { summarizeAttendance, checkClockPolicy, validLocation } from '../../utils/attendanceReport.js';
 import { reviewRegularization, loadPendingRegularization } from '../../services/attendance.service.js';
 import { safeTimeZone, dayKey } from '../../utils/time.js';
@@ -103,6 +106,12 @@ const monthParams = (req, res) => {
   return { timeZone, month };
 };
 
+// The signed-in employee's shift (if any) and the thresholds it implies
+const myShift = async (req) => {
+  const me = await userModel.findById(req.user.id);
+  return me?.shiftId ? shiftModel.findById(me.shiftId) : null;
+};
+
 // Entries whose local day might fall in the month (a day either side covers any timezone)
 const monthWindow = (month) => {
   const [y, m] = month.split('-').map(Number);
@@ -114,7 +123,8 @@ export const summary = async (req, res) => {
   if (!params) return;
   const { from, to } = monthWindow(params.month);
   const entries = await attendanceModel.findInRange([req.user.id], from, to);
-  res.json(summarizeAttendance(entries, params));
+  const shift = await myShift(req);
+  res.json({ ...summarizeAttendance(entries, { ...params, ...shiftThresholds(shift) }), shift: shift ? { name: shift.name, startTime: shift.startTime, endTime: shift.endTime } : null });
 };
 
 export const exportMine = async (req, res) => {
@@ -122,7 +132,7 @@ export const exportMine = async (req, res) => {
   if (!params) return;
   const { from, to } = monthWindow(params.month);
   const entries = await attendanceModel.findInRange([req.user.id], from, to);
-  const { days } = summarizeAttendance(entries, params);
+  const { days } = summarizeAttendance(entries, { ...params, ...shiftThresholds(await myShift(req)) });
   const fmt = (d) => (d ? d.toISOString() : '');
   sendCsv(res, `attendance-${params.month}.csv`, days, [
     { header: 'Date', value: (d) => d.date },

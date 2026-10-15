@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { UserPlus, Shield, User, Lock, X, Check, Search, Trash2, Key, Unlock, AlertCircle } from 'lucide-react';
+import { Upload, UserPlus, Shield, User, Lock, X, Check, Search, Trash2, Key, Unlock, AlertCircle } from 'lucide-react';
 import { apiFetch, readError, requestDelete } from '../lib/api';
 import PermissionEditor from '../components/admin/PermissionEditor';
+import { Avatar } from '../components/Avatar';
+import { ImportUsers } from '../components/admin/ImportUsers';
 
 const UserModal = ({ isOpen, onClose, onSave, editingUser }) => {
   const blank = {
@@ -12,6 +14,8 @@ const UserModal = ({ isOpen, onClose, onSave, editingUser }) => {
     permissions: ['read'],
     department: 'Engineering',
     designation: '',
+    phone: '',
+    employeeId: '',
     managerId: '',
     joinDate: '',
     dateOfBirth: ''
@@ -35,6 +39,8 @@ const UserModal = ({ isOpen, onClose, onSave, editingUser }) => {
         password: '',
         managerId: editingUser.managerId || '',
         designation: editingUser.designation || '',
+        phone: editingUser.phone || '',
+        employeeId: editingUser.employeeId || '',
         joinDate: editingUser.joinDate || '',
         dateOfBirth: editingUser.dateOfBirth || '',
         permissions: Array.isArray(editingUser.permissions) 
@@ -55,6 +61,7 @@ const UserModal = ({ isOpen, onClose, onSave, editingUser }) => {
     onSave({
       ...rest,
       ...(editingUser ? {} : { password }),
+      employeeId: formData.employeeId || null,
       managerId: formData.managerId || null,
       joinDate: formData.joinDate || null,
       dateOfBirth: formData.dateOfBirth || null
@@ -96,6 +103,16 @@ const UserModal = ({ isOpen, onClose, onSave, editingUser }) => {
               placeholder="user@yaksofts.com"
               disabled={!!editingUser}
             />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Employee ID</label>
+              <input type="text" required className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" value={formData.employeeId} onChange={(e) => setFormData({...formData, employeeId: e.target.value})} placeholder="e.g. EMP-001" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Phone Number</label>
+              <input type="tel" required className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} placeholder="+91 98765 43210" />
+            </div>
           </div>
           {!editingUser && (
             <div>
@@ -170,13 +187,15 @@ const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [importOpen, setImportOpen] = useState(false);
 
-  useEffect(() => {
+  const loadUsers = () =>
     apiFetch('/admin/users')
       .then(res => res.json())
       .then(data => setUsers(Array.isArray(data) ? data : []))
       .catch(err => console.error('Failed to fetch users', err));
-  }, []);
+
+  useEffect(() => { loadUsers(); }, []);
 
   const handleSaveUser = (userData) => {
     if (editingUser) {
@@ -276,6 +295,14 @@ const UserManagement = () => {
           <h1 className="text-2xl font-bold text-slate-900">User Management</h1>
           <p className="text-slate-500 text-sm">Control access levels and permissions for your team.</p>
         </div>
+        <div className="flex items-center gap-3">
+        <button
+          onClick={() => setImportOpen(true)}
+          className="flex items-center px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+        >
+          <Upload size={18} className="mr-2" />
+          Import CSV
+        </button>
         <button 
           onClick={handleAdd}
           className="flex items-center px-4 py-2 bg-emerald-600 rounded-lg text-sm font-medium text-white hover:bg-emerald-700 transition-colors"
@@ -283,7 +310,9 @@ const UserManagement = () => {
           <UserPlus size={18} className="mr-2" />
           Create User
         </button>
+        </div>
       </div>
+      <ImportUsers open={importOpen} onClose={() => setImportOpen(false)} onImported={loadUsers} />
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <table className="w-full text-left">
@@ -301,12 +330,12 @@ const UserManagement = () => {
               <tr key={u.id} className="hover:bg-slate-50 transition-colors">
                 <td className="px-6 py-4">
                   <div className="flex items-center">
-                    <div className={`w-8 h-8 rounded-full mr-3 flex items-center justify-center font-bold text-xs ${
+                    <div className={`w-8 h-8 rounded-full mr-3 overflow-hidden flex items-center justify-center font-bold text-xs ${
                       u.role === 'SUPER_ADMIN' ? 'bg-emerald-100 text-emerald-700' :
                       u.role === 'ADMIN' ? 'bg-blue-100 text-blue-700' :
                       'bg-slate-100 text-slate-700'
                     }`}>
-                      {u.name.substring(0, 2).toUpperCase()}
+                      <Avatar person={u} initials={u.name.substring(0, 2).toUpperCase()} />
                     </div>
                     <div>
                       <p className="font-medium text-slate-900">{u.name}</p>

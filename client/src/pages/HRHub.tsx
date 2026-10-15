@@ -15,13 +15,22 @@ import {
   X,
   User as UserIcon
 } from 'lucide-react';
-import { apiFetch } from '../lib/api';
+import { apiFetch, downloadFile } from '../lib/api';
+
+const FILE_TYPES: Record<string, string> = {
+  pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+};
+const MAX_FILE_BYTES = 5 * 1024 * 1024;
 
 interface HRDocument {
   id: string;
   name: string;
   type: string;
   date: string;
+  hasFile?: boolean;
+  fileName?: string;
   user?: {
     name: string;
   };
@@ -35,8 +44,16 @@ const AddDocumentModal = ({ isOpen, onClose, onAdd, employees }: { isOpen: boole
     date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   });
   const [loading, setLoading] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
 
   if (!isOpen) return null;
+
+  const pickFile = (picked?: File) => {
+    if (!picked) return setFile(null);
+    if (!FILE_TYPES[picked.name.split('.').pop()?.toLowerCase() ?? '']) { alert('Choose a PDF, PNG, JPEG, DOCX or XLSX file.'); return; }
+    if (picked.size > MAX_FILE_BYTES) { alert('The file must be 5 MB or smaller.'); return; }
+    setFile(picked);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,7 +66,23 @@ const AddDocumentModal = ({ isOpen, onClose, onAdd, employees }: { isOpen: boole
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.message || 'Failed to add document');
-      onAdd(data);
+      let saved = data;
+      if (file) {
+        const up = await apiFetch(`/admin/documents/${data.id}/file`, {
+          method: 'PUT',
+          headers: { 'Content-Type': FILE_TYPES[file.name.split('.').pop()!.toLowerCase()], 'X-File-Name': encodeURIComponent(file.name) },
+          body: file
+        });
+        const upBody = await up.json().catch(() => ({}));
+        if (!up.ok) {
+          onAdd(data);
+          throw new Error(`The document was saved, but the file was not uploaded: ${upBody.message || 'upload failed'}`);
+        }
+        saved = upBody;
+        saved.user = data.user;
+      }
+      onAdd(saved);
+      setFile(null);
       onClose();
     } catch (error) {
       console.error("Failed to add document", error);
@@ -105,6 +138,17 @@ const AddDocumentModal = ({ isOpen, onClose, onAdd, employees }: { isOpen: boole
               <option>Payslip</option>
               <option>Tax</option>
             </select>
+          </div>
+          <div>
+            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">File (optional)</label>
+            <input
+              type="file"
+              aria-label="Document file"
+              accept=".pdf,.png,.jpg,.jpeg,.docx,.xlsx"
+              className="w-full text-sm file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-slate-100 file:text-xs file:font-black file:uppercase"
+              onChange={(e) => pickFile(e.target.files?.[0])}
+            />
+            <p className="text-xs text-slate-400 mt-1">PDF, PNG, JPEG, DOCX or XLSX, up to 5 MB.</p>
           </div>
           <button 
             type="submit"
@@ -245,7 +289,13 @@ const HRHub = ({ user }: { user: any }) => {
                         </p>
                       </div>
                     </div>
-                    <button className="p-2.5 rounded-xl bg-slate-50 text-slate-400 hover:bg-blue-600 hover:text-white transition-all shadow-sm">
+                    <button
+                      disabled={!doc.hasFile}
+                      aria-label={doc.hasFile ? `Download ${doc.name}` : `${doc.name} has no file attached`}
+                      title={doc.hasFile ? `Download ${doc.fileName}` : 'No file attached'}
+                      onClick={() => downloadFile(`/${isAdmin ? 'admin' : 'user'}/documents/${doc.id}/file`, doc.fileName || doc.name).catch((e) => alert(e.message))}
+                      className="p-2.5 rounded-xl bg-slate-50 text-slate-400 hover:bg-blue-600 hover:text-white transition-all shadow-sm disabled:opacity-40 disabled:hover:bg-slate-50 disabled:hover:text-slate-400 disabled:cursor-not-allowed"
+                    >
                       <Download size={18} />
                     </button>
                   </div>

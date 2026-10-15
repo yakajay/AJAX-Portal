@@ -28,6 +28,14 @@ const userSchema = new mongoose.Schema(
     password: { type: String, default: null }, // scrypt hash
     managerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     designation: { type: String, default: '', trim: true },
+    // Profile photo (a small PNG/JPEG/WebP). The bytes are never part of normal queries or JSON;
+    // `avatarVersion` (the upload time) tells clients whether one exists and when to refetch it.
+    avatarData: { type: Buffer, select: false, default: undefined },
+    avatarType: { type: String, default: '' },
+    avatarUpdatedAt: { type: Date, default: null },
+    shiftId: { type: mongoose.Schema.Types.ObjectId, ref: 'Shift', default: null },
+    phone: { type: String, default: '', trim: true },
+    employeeId: { type: String, default: null, trim: true }, // unique per company when set
     dateOfBirth: { type: String, default: null }, // YYYY-MM-DD (birthday reminders)
     joinDate: { type: String, default: null }, // YYYY-MM-DD (work anniversaries)
     preferences: {
@@ -56,12 +64,18 @@ const userSchema = new mongoose.Schema(
   schemaOptions((ret) => {
     delete ret.password;
     ret.totpEnabled = !!ret.totp?.enabled;
+    ret.avatarVersion = ret.avatarUpdatedAt ? new Date(ret.avatarUpdatedAt).getTime() : null;
+    delete ret.avatarData;
+    delete ret.avatarType;
+    delete ret.avatarUpdatedAt;
     delete ret.totp;
   })
 );
 
 // The same email can exist in different companies; within one it is unique
 userSchema.index({ companyId: 1, email: 1 }, { unique: true });
+// Employee IDs are optional on old accounts, but never shared once set
+userSchema.index({ companyId: 1, employeeId: 1 }, { unique: true, partialFilterExpression: { employeeId: { $type: 'string' } } });
 
 // Platform staff live outside every company; company users can never hold the platform role
 userSchema.pre('validate', function checkPlatformRole() {
@@ -82,12 +96,14 @@ export const userModel = {
   findAll: () => User.find().populate(withManager),
   // Limited columns for the employee directory visible to every role
   findDirectory: () =>
-    User.find().select('name email role department designation managerId dateOfBirth joinDate').populate(withManager),
+    User.find().select('name email employeeId avatarUpdatedAt role department designation managerId dateOfBirth joinDate').populate(withManager),
   findById: (id) => (isValidId(id) ? User.findById(id) : null),
+  findWithAvatar: (id) => (isValidId(id) ? User.findById(id).select('+avatarData') : null),
   findWithTotpSecret: (id) => User.findById(id),
   // Atomically records a used TOTP step; false if that step (or a later one) was already used
   consumeTotpStep: async (id, step) =>
     (await User.updateOne({ _id: id, 'totp.lastStep': { $lt: step } }, { $set: { 'totp.lastStep': step } })).modifiedCount === 1,
+  findByEmployeeId: (employeeId) => User.findOne({ employeeId }),
   findByEmail: (email) => User.findOne({ email: String(email).toLowerCase() }),
   create: async (data) => (await User.create(data)).populate(withManager),
   update: (id, data) =>

@@ -11,6 +11,8 @@ export interface PayslipRecord {
   currency: string;
   earnings: { basic: number; hra: number; allowances: number };
   deductions: { pf: number; tax: number; other: number };
+  deductionItems?: { name: string; amount: number }[];
+  taxMethod?: 'flat' | 'slabs';
   gross: number;
   totalDeductions: number;
   net: number;
@@ -78,7 +80,9 @@ const Payslips = () => {
                     <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Deductions</h3>
                     <Row label="Provident fund" value={p.deductions.pf} currency={p.currency} />
                     <Row label="Income tax" value={p.deductions.tax} currency={p.currency} />
-                    <Row label="Other" value={p.deductions.other} currency={p.currency} />
+                    {p.deductionItems?.length
+                      ? p.deductionItems.map((l) => <Row key={l.name} label={l.name} value={l.amount} currency={p.currency} />)
+                      : <Row label="Other" value={p.deductions.other} currency={p.currency} />}
                     <Row label="Total deductions" value={p.totalDeductions} currency={p.currency} strong />
                   </div>
                   {p.unpaidLeaveDays > 0 && <p className="sm:col-span-2 text-xs text-amber-700 font-semibold">{p.unpaidLeaveDays} unpaid leave day(s) were deducted this month.</p>}

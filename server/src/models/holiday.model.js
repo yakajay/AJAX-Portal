@@ -12,5 +12,7 @@ const holidaySchema = new mongoose.Schema(
 export const Holiday = mongoose.model('Holiday', holidaySchema);
 
 export const holidayModel = {
-  findAll: () => Holiday.find()
+  findAll: () => Holiday.find(),
+  findById: (id) => Holiday.findById(id),
+  create: (data) => Holiday.create(data)
 };

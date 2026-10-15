@@ -17,12 +17,15 @@ import type { User } from '../types';
 import { useSearchParams } from 'react-router-dom';
 import { apiFetch } from '../lib/api';
 import { Tabs } from '../components/ui';
+import { Avatar } from '../components/Avatar';
 import { OrgChart, Departments } from '../components/org/OrgViews';
 
 interface Employee {
   id: string;
   name: string;
   email: string;
+  employeeId?: string | null;
+  avatarVersion?: number | null;
   role: string;
   department: string;
   managerId?: string | null;
@@ -242,8 +245,8 @@ const ProfileModal = ({
         <div className="px-8 pb-8">
           <div className="relative -mt-16 mb-6">
             <div className="w-32 h-32 rounded-3xl bg-white p-1.5 shadow-xl border border-slate-100">
-              <div className="w-full h-full rounded-2xl bg-slate-100 flex items-center justify-center text-4xl font-black text-blue-700">
-                {employee.name.substring(0, 2).toUpperCase()}
+              <div className="w-full h-full rounded-2xl bg-slate-100 overflow-hidden flex items-center justify-center text-4xl font-black text-blue-700">
+                <Avatar person={employee} initials={employee.name.substring(0, 2).toUpperCase()} />
               </div>
             </div>
           </div>
@@ -276,6 +279,15 @@ const ProfileModal = ({
               <div>
                 <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Contact Information</h3>
                 <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400">
+                      <Briefcase size={16} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-tight">Employee ID</p>
+                      <p className="text-sm font-bold text-slate-900">{employee.employeeId || '—'}</p>
+                    </div>
+                  </div>
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400">
                       <Mail size={16} />
@@ -354,10 +366,10 @@ const DirectoryView = ({ user }: { user: User | null }) => {
   };
 
   const handleExport = () => {
-    const headers = ['ID', 'Name', 'Email', 'Role', 'Department', 'Manager'];
+    const headers = ['Employee ID', 'Name', 'Email', 'Role', 'Department', 'Manager'];
     const csvContent = [
       headers.join(','),
-      ...employees.map(e => `${e.id},${e.name},${e.email},${e.role},${e.department},${e.manager?.name || ''}`)
+      ...employees.map(e => `${e.employeeId || ''},${e.name},${e.email},${e.role},${e.department},${e.manager?.name || ''}`)
     ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -397,6 +409,7 @@ const DirectoryView = ({ user }: { user: User | null }) => {
     const matchesSearch = 
       emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       emp.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (emp.employeeId || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       emp.role.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesDept = deptFilter === 'All Departments' || emp.department === deptFilter;
@@ -436,7 +449,7 @@ const DirectoryView = ({ user }: { user: User | null }) => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input 
             type="text" 
-            placeholder="Search by name, email, or role..."
+            placeholder="Search by name, ID, email, or role..."
             className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -476,8 +489,8 @@ const DirectoryView = ({ user }: { user: User | null }) => {
               </div>
               <div className="px-6 pb-6 -mt-10 relative">
                 <div className="w-20 h-20 rounded-2xl bg-white p-1 shadow-md mb-3 border border-slate-100">
-                  <div className="w-full h-full rounded-xl bg-slate-100 flex items-center justify-center text-xl font-black text-blue-700">
-                    {emp.name.substring(0, 2).toUpperCase()}
+                  <div className="w-full h-full rounded-xl bg-slate-100 overflow-hidden flex items-center justify-center text-xl font-black text-blue-700">
+                    <Avatar person={emp} initials={emp.name.substring(0, 2).toUpperCase()} />
                   </div>
                 </div>
                 
@@ -485,6 +498,7 @@ const DirectoryView = ({ user }: { user: User | null }) => {
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
                   {emp.role.replace('_', ' ')}
                 </p>
+                {emp.employeeId && <p className="text-xs font-black text-blue-600 mt-1">ID: {emp.employeeId}</p>}
 
                 <div className="mt-6 space-y-3">
                   <div className="flex items-center text-sm text-slate-600">

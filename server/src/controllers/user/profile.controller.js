@@ -4,6 +4,7 @@ import { sanitizeUser } from '../../utils/format.js';
 import { isValidIso } from '../../utils/dates.js';
 import { revokeAllSessions } from '../../utils/sessions.js';
 import { audit } from '../../utils/audit.js';
+import { sniffImageType } from '../admin/company.controller.js';
 import { User } from '../../models/user.model.js';
 import { readSensitive, buildSensitiveUpdate } from '../admin/sensitive.controller.js';
 
@@ -69,4 +70,31 @@ export const changePassword = async (req, res) => {
   await revokeAllSessions(req.user.id, req.session.id);
   await audit(req, { action: 'user.password_change', entity: 'user', entityId: req.user.id, summary: 'Changed own password' });
   res.json({ message: 'Password updated successfully. Other devices were signed out.' });
+};
+
+// --- Profile photo ---
+export const MAX_AVATAR_BYTES = 512 * 1024;
+export const AVATAR_CONTENT_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+
+// PUT /user/profile/avatar - the request body is the image itself
+export const uploadAvatar = async (req, res) => {
+  const body = req.body;
+  if (!Buffer.isBuffer(body) || !body.length) return res.status(400).json({ message: 'Send the photo as the request body (PNG, JPEG or WebP, up to 512 KB).' });
+  const type = sniffImageType(body);
+  if (!type) return res.status(415).json({ message: 'The photo must be a PNG, JPEG or WebP image.' });
+  await User.updateOne({ _id: req.user.id }, { avatarData: body, avatarType: type, avatarUpdatedAt: new Date() });
+  res.json(sanitizeUser(await userModel.findById(req.user.id)));
+};
+
+export const removeAvatar = async (req, res) => {
+  await User.updateOne({ _id: req.user.id }, { avatarData: null, avatarType: '', avatarUpdatedAt: null });
+  res.json(sanitizeUser(await userModel.findById(req.user.id)));
+};
+
+// GET /user/avatars/:id - anyone signed in to the company can see a colleague's photo (it is shown in the directory)
+export const getAvatar = async (req, res) => {
+  const user = await userModel.findWithAvatar(req.params.id);
+  if (!user?.avatarData?.length) return res.status(404).json({ message: 'No photo.' });
+  res.set({ 'Content-Type': user.avatarType, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, max-age=86400' });
+  res.send(user.avatarData);
 };
