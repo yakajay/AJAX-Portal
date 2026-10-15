@@ -57,6 +57,18 @@ const companySchema = new mongoose.Schema(
     settings: {
       // Self-signup is off by default: a workspace belongs to one company, so people are added by its admins or SSO
       allowSelfSignup: { type: Boolean, default: false },
+      // Income tax withholding slabs for payroll; no slabs means each employee's flat tax % applies (utils/payrollTax.js)
+      payrollTax: {
+        slabs: {
+          type: [new mongoose.Schema({
+            upTo: { type: Number, default: null }, // annual taxable income this band ends at; null = no limit
+            ratePercent: { type: Number, required: true }
+          }, { _id: false })],
+          default: undefined
+        },
+        standardDeduction: { type: Number, default: 0 },
+        pfReducesTaxable: { type: Boolean, default: true }
+      },
       // Leave types and entitlements; empty means the built-in defaults (utils/leavePolicy.js)
       leavePolicy: {
         type: [new mongoose.Schema({

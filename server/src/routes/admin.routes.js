@@ -82,6 +82,8 @@ router.put('/invoices/:id', can('outsourcing').write, outsourcing.updateInvoice)
 
 router.get('/transactions', can('payroll').read, payroll.listTransactions);
 router.post('/payroll/run', can('payroll').write, payroll.run);
+router.get('/payroll/tax-policy', can('payroll').read, payroll.getTaxPolicy);
+router.put('/payroll/tax-policy', can('payroll').write, payroll.setTaxPolicy);
 router.get('/payroll/structures', can('payroll').read, payroll.listStructures);
 router.put('/payroll/structures/:userId', can('payroll').write, payroll.setStructure);
 router.post('/payroll/run-monthly', can('payroll').write, payroll.runMonthly);

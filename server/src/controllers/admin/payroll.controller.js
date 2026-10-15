@@ -8,6 +8,8 @@ import { computePayslip, formatMoney, buildPayslipPdf } from '../../utils/payrol
 import { holidaySet } from '../../services/leave.service.js';
 import { notify } from '../../utils/notify.js';
 import { audit } from '../../utils/audit.js';
+import { Company } from '../../models/company.model.js';
+import { validateTaxPolicy, validateDeductionItems } from '../../utils/payrollTax.js';
 
 export const listTransactions = async (req, res) => {
   res.json(await transactionModel.findAll());
@@ -28,6 +30,27 @@ export const run = async (req, res) => {
   });
   await audit(req, { action: 'payroll.payment', entity: 'transaction', entityId: transaction.id, summary: `Paid ${transaction.amount} to ${company}` });
   res.status(201).json(transaction);
+};
+
+// --- Income tax policy (company-wide slabs) ---
+const taxPolicyView = (company) => {
+  const t = company?.settings?.payrollTax;
+  return { slabs: (t?.slabs ?? []).map((s) => ({ upTo: s.upTo ?? null, ratePercent: s.ratePercent })), standardDeduction: t?.standardDeduction ?? 0, pfReducesTaxable: t?.pfReducesTaxable !== false };
+};
+
+export const getTaxPolicy = async (req, res) => {
+  res.json(taxPolicyView(await Company.findById(req.company.id)));
+};
+
+// An empty slab list switches back to each employee's flat tax percentage
+export const setTaxPolicy = async (req, res) => {
+  const { policy, error } = validateTaxPolicy(req.body);
+  if (error) return res.status(400).json({ message: error });
+  const company = await Company.findById(req.company.id);
+  company.settings.payrollTax = policy;
+  await company.save();
+  await audit(req, { action: 'payroll.tax_policy', entity: 'company', entityId: company.id, summary: policy.slabs.length ? `Set ${policy.slabs.length} income tax slab(s)` : 'Cleared income tax slabs (flat percentage applies)', meta: policy });
+  res.json(taxPolicyView(company));
 };
 
 // --- Salary structures ---
@@ -61,10 +84,15 @@ export const setStructure = async (req, res) => {
     if (!/^[A-Z]{3}$/.test(req.body.currency)) return res.status(400).json({ message: 'Currency must be a 3-letter code.' });
     data.currency = req.body.currency;
   }
+  if (req.body.deductionItems !== undefined) {
+    const { items, error } = validateDeductionItems(req.body.deductionItems);
+    if (error) return res.status(400).json({ message: error });
+    data.deductionItemsJson = JSON.stringify(items);
+  }
   const structure = await SalaryStructure.findOneAndUpdate(
     { userId: user.id }, { $set: data }, { upsert: true, returnDocument: 'after', runValidators: true, setDefaultsOnInsert: true }
   );
-  await audit(req, { action: 'payroll.structure', entity: 'salary', entityId: user.id, summary: `Updated salary structure for ${user.name}`, meta: data });
+  await audit(req, { action: 'payroll.structure', entity: 'salary', entityId: user.id, summary: `Updated salary structure for ${user.name}`, meta: { ...data, deductionItemsJson: undefined, deductionItems: req.body.deductionItems !== undefined ? JSON.parse(data.deductionItemsJson) : undefined } });
   res.json(structure);
 };
 
@@ -87,6 +115,8 @@ export const runMonthly = async (req, res) => {
   const monthWorkingDays = workingDays(start, end, holidays);
 
   const structures = await SalaryStructure.find();
+  const company = await Company.findById(req.company.id);
+  const taxPolicy = taxPolicyView(company);
   const existing = new Set((await Payslip.find({ month }).select('userId')).map((p) => String(p.userId)));
   const users = new Map((await userModel.findAll()).map((u) => [u.id, u]));
 
@@ -99,11 +129,11 @@ export const runMonthly = async (req, res) => {
     const user = users.get(uid);
     if (!user || user.locked || existing.has(uid)) continue;
     const leaves = await leaveModel.findByUser(uid);
-    const slip = computePayslip(structure, {
+    const slip = computePayslip(structure.toJSON(), {
       workingDays: monthWorkingDays,
       unpaidLeaveDays: unpaidDaysIn(leaves, start, end, holidays)
-    });
-    await Payslip.create({ userId: uid, month, currency: structure.currency, generatedById: req.user.id, ...slip });
+    }, taxPolicy);
+    await Payslip.create({ userId: uid, month, currency: structure.currency, generatedById: req.user.id, ...slip, deductionItemsJson: JSON.stringify(slip.deductionItems) });
     created++;
     totalNet += slip.net;
     currency = structure.currency;
@@ -144,7 +174,7 @@ export const markPaid = async (req, res) => {
 export const payslipPdf = async (req, res) => {
   const slip = await Payslip.findById(req.params.id).populate({ path: 'user', select: 'name email department designation' });
   if (!slip) return res.status(404).json({ message: 'Payslip not found.' });
-  const pdf = await buildPayslipPdf(slip, slip.user);
+  const pdf = await buildPayslipPdf(slip.toJSON(), slip.user);
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="payslip-${slip.month}.pdf"`);
   res.send(pdf);

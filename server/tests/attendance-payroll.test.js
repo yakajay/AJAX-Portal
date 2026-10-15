@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 import { connectTestDb, disconnectTestDb } from './helpers/db.js';
-import { api, makeUser, makeAdmin, makeSuperAdmin, addHoliday, inTenant } from './helpers/fixtures.js';
+import { api, makeUser, makeAdmin, makeSuperAdmin, makeCompany, addHoliday, inTenant } from './helpers/fixtures.js';
 import { Attendance } from '../src/models/attendance.model.js';
 import { Payslip } from '../src/models/salary.model.js';
 import { Transaction } from '../src/models/transaction.model.js';
@@ -229,6 +229,60 @@ describe('shifts', () => {
     const del = await api().delete(`/api/admin/shifts/${shift.id}`).set(admin.auth).expect(200);
     expect(del.body.unassigned).toBe(1);
     expect((await month()).body).toMatchObject({ lateDays: 1, shift: null });
+  });
+});
+
+describe('payroll tax slabs and deduction items', () => {
+  const slabs = [{ upTo: 100000, ratePercent: 0 }, { upTo: 300000, ratePercent: 10 }, { upTo: null, ratePercent: 20 }];
+
+  it('validates and stores the tax policy, and the deduction items on a structure', async () => {
+    const co = await makeCompany('taxpolicy');
+    const admin = await makeAdmin({}, co.company);
+    const user = await makeUser({}, co.company);
+    await co.api().put('/api/admin/payroll/tax-policy').set(user.auth).send({ slabs }).expect(403);
+    expect((await co.api().get('/api/admin/payroll/tax-policy').set(admin.auth).expect(200)).body.slabs).toEqual([]);
+    await co.api().put('/api/admin/payroll/tax-policy').set(admin.auth).send({ slabs: [{ upTo: 100, ratePercent: 5 }] }).expect(400);
+    const saved = await co.api().put('/api/admin/payroll/tax-policy').set(admin.auth).send({ slabs, standardDeduction: 12000 }).expect(200);
+    expect(saved.body).toMatchObject({ slabs, standardDeduction: 12000, pfReducesTaxable: true });
+    expect((await co.api().get('/api/admin/payroll/tax-policy').set(admin.auth).expect(200)).body.slabs).toHaveLength(3);
+
+    const url = `/api/admin/payroll/structures/${user.user.id}`;
+    await co.api().put(url).set(admin.auth).send({ deductionItems: [{ name: 'X', type: 'nope', value: 1 }] }).expect(400);
+    const items = [{ name: 'Insurance', type: 'fixed', value: 500, preTax: true }];
+    const ok = await co.api().put(url).set(admin.auth).send({ basic: 10000, hra: 2000, deductionItems: items }).expect(200);
+    expect(ok.body.deductionItems).toEqual(items);
+    const list = await co.api().get('/api/admin/payroll/structures').set(admin.auth).expect(200);
+    expect(list.body.find((r) => r.user.id === user.user.id).structure.deductionItems).toEqual(items);
+    expect(JSON.stringify(list.body)).not.toContain('deductionItemsJson');
+  });
+
+  it('applies slabs and itemised deductions to a monthly run, and clearing the policy restores flat tax', async () => {
+    const co = await makeCompany('taxrun');
+    const admin = await makeAdmin({}, co.company);
+    const emp = await makeUser({}, co.company);
+    const items = [{ name: 'Insurance', type: 'fixed', value: 500, preTax: true }, { name: 'Loan', type: 'fixed', value: 300, preTax: false }];
+    await co.api().put(`/api/admin/payroll/structures/${emp.user.id}`).set(admin.auth)
+      .send({ basic: 10000, hra: 2000, allowances: 0, pfPercent: 12, taxPercent: 99, otherDeductions: 0, deductionItems: items }).expect(200);
+    await co.api().put('/api/admin/payroll/tax-policy').set(admin.auth).send({ slabs, standardDeduction: 12000 }).expect(200);
+
+    await co.api().post('/api/admin/payroll/run-monthly').set(admin.auth).send({ month: '2025-04' }).expect(201);
+    const [slip] = (await co.api().get('/api/user/payslips').set(emp.auth).expect(200)).body;
+    expect(slip).toMatchObject({ gross: 12000, taxMethod: 'slabs', totalDeductions: 2096.67, net: 9903.33 });
+    expect(slip.deductions).toEqual({ pf: 1200, tax: 96.67, other: 800 });
+    expect(slip.deductionItems).toEqual([{ name: 'Insurance', amount: 500 }, { name: 'Loan', amount: 300 }]);
+    expect(JSON.stringify(slip)).not.toContain('deductionItemsJson');
+    const pdf = await co.api().get(`/api/user/payslips/${slip.id}/pdf`).set(emp.auth).buffer(true).parse((res, cb) => {
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => cb(null, Buffer.concat(chunks)));
+    }).expect(200);
+    expect(pdf.body.subarray(0, 5).toString()).toBe('%PDF-');
+
+    await co.api().put('/api/admin/payroll/tax-policy').set(admin.auth).send({ slabs: [] }).expect(200);
+    await co.api().post('/api/admin/payroll/run-monthly').set(admin.auth).send({ month: '2025-05' }).expect(201);
+    const may = (await co.api().get('/api/user/payslips').set(emp.auth).expect(200)).body.find((p) => p.month === '2025-05');
+    expect(may).toMatchObject({ taxMethod: 'flat' });
+    expect(may.deductions.tax).toBe(Math.round(may.gross * 99) / 100);
   });
 });
 

@@ -16,7 +16,7 @@ import {
 import { apiFetch } from '../lib/api';
 import { can } from '../lib/permissions';
 import { Tabs } from '../components/ui';
-import { SalaryStructures, MonthlyPayroll } from '../components/payroll/PayrollExtras';
+import { SalaryStructures, MonthlyPayroll, TaxPolicyEditor } from '../components/payroll/PayrollExtras';
 
 const RunPayrollModal = ({ isOpen, onClose, onConfirm, companies }) => {
   const [formData, setFormData] = useState({
@@ -371,13 +371,14 @@ const PaymentsView = ({ user }) => {
 };
 
 const Payroll = ({ user }) => {
-  const [tab, setTab] = useState<'monthly' | 'structures' | 'payments'>('monthly');
+  const [tab, setTab] = useState<'monthly' | 'structures' | 'tax' | 'payments'>('monthly');
   return (
     <div className="space-y-6">
       <Tabs
         tabs={[
           { id: 'monthly', label: 'Monthly payroll' },
           { id: 'structures', label: 'Salary structures' },
+          { id: 'tax', label: 'Tax & deductions' },
           { id: 'payments', label: 'Partner payments' }
         ]}
         value={tab}
@@ -385,6 +386,7 @@ const Payroll = ({ user }) => {
       />
       {tab === 'monthly' && <MonthlyPayroll user={user} />}
       {tab === 'structures' && <SalaryStructures user={user} />}
+      {tab === 'tax' && <TaxPolicyEditor user={user} />}
       {tab === 'payments' && <PaymentsView user={user} />}
     </div>
   );

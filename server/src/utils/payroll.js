@@ -1,11 +1,14 @@
 import PDFDocument from 'pdfkit';
 import { monthLabel } from './dates.js';
+import { itemAmount, monthlyTax } from './payrollTax.js';
 
 const round2 = (n) => Math.round(n * 100) / 100;
 
 // Pays for `paidDays` of `workingDays`: unpaid leave reduces every earning proportionally.
-// PF is a % of (prorated) basic; income tax a % of (prorated) gross.
-export const computePayslip = (structure, { workingDays, unpaidLeaveDays = 0 }) => {
+// PF is a % of (prorated) basic. Income tax follows the company's slabs when it has set any
+// (`taxPolicy`), otherwise the employee's flat % of (prorated) gross. `structure.deductionItems` are
+// extra named deductions; they are summed into `deductions.other` and itemised in `deductionItems`.
+export const computePayslip = (structure, { workingDays, unpaidLeaveDays = 0 }, taxPolicy = null) => {
   const paidDays = Math.max(workingDays - unpaidLeaveDays, 0);
   const ratio = workingDays > 0 ? paidDays / workingDays : 0;
   const earnings = {
@@ -14,15 +17,32 @@ export const computePayslip = (structure, { workingDays, unpaidLeaveDays = 0 }) 
     allowances: round2(structure.allowances * ratio)
   };
   const gross = round2(earnings.basic + earnings.hra + earnings.allowances);
+
+  const items = structure.deductionItems || [];
+  const itemLines = items.map((item) => ({ name: item.name, amount: itemAmount(item, { basic: earnings.basic, gross }) }));
+  const otherFixed = round2(structure.otherDeductions || 0);
+  const itemsTotal = round2(itemLines.reduce((sum, l) => sum + l.amount, 0));
+
+  const useSlabs = taxPolicy?.slabs?.length > 0;
+  const tax = useSlabs
+    ? monthlyTax(
+        taxPolicy,
+        { fullBasic: structure.basic, fullGross: structure.basic + structure.hra + structure.allowances, pfPercent: structure.pfPercent, items },
+        ratio
+      )
+    : round2((gross * structure.taxPercent) / 100);
+
   const deductions = {
     pf: round2((earnings.basic * structure.pfPercent) / 100),
-    tax: round2((gross * structure.taxPercent) / 100),
-    other: round2(structure.otherDeductions || 0)
+    tax,
+    other: round2(otherFixed + itemsTotal)
   };
   const totalDeductions = round2(deductions.pf + deductions.tax + deductions.other);
   return {
     earnings,
     deductions,
+    deductionItems: [...itemLines, ...(otherFixed > 0 ? [{ name: 'Other deductions', amount: otherFixed }] : [])],
+    taxMethod: useSlabs ? 'slabs' : 'flat',
     gross,
     totalDeductions,
     net: round2(Math.max(gross - totalDeductions, 0)),
@@ -85,7 +105,10 @@ export const buildPayslipPdf = (payslip, employee, company = 'YakFlow') =>
     };
 
     y = table('Earnings', [['Basic', payslip.earnings.basic], ['House rent allowance', payslip.earnings.hra], ['Other allowances', payslip.earnings.allowances], ['Gross earnings', payslip.gross]], y);
-    y = table('Deductions', [['Provident fund', payslip.deductions.pf], ['Income tax', payslip.deductions.tax], ['Other deductions', payslip.deductions.other], ['Total deductions', payslip.totalDeductions]], y + 12);
+    const lines = payslip.deductionItems?.length
+      ? payslip.deductionItems.map((l) => [l.name, l.amount])
+      : [['Other deductions', payslip.deductions.other]];
+    y = table('Deductions', [['Provident fund', payslip.deductions.pf], ['Income tax', payslip.deductions.tax], ...lines, ['Total deductions', payslip.totalDeductions]], y + 12);
 
     doc.rect(left, y + 14, right - left, 36).fillColor('#eef4ff').fill();
     doc.fillColor('#000').font('Helvetica-Bold').fontSize(13).text('Net pay', left + 10, y + 25);

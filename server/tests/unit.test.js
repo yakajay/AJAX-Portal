@@ -5,6 +5,7 @@ import { toCsv, parseCsv } from '../src/utils/csv.js';
 import { labelToIso, workingDays, monthBounds, isValidIso, isValidMonth, addDays, overlaps } from '../src/utils/dates.js';
 import { leaveBalances, validatePolicy } from '../src/utils/leavePolicy.js';
 import { computePayslip, buildPayslipPdf } from '../src/utils/payroll.js';
+import { annualTax, validateTaxPolicy, validateDeductionItems } from '../src/utils/payrollTax.js';
 import { summarizeAttendance, checkClockPolicy, localMinutes } from '../src/utils/attendanceReport.js';
 import { daysUntilNext } from '../src/controllers/announcement.controller.js';
 import { buildOpenApi, collectRoutes } from '../src/docs/openapi.js';
@@ -158,6 +159,59 @@ describe('payslip computation', () => {
     const pdf = await buildPayslipPdf(slip, { name: 'Ada', email: 'ada@x.co', department: 'Eng' });
     expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
     expect(pdf.length).toBeGreaterThan(1000);
+  });
+});
+
+describe('payroll tax slabs and deduction items', () => {
+  const slabs = [{ upTo: 100000, ratePercent: 0 }, { upTo: 300000, ratePercent: 10 }, { upTo: null, ratePercent: 20 }];
+  it('taxes each band only on the income inside it', () => {
+    expect(annualTax(slabs, 80000)).toBe(0);
+    expect(annualTax(slabs, 200000)).toBe(10000); // 100k at 10%
+    expect(annualTax(slabs, 500000)).toBe(60000); // 200k at 10% + 200k at 20%
+    expect(annualTax(slabs, 0)).toBe(0);
+  });
+  it('validates policies', () => {
+    expect(validateTaxPolicy({ slabs }).policy).toMatchObject({ slabs, standardDeduction: 0, pfReducesTaxable: true });
+    expect(validateTaxPolicy({ slabs: [] }).policy.slabs).toEqual([]); // clearing the policy is allowed
+    expect(validateTaxPolicy({ slabs: [{ upTo: 100, ratePercent: 5 }] }).error).toMatch(/no upper limit/);
+    expect(validateTaxPolicy({ slabs: [{ upTo: null, ratePercent: 5 }, { upTo: null, ratePercent: 9 }] }).error).toMatch(/only the last/);
+    expect(validateTaxPolicy({ slabs: [{ upTo: 200, ratePercent: 5 }, { upTo: 100, ratePercent: 9 }, { upTo: null, ratePercent: 9 }] }).error).toMatch(/higher/);
+    expect(validateTaxPolicy({ slabs: [{ upTo: null, ratePercent: 101 }] }).error).toMatch(/between 0 and 100/);
+    expect(validateTaxPolicy({ slabs, standardDeduction: -1 }).error).toMatch(/zero or more/);
+  });
+  it('validates deduction items', () => {
+    expect(validateDeductionItems([{ name: 'Insurance', type: 'fixed', value: 200, preTax: true }]).items).toHaveLength(1);
+    expect(validateDeductionItems([{ name: 'A', type: 'fixed', value: 1 }, { name: 'a', type: 'fixed', value: 1 }]).error).toMatch(/twice/);
+    expect(validateDeductionItems([{ name: 'A', type: 'percentOfBasic', value: 150 }]).error).toMatch(/up to 100/);
+    expect(validateDeductionItems([{ name: 'A', type: 'weird', value: 1 }]).error).toMatch(/calculated/);
+    expect(validateDeductionItems('x').error).toBeTruthy();
+  });
+  it('withholds tax by slabs, spread over 12 months, after pre-tax deductions', () => {
+    // 10,000/month basic + 2,000 hra = 12,000 gross -> 144,000/yr. PF 12% of basic = 1,200/month pre-tax.
+    const structure = { basic: 10000, hra: 2000, allowances: 0, pfPercent: 12, taxPercent: 99, otherDeductions: 0, deductionItems: [{ name: 'Insurance', type: 'fixed', value: 500, preTax: true }, { name: 'Loan', type: 'fixed', value: 300, preTax: false }] };
+    const policy = { slabs, standardDeduction: 12000, pfReducesTaxable: true };
+    const p = computePayslip(structure, { workingDays: 20 }, policy);
+    // taxable = (12000 - 1200 - 500) * 12 - 12000 = 111,600 -> 11,600 * 10% = 1,160/yr -> 96.67/month
+    expect(p.deductions).toEqual({ pf: 1200, tax: 96.67, other: 800 });
+    expect(p.deductionItems).toEqual([{ name: 'Insurance', amount: 500 }, { name: 'Loan', amount: 300 }]);
+    expect(p.taxMethod).toBe('slabs');
+    expect(p.net).toBe(12000 - 1200 - 96.67 - 800);
+    // without a policy it is the flat percentage, as before
+    const flat = computePayslip(structure, { workingDays: 20 });
+    expect(flat.taxMethod).toBe('flat');
+    expect(flat.deductions.tax).toBe(11880);
+  });
+  it('prorates slab tax and percent items for unpaid leave, but not fixed items', () => {
+    const structure = { basic: 10000, hra: 0, allowances: 0, pfPercent: 0, taxPercent: 0, otherDeductions: 0, deductionItems: [{ name: 'Fund', type: 'percentOfBasic', value: 10 }, { name: 'Fee', type: 'fixed', value: 100 }] };
+    const p = computePayslip(structure, { workingDays: 20, unpaidLeaveDays: 10 }, { slabs: [{ upTo: null, ratePercent: 10 }], standardDeduction: 0, pfReducesTaxable: true });
+    expect(p.deductionItems).toEqual([{ name: 'Fund', amount: 500 }, { name: 'Fee', amount: 100 }]);
+    expect(p.deductions.tax).toBe(500); // 120,000/yr * 10% / 12 = 1,000, half the month
+  });
+  it('lists itemised deductions on the PDF', async () => {
+    const structure = { basic: 4000, hra: 0, allowances: 0, pfPercent: 12, taxPercent: 10, otherDeductions: 0, deductionItems: [{ name: 'Insurance', type: 'fixed', value: 100 }] };
+    const slip = { month: '2030-02', currency: 'USD', ...computePayslip(structure, { workingDays: 20 }) };
+    const pdf = await buildPayslipPdf(slip, { name: 'Ada', email: 'ada@x.co' });
+    expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
   });
 });
 
