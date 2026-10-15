@@ -72,6 +72,7 @@ router.post('/leaves', leave.apply);
 router.patch('/leaves/:id/cancel', leave.cancel);
 
 router.get('/documents', hr.myDocuments);
+router.get('/documents/:id/file', hr.downloadMyDocument);
 router.get('/holidays', hr.holidays);
 router.get('/directory', hr.directory);
 router.get('/departments', org.listDepartments);

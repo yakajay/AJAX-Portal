@@ -2,6 +2,7 @@ import { Router, raw, text } from 'express';
 import { authenticate, requireAdmin, requireSuperAdmin, can } from '../middleware/auth.js';
 import * as users from '../controllers/admin/user.controller.js';
 import * as leaves from '../controllers/admin/leave.controller.js';
+import { DOCUMENT_TYPES, MAX_DOCUMENT_BYTES } from '../utils/documentFiles.js';
 import * as shifts from '../controllers/admin/shift.controller.js';
 import * as attendance from '../controllers/admin/attendance.controller.js';
 import * as hr from '../controllers/admin/hr.controller.js';
@@ -65,6 +66,8 @@ router.delete('/holidays/:id', can('hr').delete, company.deleteViaRequest('holid
 
 router.get('/documents', can('hr').read, hr.listDocuments);
 router.post('/documents', can('hr').write, hr.createDocument);
+router.put('/documents/:id/file', can('hr').write, raw({ type: Object.keys(DOCUMENT_TYPES), limit: MAX_DOCUMENT_BYTES }), hr.uploadDocumentFile);
+router.get('/documents/:id/file', can('hr').read, hr.downloadDocumentFile);
 
 router.get('/contractors', can('outsourcing').read, outsourcing.list);
 router.get('/contractors/alerts', can('outsourcing').read, outsourcing.alerts);

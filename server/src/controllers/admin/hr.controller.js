@@ -6,6 +6,8 @@ import { userModel } from '../../models/user.model.js';
 import { todayLabel } from '../../utils/format.js';
 import { notify } from '../../utils/notify.js';
 import { audit } from '../../utils/audit.js';
+import { isAllowedUpload, safeFileName } from '../../utils/documentFiles.js';
+import { sendDocumentFile } from '../user/hr.controller.js';
 
 export const listDocuments = async (req, res) => {
   res.json(await documentModel.findAll());
@@ -26,6 +28,29 @@ export const createDocument = async (req, res) => {
   await audit(req, { action: 'document.create', entity: 'document', entityId: document.id, summary: `Added ${document.type} "${document.name}" for user ${userId}` });
   res.status(201).json(document);
 };
+
+// PUT /admin/documents/:id/file - the request body is the file itself; X-File-Name carries its name
+export const uploadDocumentFile = async (req, res) => {
+  const document = await documentModel.findById(req.params.id);
+  if (!document) return res.status(404).json({ message: 'Document not found.' });
+  const body = req.body;
+  if (!Buffer.isBuffer(body) || !body.length) {
+    return res.status(400).json({ message: 'Send the file as the request body (PDF, PNG, JPEG, DOCX or XLSX, up to 5 MB).' });
+  }
+  const contentType = String(req.headers['content-type'] || '').split(';')[0].trim();
+  if (!isAllowedUpload(contentType, body)) {
+    return res.status(415).json({ message: 'That file does not look like a valid PDF, PNG, JPEG, DOCX or XLSX.' });
+  }
+  document.fileName = safeFileName(req.headers['x-file-name'], contentType, document.name);
+  document.contentType = contentType;
+  document.size = body.length;
+  document.fileData = body;
+  await document.save();
+  await audit(req, { action: 'document.upload', entity: 'document', entityId: document.id, summary: `Attached ${document.fileName} to "${document.name}"`, meta: { bytes: body.length, contentType } });
+  res.json(document);
+};
+
+export const downloadDocumentFile = async (req, res) => sendDocumentFile(req, res, await documentModel.findByIdWithFile(req.params.id));
 
 // --- Public holidays. Stored as a display label ("Oct 2, 2026"); the API takes and returns ISO dates too. ---
 const isoToLabel = (iso) =>
