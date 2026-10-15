@@ -15,6 +15,7 @@ import './notification.model.js';
 import './otp.model.js';
 import './performance.model.js';
 import './salary.model.js';
+import './recruitment.model.js';
 import './samlRequest.model.js';
 import './session.model.js';
 import './shift.model.js';

@@ -3,12 +3,12 @@ import type { User } from '../types';
 // Mirrors server/src/utils/permissions.js so the UI can hide actions the API would refuse.
 export type Module =
   | 'users' | 'leave' | 'attendance' | 'hr' | 'payroll' | 'outsourcing' | 'support'
-  | 'org' | 'announcements' | 'performance' | 'expenses' | 'onboarding';
+  | 'org' | 'announcements' | 'performance' | 'expenses' | 'onboarding' | 'recruitment';
 export type Action = 'read' | 'write' | 'delete';
 
 export const MODULES: Module[] = [
   'users', 'leave', 'attendance', 'hr', 'payroll', 'outsourcing', 'support',
-  'org', 'announcements', 'performance', 'expenses', 'onboarding'
+  'org', 'announcements', 'performance', 'expenses', 'onboarding', 'recruitment'
 ];
 
 export const parsePermissions = (permissions?: string | string[] | null): string[] =>

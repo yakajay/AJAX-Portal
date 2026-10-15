@@ -23,7 +23,7 @@ const loadTarget = async (req, res) => {
 
 const PHONE_RE = /^\+?[\d\s\-().]{7,20}$/;
 export const isValidPhone = (v) => PHONE_RE.test(v) && v.replace(/\D/g, '').length >= 7 && v.replace(/\D/g, '').length <= 15;
-const EMPLOYEE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._\-/]{0,31}$/;
+export const EMPLOYEE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._\-/]{0,31}$/;
 
 // Validates the optional HR fields shared by create and update
 const readProfileFields = (body) => {
@@ -163,7 +163,7 @@ export const MAX_IMPORT_BYTES = 512 * 1024;
 const MAX_IMPORT_ROWS = 500;
 const IMPORT_REQUIRED = ['name', 'email', 'phone', 'employee_id'];
 const IMPORT_COLUMNS = [...IMPORT_REQUIRED, 'department', 'designation', 'manager_email', 'join_date', 'date_of_birth'];
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const importTemplate = (req, res) => {
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');

@@ -3,6 +3,8 @@ import { authenticate, requireAdmin, requireSuperAdmin, can } from '../middlewar
 import * as users from '../controllers/admin/user.controller.js';
 import * as leaves from '../controllers/admin/leave.controller.js';
 import { DOCUMENT_TYPES, MAX_DOCUMENT_BYTES } from '../utils/documentFiles.js';
+import * as recruitment from '../controllers/admin/recruitment.controller.js';
+import { requireModule } from '../middleware/tenant.js';
 import * as shifts from '../controllers/admin/shift.controller.js';
 import * as attendance from '../controllers/admin/attendance.controller.js';
 import * as hr from '../controllers/admin/hr.controller.js';
@@ -56,6 +58,20 @@ router.post('/shifts', can('attendance').write, shifts.create);
 router.put('/shifts/assign', can('attendance').write, shifts.assign);
 router.put('/shifts/:id', can('attendance').write, shifts.update);
 router.delete('/shifts/:id', can('attendance').write, shifts.remove);
+
+// Recruitment: jobs, a candidate pipeline, resumes, and hiring (which creates the employee account)
+router.use('/recruitment', requireModule('recruitment'));
+router.get('/recruitment/jobs', can('recruitment').read, recruitment.listJobs);
+router.post('/recruitment/jobs', can('recruitment').write, recruitment.createJob);
+router.put('/recruitment/jobs/:id', can('recruitment').write, recruitment.updateJob);
+router.get('/recruitment/candidates', can('recruitment').read, recruitment.listCandidates);
+router.post('/recruitment/candidates', can('recruitment').write, recruitment.createCandidate);
+router.put('/recruitment/candidates/:id', can('recruitment').write, recruitment.updateCandidate);
+router.put('/recruitment/candidates/:id/stage', can('recruitment').write, recruitment.setStage);
+router.post('/recruitment/candidates/:id/notes', can('recruitment').write, recruitment.addNote);
+router.put('/recruitment/candidates/:id/resume', can('recruitment').write, raw({ type: recruitment.RESUME_CONTENT_TYPES, limit: MAX_DOCUMENT_BYTES }), recruitment.uploadResume);
+router.get('/recruitment/candidates/:id/resume', can('recruitment').read, recruitment.downloadResume);
+router.post('/recruitment/candidates/:id/hire', can('recruitment').write, can('users').write, recruitment.hire);
 
 router.get('/leave-policy', can('leave').read, leaves.getPolicy);
 router.put('/leave-policy', can('leave').write, leaves.updatePolicy);
