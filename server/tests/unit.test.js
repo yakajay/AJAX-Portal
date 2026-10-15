@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { hotp, totp, verifyTotp, base32Encode, base32Decode, generateSecret, otpauthUrl } from '../src/utils/totp.js';
 import { hasPermission, findInvalidPermission } from '../src/utils/permissions.js';
-import { toCsv } from '../src/utils/csv.js';
+import { toCsv, parseCsv } from '../src/utils/csv.js';
 import { labelToIso, workingDays, monthBounds, isValidIso, isValidMonth, addDays, overlaps } from '../src/utils/dates.js';
 import { leaveBalances, validatePolicy } from '../src/utils/leavePolicy.js';
 import { computePayslip, buildPayslipPdf } from '../src/utils/payroll.js';
@@ -63,6 +63,18 @@ describe('permissions', () => {
     expect(findInvalidPermission('read,write,payroll:write,users:*')).toBeNull();
     expect(findInvalidPermission('read,payroll:fly')).toBe('payroll:fly');
     expect(findInvalidPermission('bogus:read')).toBe('bogus:read');
+  });
+});
+
+describe('parseCsv', () => {
+  it('handles quotes, embedded commas and newlines, CRLF, BOM and blank lines', () => {
+    const text = '\uFEFFname,note\r\n"Rao, Asha","said ""hi""\nthere"\r\n\r\nBo,\n';
+    expect(parseCsv(text)).toEqual([['name', 'note'], ['Rao, Asha', 'said "hi"\nthere'], ['Bo', '']]);
+  });
+  it('round-trips toCsv output', () => {
+    const rows = [{ a: 'x,y', b: 'q"r' }];
+    const csv = toCsv(rows, [{ header: 'a', value: (r) => r.a }, { header: 'b', value: (r) => r.b }]);
+    expect(parseCsv(csv)).toEqual([['a', 'b'], ['x,y', 'q"r']]);
   });
 });
 

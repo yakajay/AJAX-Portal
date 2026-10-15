@@ -1,4 +1,4 @@
-import { Router, raw } from 'express';
+import { Router, raw, text } from 'express';
 import { authenticate, requireAdmin, requireSuperAdmin, can } from '../middleware/auth.js';
 import * as users from '../controllers/admin/user.controller.js';
 import * as leaves from '../controllers/admin/leave.controller.js';
@@ -28,6 +28,8 @@ router.get('/dashboard/stats', dashboard.stats);
 router.get('/dashboard/analytics', dashboard.analytics);
 
 router.get('/users', can('users').read, users.list);
+router.get('/users/import/template', can('users').write, users.importTemplate);
+router.post('/users/import', can('users').write, text({ type: 'text/csv', limit: users.MAX_IMPORT_BYTES }), users.importUsers);
 router.post('/users', can('users').write, users.create);
 router.put('/users/:id', can('users').write, users.update);
 router.patch('/users/:id/lock', can('users').write, users.setLock);

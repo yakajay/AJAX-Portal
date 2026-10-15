@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { UserPlus, Shield, User, Lock, X, Check, Search, Trash2, Key, Unlock, AlertCircle } from 'lucide-react';
+import { Upload, UserPlus, Shield, User, Lock, X, Check, Search, Trash2, Key, Unlock, AlertCircle } from 'lucide-react';
 import { apiFetch, readError, requestDelete } from '../lib/api';
 import PermissionEditor from '../components/admin/PermissionEditor';
+import { ImportUsers } from '../components/admin/ImportUsers';
 
 const UserModal = ({ isOpen, onClose, onSave, editingUser }) => {
   const blank = {
@@ -170,13 +171,15 @@ const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [importOpen, setImportOpen] = useState(false);
 
-  useEffect(() => {
+  const loadUsers = () =>
     apiFetch('/admin/users')
       .then(res => res.json())
       .then(data => setUsers(Array.isArray(data) ? data : []))
       .catch(err => console.error('Failed to fetch users', err));
-  }, []);
+
+  useEffect(() => { loadUsers(); }, []);
 
   const handleSaveUser = (userData) => {
     if (editingUser) {
@@ -276,6 +279,14 @@ const UserManagement = () => {
           <h1 className="text-2xl font-bold text-slate-900">User Management</h1>
           <p className="text-slate-500 text-sm">Control access levels and permissions for your team.</p>
         </div>
+        <div className="flex items-center gap-3">
+        <button
+          onClick={() => setImportOpen(true)}
+          className="flex items-center px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+        >
+          <Upload size={18} className="mr-2" />
+          Import CSV
+        </button>
         <button 
           onClick={handleAdd}
           className="flex items-center px-4 py-2 bg-emerald-600 rounded-lg text-sm font-medium text-white hover:bg-emerald-700 transition-colors"
@@ -283,7 +294,9 @@ const UserManagement = () => {
           <UserPlus size={18} className="mr-2" />
           Create User
         </button>
+        </div>
       </div>
+      <ImportUsers open={importOpen} onClose={() => setImportOpen(false)} onImported={loadUsers} />
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <table className="w-full text-left">
