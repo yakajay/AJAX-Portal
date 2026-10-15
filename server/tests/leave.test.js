@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { connectTestDb, disconnectTestDb } from './helpers/db.js';
-import { api, makeUser, makeAdmin, addHoliday, weekdays } from './helpers/fixtures.js';
+import { api, makeUser, makeAdmin, makeSuperAdmin, addHoliday, weekdays } from './helpers/fixtures.js';
 import { Notification } from './../src/models/notification.model.js';
 import { AuditLog } from './../src/models/auditLog.model.js';
 import { outbox } from './helpers/setup.js';
@@ -167,7 +167,9 @@ describe('holidays and leave policy (admin)', () => {
     await api().post('/api/admin/holidays').set(admin.auth).send({ date: 'nope', name: 'Bad' }).expect(400);
     const edited = await api().put(`/api/admin/holidays/${created.body.id}`).set(admin.auth).send({ date: '2031-01-02', name: 'Day after' }).expect(200);
     expect(edited.body.iso).toBe('2031-01-02');
-    const del = await api().delete(`/api/admin/holidays/${created.body.id}`).set(admin.auth).expect(202);
+    await api().delete(`/api/admin/holidays/${created.body.id}`).set(admin.auth).expect(403); // read,write is not enough
+    const boss = await makeSuperAdmin();
+    const del = await api().delete(`/api/admin/holidays/${created.body.id}`).set(boss.auth).expect(202);
     expect(del.body.status).toBe('Pending');
     const me = await makeUser();
     await api().post('/api/admin/holidays').set(me.auth).send({ date: '2031-02-01', name: 'x' }).expect(403);
