@@ -18,7 +18,7 @@ interface CompanySummary {
   primaryContact: { name: string; email: string; phone: string };
   subscription: { plan: string; seatLimit: number; expiresAt: string | null };
   modules: string[];
-  features: { customLogo: boolean };
+  features: { customLogo: boolean; customEmail: boolean };
   usage: { employees: number; admins: number; seatLimit: number; lastActiveAt: string | null };
   pendingDeleteRequests?: number;
   supportAccess?: { active: boolean; expiresAt?: string; reason?: string };
@@ -52,7 +52,7 @@ const ModuleBoxes = ({ value, onChange }: { value: string[]; onChange: (next: st
 const CreateCompany = ({ plans, onClose, onCreated }: { plans: Stats['plans']; onClose: () => void; onCreated: () => void }) => {
   const [form, setForm] = useState({
     name: '', slug: '', contactName: '', contactEmail: '', contactPhone: '', plan: 'trial', seatLimit: '',
-    modules: [...MODULES] as string[], customLogo: false, adminName: '', adminEmail: ''
+    modules: [...MODULES] as string[], customLogo: false, customEmail: false, adminName: '', adminEmail: ''
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +70,7 @@ const CreateCompany = ({ plans, onClose, onCreated }: { plans: Stats['plans']; o
         plan: form.plan,
         ...(form.seatLimit ? { seatLimit: Number(form.seatLimit) } : {}),
         modules: form.modules,
-        features: { customLogo: form.customLogo },
+        features: { customLogo: form.customLogo, customEmail: form.customEmail },
         ...(form.adminEmail ? { firstAdmin: { name: form.adminName, email: form.adminEmail } } : {})
       });
       onCreated();
@@ -98,6 +98,7 @@ const CreateCompany = ({ plans, onClose, onCreated }: { plans: Stats['plans']; o
         </div>
         <Field label="Enabled modules"><ModuleBoxes value={form.modules} onChange={(modules) => set({ modules })} /></Field>
         <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={form.customLogo} onChange={(e) => set({ customLogo: e.target.checked })} />Custom company logo (they can upload their own instead of ours)</label>
+        <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={form.customEmail} onChange={(e) => set({ customEmail: e.target.checked })} />Own sender email (their admin can send OTPs and notifications from their own mailbox)</label>
         <div className="rounded-2xl bg-slate-50 p-4 space-y-3">
           <p className="text-xs font-black uppercase tracking-widest text-slate-400">First admin (optional)</p>
           <div className="grid sm:grid-cols-2 gap-4">
@@ -118,7 +119,7 @@ const CreateCompany = ({ plans, onClose, onCreated }: { plans: Stats['plans']; o
 // ---------------------------------------------------------------- One company
 const CompanyDetail = ({ id, plans, onClose, onChanged }: { id: string; plans: Stats['plans']; onClose: () => void; onChanged: () => void }) => {
   const { data, error, loading, reload } = useAsync(() => apiJson<CompanySummary>(`/platform/companies/${id}`), [id]);
-  const [edit, setEdit] = useState<{ plan: string; seatLimit: string; modules: string[]; customLogo: boolean; contactName: string; contactEmail: string } | null>(null);
+  const [edit, setEdit] = useState<{ plan: string; seatLimit: string; modules: string[]; customLogo: boolean; customEmail: boolean; contactName: string; contactEmail: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -155,7 +156,7 @@ const CompanyDetail = ({ id, plans, onClose, onChanged }: { id: string; plans: S
 
   if (loading && !data) return <Modal open title="Company" onClose={onClose}><Spinner /></Modal>;
   if (!data) return <Modal open title="Company" onClose={onClose}><ErrorNote error={error} /></Modal>;
-  const startEdit = () => setEdit({ plan: data.subscription.plan, seatLimit: String(data.subscription.seatLimit), modules: data.modules, customLogo: data.features.customLogo, contactName: data.primaryContact.name, contactEmail: data.primaryContact.email });
+  const startEdit = () => setEdit({ plan: data.subscription.plan, seatLimit: String(data.subscription.seatLimit), modules: data.modules, customLogo: data.features.customLogo, customEmail: !!data.features.customEmail, contactName: data.primaryContact.name, contactEmail: data.primaryContact.email });
 
   return (
     <Modal open title={data.name} onClose={onClose} wide>
@@ -183,7 +184,7 @@ const CompanyDetail = ({ id, plans, onClose, onChanged }: { id: string; plans: S
                 e.preventDefault();
                 void run(async () => {
                   await apiSend('PUT', `/platform/companies/${id}`, {
-                    plan: edit.plan, seatLimit: Number(edit.seatLimit), modules: edit.modules, features: { customLogo: edit.customLogo },
+                    plan: edit.plan, seatLimit: Number(edit.seatLimit), modules: edit.modules, features: { customLogo: edit.customLogo, customEmail: edit.customEmail },
                     primaryContact: { name: edit.contactName, email: edit.contactEmail, phone: data.primaryContact.phone }
                   });
                   setEdit(null);
@@ -198,6 +199,7 @@ const CompanyDetail = ({ id, plans, onClose, onChanged }: { id: string; plans: S
               </div>
               <Field label="Modules"><ModuleBoxes value={edit.modules} onChange={(modules) => setEdit({ ...edit, modules })} /></Field>
               <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={edit.customLogo} onChange={(e) => setEdit({ ...edit, customLogo: e.target.checked })} />Custom company logo</label>
+              <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={edit.customEmail} onChange={(e) => setEdit({ ...edit, customEmail: e.target.checked })} />Own sender email (their admin enters the mailbox that sends OTPs and notifications)</label>
               <div className="flex gap-3"><Button type="submit" disabled={busy}>Save</Button><Button variant="secondary" onClick={() => setEdit(null)}>Cancel</Button></div>
             </form>
           ) : (
@@ -205,6 +207,7 @@ const CompanyDetail = ({ id, plans, onClose, onChanged }: { id: string; plans: S
               <div><dt className="text-xs font-black uppercase tracking-widest text-slate-400">Plan</dt><dd className="text-slate-800">{plans[data.subscription.plan]?.label ?? data.subscription.plan}</dd></div>
               <div><dt className="text-xs font-black uppercase tracking-widest text-slate-400">Primary contact</dt><dd className="text-slate-800">{data.primaryContact.name || '—'} {data.primaryContact.email && `· ${data.primaryContact.email}`}</dd></div>
               <div><dt className="text-xs font-black uppercase tracking-widest text-slate-400">Custom logo</dt><dd className="text-slate-800">{data.features.customLogo ? 'Enabled' : 'Not enabled'}</dd></div>
+              <div><dt className="text-xs font-black uppercase tracking-widest text-slate-400">Own sender email</dt><dd className="text-slate-800">{data.features.customEmail ? 'Enabled' : 'Not enabled'}</dd></div>
               <div className="sm:col-span-2"><dt className="text-xs font-black uppercase tracking-widest text-slate-400">Modules</dt><dd className="flex flex-wrap gap-2 mt-1">{data.modules.map((m) => <Badge key={m} tone="blue">{m}</Badge>)}</dd></div>
             </dl>
           )}

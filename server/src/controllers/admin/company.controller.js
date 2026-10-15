@@ -308,13 +308,23 @@ export const deleteViaRequest = (targetType) => async (req, res) => {
 // ---------------------------------------------------------------- Outgoing mail
 const mailView = (company) => company.toJSON().mail;
 
+// Sending from the company's own mailbox is something the platform switches on per company
+const requireMailFeature = (req, res) => {
+  if (req.company.features.customEmail) return true;
+  res.status(403).json({ code: 'FEATURE_DISABLED', message: 'Sending from your own email address is not part of your plan. Ask the platform administrator to enable it.' });
+  return false;
+};
+
 // GET /admin/company/mail
-export const getMail = (req, res) => res.json(mailView(req.company));
+export const getMail = (req, res) => {
+  if (requireMailFeature(req, res)) res.json(mailView(req.company));
+};
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // PUT /admin/company/mail - send this company's mail (sign-in codes, approvals, alerts) from its own mailbox
 export const updateMail = async (req, res) => {
+  if (!requireMailFeature(req, res)) return;
   const body = req.body ?? {};
   const company = await Company.findById(req.company.id);
   const mail = company.mail;
@@ -384,6 +394,7 @@ export const updateMail = async (req, res) => {
 
 // POST /admin/company/mail/test - send a test message with the saved settings to the admin's own address
 export const testMail = async (req, res) => {
+  if (!requireMailFeature(req, res)) return;
   const company = await Company.findById(req.company.id).select('+dataKey');
   const mail = company.mail;
   if (!mail.host || !mail.fromEmail) return bad(res, 'Save the mail server and sender email address first.');

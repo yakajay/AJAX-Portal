@@ -47,7 +47,9 @@ const companySchema = new mongoose.Schema(
     modules: { type: [String], default: () => [...MODULES] },
     // Optional extras the platform switches on per company (part of what we provide to them)
     features: {
-      customLogo: { type: Boolean, default: false }
+      customLogo: { type: Boolean, default: false },
+      // Lets the company's admin send OTPs and notifications from their own mailbox (see `mail`)
+      customEmail: { type: Boolean, default: false }
     },
     // The company's own logo, shown instead of ours. The image bytes live in `logo` and are only loaded
     // by the logo endpoint; `logoUpdatedAt` tells everyone else whether one exists.

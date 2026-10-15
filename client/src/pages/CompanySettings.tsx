@@ -16,7 +16,7 @@ interface CompanyRecord {
   profile: { industry: string; website: string; address: string; timezone: string };
   subscription: { plan: string; seatLimit: number; expiresAt: string | null };
   modules: string[];
-  features: { customLogo: boolean };
+  features: { customLogo: boolean; customEmail?: boolean };
   logoUpdatedAt: string | null;
   settings: { allowSelfSignup: boolean };
   usage: { employees: number; seatLimit: number };
@@ -359,7 +359,7 @@ const SsoTab = () => {
 };
 
 // ---------------------------------------------------------------- Outgoing mail
-const MailTab = () => {
+const MailForm = () => {
   const { data, error, loading, reload } = useAsync(() => apiJson<MailSettings>('/admin/company/mail'), []);
   const [form, setForm] = useState<MailSettings | null>(null);
   const [password, setPassword] = useState('');
@@ -446,6 +446,21 @@ const MailTab = () => {
       </form>
     </div>
   );
+};
+
+// Only shown to a company whose plan includes it; the platform administrator switches it on
+const MailTab = () => {
+  const { data, error, loading } = useAsync(() => apiJson<CompanyRecord>('/admin/company'), []);
+  if (loading && !data) return <Spinner />;
+  if (!data) return <ErrorNote error={error} />;
+  if (!data.features.customEmail) {
+    return (
+      <Card title="Company email" actions={<Badge tone="slate">Not in your plan</Badge>}>
+        <p className="text-sm text-slate-500">Sending sign-in codes and notifications from your own email address is an optional feature. Ask the platform administrator to enable it for your company.</p>
+      </Card>
+    );
+  }
+  return <MailForm />;
 };
 
 // ---------------------------------------------------------------- Support access
