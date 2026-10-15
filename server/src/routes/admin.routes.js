@@ -104,6 +104,9 @@ router.get('/company', requireSuperAdmin, company.get);
 router.put('/company', requireSuperAdmin, company.update);
 router.get('/company/sso', requireSuperAdmin, company.getSso);
 router.put('/company/sso', requireSuperAdmin, company.updateSso);
+router.get('/company/mail', requireSuperAdmin, company.getMail);
+router.put('/company/mail', requireSuperAdmin, company.updateMail);
+router.post('/company/mail/test', requireSuperAdmin, company.testMail);
 // The logo is uploaded as the raw image body (the JSON parser would reject it)
 router.put('/company/logo', requireSuperAdmin, raw({ type: ['image/png', 'image/jpeg', 'image/webp'], limit: company.MAX_LOGO_BYTES }), company.uploadLogo);
 router.delete('/company/logo', requireSuperAdmin, company.removeLogo);

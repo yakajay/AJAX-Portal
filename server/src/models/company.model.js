@@ -78,12 +78,31 @@ const companySchema = new mongoose.Schema(
       }
     },
 
+    // Outgoing mail (OTPs, notifications, approvals) sent from the company's own mailbox instead of the platform's.
+    // The password is write-only and sealed with the company data key.
+    mail: {
+      enabled: { type: Boolean, default: false },
+      host: { type: String, default: '', trim: true },
+      port: { type: Number, default: 587 },
+      secure: { type: Boolean, default: false }, // implicit TLS (port 465); otherwise STARTTLS is required
+      username: { type: String, default: '', trim: true },
+      password: { type: String, default: '' },
+      fromName: { type: String, default: '', trim: true },
+      fromEmail: { type: String, default: '', trim: true, lowercase: true },
+      lastTestAt: { type: Date, default: null },
+      lastTestOk: { type: Boolean, default: null }
+    },
+
     // This company's data-encryption key, wrapped with the master key. Never leaves the server.
     dataKey: { type: String, required: true, select: false }
   },
   schemaOptions((ret) => {
     delete ret.dataKey;
     delete ret.logoData;
+    if (ret.mail) {
+      ret.mail.passwordSet = !!ret.mail.password;
+      delete ret.mail.password;
+    }
     if (ret.sso?.oidc) {
       ret.sso.oidc.clientSecretSet = !!ret.sso.oidc.clientSecret;
       delete ret.sso.oidc.clientSecret;

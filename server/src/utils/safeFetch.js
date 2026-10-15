@@ -41,6 +41,18 @@ export const assertPublicUrl = async (rawUrl) => {
   return url;
 };
 
+// Same guard for a bare hostname (a company's own mail server): must resolve only to public addresses
+export const assertPublicHost = async (rawHost) => {
+  const host = String(rawHost || '').trim().replace(/^\[|\]$/g, '');
+  if (!host || /[\s/@:]/.test(host.replace(/^[0-9a-f:]+$/i, ''))) throw new Error('Not a valid mail server host name.');
+  if (env.sso.allowPrivateHosts) return host;
+  const addresses = net.isIP(host) ? [{ address: host }] : await dns.lookup(host, { all: true });
+  if (!addresses.length || addresses.some((a) => isPrivateAddress(a.address))) {
+    throw new Error('The mail server must be a public address.');
+  }
+  return host;
+};
+
 // fetch() for identity-provider calls: public https only, time-limited, no redirects
 export const providerFetch = async (rawUrl, init = {}) => {
   const url = await assertPublicUrl(rawUrl);
