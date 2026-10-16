@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Copy, Mail, ShieldCheck } from 'lucide-react';
 import { apiFetch, apiJson, apiSend, readError } from '../lib/api';
 import { loadWorkspace } from '../lib/workspace';
@@ -16,8 +16,9 @@ interface CompanyRecord {
   profile: { industry: string; website: string; address: string; timezone: string };
   subscription: { plan: string; seatLimit: number; expiresAt: string | null };
   modules: string[];
-  features: { customLogo: boolean };
+  features: { customLogo: boolean; customEmail?: boolean };
   logoUpdatedAt: string | null;
+  letterheadUpdatedAt?: string | null;
   settings: { allowSelfSignup: boolean };
   usage: { employees: number; seatLimit: number };
 }
@@ -77,6 +78,78 @@ const CopyField = ({ label, value }: { label: string; value: string }) => (
     </div>
   </Field>
 );
+
+// ---------------------------------------------------------------- Letterhead
+const LETTERHEAD_TYPES = ['image/png', 'image/jpeg'];
+const MAX_LETTERHEAD_BYTES = 1024 * 1024;
+
+const LetterheadCard = ({ company, onChanged }: { company: CompanyRecord; onChanged: () => void }) => {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const version = company.letterheadUpdatedAt;
+
+  // The preview needs the sign-in token, so it is fetched and shown from a blob rather than an <img src>
+  useEffect(() => {
+    if (!version) { setPreview(null); return; }
+    let url: string | null = null;
+    let cancelled = false;
+    apiFetch('/admin/company/letterhead')
+      .then((res) => (res.ok ? res.blob() : null))
+      .then((blob) => { if (blob && !cancelled) { url = URL.createObjectURL(blob); setPreview(url); } })
+      .catch(() => undefined);
+    return () => { cancelled = true; if (url) URL.revokeObjectURL(url); };
+  }, [version]);
+
+  const upload = async (file: File | undefined) => {
+    if (!file) return;
+    setError(null);
+    if (!LETTERHEAD_TYPES.includes(file.type)) return setError('Choose a PNG or JPEG image.');
+    if (file.size > MAX_LETTERHEAD_BYTES) return setError('The letterhead must be 1 MB or smaller.');
+    setBusy(true);
+    try {
+      const res = await apiFetch('/admin/company/letterhead', { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
+      if (!res.ok) throw new Error(await readError(res, 'Upload failed'));
+      onChanged();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await apiSend('DELETE', '/admin/company/letterhead');
+      onChanged();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card title="Letterhead" actions={<Badge tone={version ? 'green' : 'slate'}>{version ? 'Uploaded' : 'Not set'}</Badge>}>
+      <div className="space-y-4">
+        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 overflow-hidden flex items-center justify-center min-h-[5rem]">
+          {preview ? <img src={preview} alt="Current letterhead" className="w-full max-h-40 object-contain" /> : <span className="text-xs text-slate-400">Plain text header with your company name</span>}
+        </div>
+        <p className="text-xs text-slate-400">PNG or JPEG, up to 1 MB. Use a wide banner (about A4 width, ideally under 130 px tall when printed). It is printed at the top of every payslip and of the letters you create in the HR Hub.</p>
+        <div className="flex flex-wrap gap-3">
+          <label className={`inline-flex items-center rounded-xl bg-blue-600 text-white px-5 py-2.5 text-xs font-black uppercase tracking-widest cursor-pointer hover:bg-blue-700 ${busy ? 'opacity-50 pointer-events-none' : ''}`}>
+            {version ? 'Replace letterhead' : 'Upload letterhead'}
+            <input type="file" accept={LETTERHEAD_TYPES.join(',')} aria-label="Letterhead image" className="sr-only" onChange={(e) => void upload(e.target.files?.[0])} />
+          </label>
+          {version && <Button variant="secondary" disabled={busy} onClick={() => void remove()}>Remove letterhead</Button>}
+        </div>
+        <ErrorNote error={error} />
+      </div>
+    </Card>
+  );
+};
 
 // ---------------------------------------------------------------- Logo
 const LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
@@ -219,6 +292,7 @@ const DetailsTab = () => {
           </p>
         </Card>
         <BrandingCard company={data} onChanged={() => void reload()} />
+        <LetterheadCard company={data} onChanged={() => void reload()} />
         <StatTile label="Employees" value={`${data.usage.employees} / ${data.usage.seatLimit}`} hint={`${data.subscription.plan} plan`} />
         <Card title="Modules in your plan">
           <div className="flex flex-wrap gap-2">{data.modules.map((m) => <Badge key={m} tone="blue">{m}</Badge>)}</div>
@@ -359,7 +433,7 @@ const SsoTab = () => {
 };
 
 // ---------------------------------------------------------------- Outgoing mail
-const MailTab = () => {
+const MailForm = () => {
   const { data, error, loading, reload } = useAsync(() => apiJson<MailSettings>('/admin/company/mail'), []);
   const [form, setForm] = useState<MailSettings | null>(null);
   const [password, setPassword] = useState('');
@@ -446,6 +520,21 @@ const MailTab = () => {
       </form>
     </div>
   );
+};
+
+// Only shown to a company whose plan includes it; the platform administrator switches it on
+const MailTab = () => {
+  const { data, error, loading } = useAsync(() => apiJson<CompanyRecord>('/admin/company'), []);
+  if (loading && !data) return <Spinner />;
+  if (!data) return <ErrorNote error={error} />;
+  if (!data.features.customEmail) {
+    return (
+      <Card title="Company email" actions={<Badge tone="slate">Not in your plan</Badge>}>
+        <p className="text-sm text-slate-500">Sending sign-in codes and notifications from your own email address is an optional feature. Ask the platform administrator to enable it for your company.</p>
+      </Card>
+    );
+  }
+  return <MailForm />;
 };
 
 // ---------------------------------------------------------------- Support access

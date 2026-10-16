@@ -18,7 +18,8 @@ const platformTransporter = env.smtp.host
 const cache = new Map();
 const forCompany = async (companyId) => {
   const company = await Company.findById(companyId).select('+dataKey');
-  if (!company || !mailReady(company.mail)) return null;
+  // The platform can switch the feature off at any time, which sends the company back to the platform sender
+  if (!company?.features.customEmail || !mailReady(company.mail)) return null;
   const mail = company.mail;
   const signature = JSON.stringify([mail.host, mail.port, mail.secure, mail.username, mail.password, mail.fromEmail, mail.fromName]);
   const hit = cache.get(String(companyId));

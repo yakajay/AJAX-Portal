@@ -1,6 +1,7 @@
 import PDFDocument from 'pdfkit';
 import { monthLabel } from './dates.js';
 import { itemAmount, monthlyTax } from './payrollTax.js';
+import { drawLetterhead } from './letterhead.js';
 
 const round2 = (n) => Math.round(n * 100) / 100;
 
@@ -56,8 +57,8 @@ export const computePayslip = (structure, { workingDays, unpaidLeaveDays = 0 }, 
 export const formatMoney = (amount, currency = 'INR') =>
   new Intl.NumberFormat(currency === 'INR' ? 'en-IN' : 'en-US', { style: 'currency', currency }).format(amount);
 
-// Renders a one-page payslip and resolves with the PDF bytes
-export const buildPayslipPdf = (payslip, employee, company = 'YakFlow') =>
+// Renders a one-page payslip and resolves with the PDF bytes. A company letterhead replaces the text header.
+export const buildPayslipPdf = (payslip, employee, company = 'YakFlow', letterhead = null) =>
   new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: 'A4', margin: 50, info: { Title: `Payslip ${payslip.month}`, Author: company } });
     const chunks = [];
@@ -69,10 +70,13 @@ export const buildPayslipPdf = (payslip, employee, company = 'YakFlow') =>
     const left = 50;
     const right = 545;
 
-    doc.fontSize(20).font('Helvetica-Bold').text(company, left, 50);
-    doc.fontSize(10).font('Helvetica').fillColor('#555').text('Payslip', left, 75);
-    doc.fontSize(14).font('Helvetica-Bold').fillColor('#000').text(monthLabel(payslip.month), left, 50, { align: 'right', width: right - left });
-    doc.moveTo(left, 100).lineTo(right, 100).strokeColor('#ccc').stroke();
+    const bannerBottom = drawLetterhead(doc, letterhead);
+    // With a letterhead the banner carries the company's identity; the payslip title sits just below it
+    const top = bannerBottom === null ? 50 : Math.round(bannerBottom) + 20;
+    if (bannerBottom === null) doc.fontSize(20).font('Helvetica-Bold').text(company, left, top);
+    doc.fontSize(10).font('Helvetica').fillColor('#555').text('Payslip', left, top + 25);
+    doc.fontSize(14).font('Helvetica-Bold').fillColor('#000').text(monthLabel(payslip.month), left, top, { align: 'right', width: right - left });
+    doc.moveTo(left, top + 50).lineTo(right, top + 50).strokeColor('#ccc').stroke();
 
     doc.fontSize(10).font('Helvetica').fillColor('#000');
     const info = [
@@ -83,7 +87,7 @@ export const buildPayslipPdf = (payslip, employee, company = 'YakFlow') =>
       ['Working days', String(payslip.workingDays)],
       ['Paid days', String(payslip.paidDays)]
     ];
-    let y = 115;
+    let y = top + 65;
     info.forEach(([label, value], i) => {
       const x = i % 2 === 0 ? left : 310;
       if (i % 2 === 0 && i > 0) y += 18;

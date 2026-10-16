@@ -47,13 +47,19 @@ const companySchema = new mongoose.Schema(
     modules: { type: [String], default: () => [...MODULES] },
     // Optional extras the platform switches on per company (part of what we provide to them)
     features: {
-      customLogo: { type: Boolean, default: false }
+      customLogo: { type: Boolean, default: false },
+      // Lets the company's admin send OTPs and notifications from their own mailbox (see `mail`)
+      customEmail: { type: Boolean, default: false }
     },
     // The company's own logo, shown instead of ours. The image bytes live in `logo` and are only loaded
     // by the logo endpoint; `logoUpdatedAt` tells everyone else whether one exists.
     logoUpdatedAt: { type: Date, default: null },
     logoContentType: { type: String, default: '' },
     logoData: { type: Buffer, select: false },
+    // The company's letterhead: a wide banner image printed at the top of payslips and company letters
+    letterheadUpdatedAt: { type: Date, default: null },
+    letterheadContentType: { type: String, default: '' },
+    letterheadData: { type: Buffer, select: false },
     settings: {
       // Self-signup is off by default: a workspace belongs to one company, so people are added by its admins or SSO
       allowSelfSignup: { type: Boolean, default: false },
@@ -121,6 +127,7 @@ const companySchema = new mongoose.Schema(
   schemaOptions((ret) => {
     delete ret.dataKey;
     delete ret.logoData;
+    delete ret.letterheadData;
     if (ret.mail) {
       ret.mail.passwordSet = !!ret.mail.password;
       delete ret.mail.password;

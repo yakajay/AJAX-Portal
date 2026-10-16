@@ -17,11 +17,15 @@ vi.mock('nodemailer', () => ({
 }));
 
 const db = await import('./helpers/db.js');
-const { api, makeSuperAdmin, makeAdmin, inTenant } = await import('./helpers/fixtures.js');
+const { api, platformApi, makeSuperAdmin, makeAdmin, makePlatformAdmin, makeCompany, inTenant } = await import('./helpers/fixtures.js');
 const { Company } = await import('../src/models/company.model.js');
 const { assertPublicHost } = await import('../src/utils/safeFetch.js');
 
-beforeAll(db.connectTestDb);
+beforeAll(async () => {
+  await db.connectTestDb();
+  // The platform has to switch the feature on for a company before its admin can use it
+  await Company.updateOne({ slug: 'acme' }, { 'features.customEmail': true });
+});
 afterAll(db.disconnectTestDb);
 
 const SETTINGS = { host: 'smtp.acme.test', port: 587, username: 'hr@acme.test', password: 'app-pass', fromName: 'Acme HR', fromEmail: 'hr@acme.test' };
@@ -70,6 +74,42 @@ describe('company mail settings', () => {
 
     const edited = await api().put('/api/admin/company/mail').set(admin.auth).send({ host: 'smtp2.acme.test' }).expect(200);
     expect(edited.body).toMatchObject({ enabled: false, lastTestOk: null });
+  });
+});
+
+describe('platform control of the company mailbox', () => {
+  it('is unavailable until the platform enables it, and the platform can switch it off again', async () => {
+    const sa = await makePlatformAdmin();
+    const co = await makeCompany('mailgate');
+    const admin = await makeSuperAdmin({}, co.company);
+
+    for (const call of [co.api().get('/api/admin/company/mail'), co.api().put('/api/admin/company/mail').send(SETTINGS), co.api().post('/api/admin/company/mail/test')]) {
+      const res = await call.set(admin.auth).expect(403);
+      expect(res.body.code).toBe('FEATURE_DISABLED');
+    }
+
+    await platformApi().put(`/api/platform/companies/${co.company.id}`).set(sa.auth).send({ features: { customEmail: true } }).expect(200);
+    await co.api().put('/api/admin/company/mail').set(admin.auth).send(SETTINGS).expect(200);
+    await co.api().post('/api/admin/company/mail/test').set(admin.auth).expect(200);
+    await co.api().put('/api/admin/company/mail').set(admin.auth).send({ enabled: true }).expect(200);
+
+    const { sendMail } = await vi.importActual('../src/utils/mailer.js');
+    sent.length = 0;
+    await inTenant(() => sendMail({ to: 'a@b.test', subject: 's', text: 't' }), co.company);
+    expect(sent[0]).toMatchObject({ via: 'smtp.acme.test' });
+
+    // Switching the feature off sends the company back to the platform sender straight away
+    await platformApi().put(`/api/platform/companies/${co.company.id}`).set(sa.auth).send({ features: { customEmail: false } }).expect(200);
+    sent.length = 0;
+    await inTenant(() => sendMail({ to: 'a@b.test', subject: 's', text: 't' }), co.company);
+    expect(sent).toHaveLength(0);
+    await co.api().get('/api/admin/company/mail').set(admin.auth).expect(403);
+  });
+
+  it('can be granted when onboarding a company', async () => {
+    const sa = await makePlatformAdmin();
+    const res = await platformApi().post('/api/platform/companies').set(sa.auth).send({ name: 'Mail Onboard', features: { customEmail: true } }).expect(201);
+    expect(res.body.features).toMatchObject({ customEmail: true, customLogo: false });
   });
 });
 
