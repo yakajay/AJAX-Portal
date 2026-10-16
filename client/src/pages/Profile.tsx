@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { apiFetch } from '../lib/api';
 import { User, Mail, Lock, Save, Camera, Shield, Bell, Key } from 'lucide-react';
 import { ProfilePhoto } from '../components/profile/ProfilePhoto';
+import { PasswordInput } from '../components/ui';
 
 const Profile = ({ user, onUserUpdate }) => {
   const [formData, setFormData] = useState({
@@ -162,8 +163,8 @@ const Profile = ({ user, onUserUpdate }) => {
                     <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Current Password</label>
                     <div className="relative">
                       <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-                      <input 
-                        type="password" 
+                      <PasswordInput 
+                        
                         className="w-full pl-12 pr-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:bg-white transition-all font-medium"
                         placeholder="••••••••"
                         value={formData.currentPassword}
@@ -174,8 +175,8 @@ const Profile = ({ user, onUserUpdate }) => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">New Password</label>
-                      <input 
-                        type="password" 
+                      <PasswordInput 
+                        
                         className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:bg-white transition-all font-medium"
                         placeholder="••••••••"
                         value={formData.newPassword}
@@ -184,8 +185,8 @@ const Profile = ({ user, onUserUpdate }) => {
                     </div>
                     <div>
                       <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Confirm New Password</label>
-                      <input 
-                        type="password" 
+                      <PasswordInput 
+                        
                         className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:bg-white transition-all font-medium"
                         placeholder="••••••••"
                         value={formData.confirmPassword}

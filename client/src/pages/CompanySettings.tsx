@@ -4,7 +4,7 @@ import { apiFetch, apiJson, apiSend, readError } from '../lib/api';
 import { loadWorkspace } from '../lib/workspace';
 import { errorMessage, formatDateTime } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
-import { Badge, Button, Card, Empty, ErrorNote, Field, PageHeader, Spinner, StatTile, Tabs, Th, inputClass } from '../components/ui';
+import { Badge, Button, Card, Empty, ErrorNote, Field, PageHeader, Spinner, StatTile, Tabs, Th, inputClass, PasswordInput } from '../components/ui';
 
 interface CompanyRecord {
   name: string;
@@ -301,7 +301,7 @@ const SsoTab = () => {
               </div>
               <Field label="Client ID"><input className={inputClass} value={value.oidc.clientId} onChange={(e) => patch({ oidc: { ...value.oidc, clientId: e.target.value } })} /></Field>
               <Field label="Client secret" hint={value.oidc.clientSecretSet ? 'A secret is saved. Leave blank to keep it.' : 'Stored encrypted. It is never shown again.'}>
-                <input type="password" autoComplete="new-password" className={inputClass} value={secret} onChange={(e) => setSecret(e.target.value)} placeholder={value.oidc.clientSecretSet ? '••••••••' : ''} />
+                <PasswordInput autoComplete="new-password" className={inputClass} value={secret} onChange={(e) => setSecret(e.target.value)} placeholder={value.oidc.clientSecretSet ? '••••••••' : ''} />
               </Field>
             </div>
           ) : (
