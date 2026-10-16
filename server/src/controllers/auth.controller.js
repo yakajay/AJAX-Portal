@@ -1,6 +1,6 @@
 import { userModel } from '../models/user.model.js';
 import { otpModel } from '../models/otp.model.js';
-import { hashPassword, verifyPassword, isHashed } from '../utils/password.js';
+import { hashPassword, verifyPassword, isHashed, passwordPolicyError } from '../utils/password.js';
 import { startSession, refreshSession, revokeSession, revokeAllSessions } from '../utils/sessions.js';
 import { matchTotp } from '../utils/totp.js';
 import { issueOtp, checkOtp, OTP_PURPOSE } from '../utils/otp.js';
@@ -11,7 +11,6 @@ import { Company } from '../models/company.model.js';
 
 const normalizeEmail = (email) => String(email ?? '').trim().toLowerCase();
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MIN_PASSWORD_LENGTH = 6;
 const BAD_CODE = { message: 'Invalid or expired code.' };
 
 // POST /auth/register - self-signup; always creates a plain USER and emails a verification code
@@ -25,8 +24,8 @@ export const register = async (req, res) => {
   if (!name?.trim() || !EMAIL_PATTERN.test(email) || !password) {
     return res.status(400).json({ message: 'Name, a valid email, and password are required.' });
   }
-  if (password.length < MIN_PASSWORD_LENGTH) {
-    return res.status(400).json({ message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` });
+  if (passwordPolicyError(password)) {
+    return res.status(400).json({ message: passwordPolicyError(password) });
   }
 
   const existing = await userModel.findByEmail(email);
@@ -162,8 +161,8 @@ export const forgotPassword = async (req, res) => {
 export const resetPassword = async (req, res) => {
   const email = normalizeEmail(req.body.email);
   const { otp, newPassword } = req.body;
-  if (!newPassword || newPassword.length < MIN_PASSWORD_LENGTH) {
-    return res.status(400).json({ message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` });
+  if (passwordPolicyError(newPassword)) {
+    return res.status(400).json({ message: passwordPolicyError(newPassword) });
   }
 
   const user = await userModel.findByEmail(email);

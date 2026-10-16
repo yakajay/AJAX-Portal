@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, User, ShieldCheck } from 'lucide-react';
-import { PasswordInput } from '../components/ui';
+import { isStrongPassword } from '../lib/passwordPolicy';
+import { PasswordInput, PasswordStrength } from '../components/ui';
 import { apiFetch, readError } from '../lib/api';
 import OtpForm from '../components/auth/OtpForm';
 
@@ -19,6 +20,10 @@ const Signup = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!isStrongPassword(formData.password)) {
+      alert("Password does not meet all the requirements");
+      return;
+    }
     if (formData.password !== formData.confirmPassword) {
       alert("Passwords do not match");
       return;
@@ -114,7 +119,7 @@ const Signup = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700">Password (min 6 characters)</label>
+              <label className="block text-sm font-medium text-slate-700">Password</label>
               <div className="mt-1 relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Lock className="h-5 w-5 text-slate-400" />
@@ -128,6 +133,7 @@ const Signup = () => {
                   onChange={(e) => setFormData({...formData, password: e.target.value})}
                 />
               </div>
+              <PasswordStrength password={formData.password} />
             </div>
 
             <div>

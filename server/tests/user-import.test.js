@@ -62,7 +62,7 @@ Report,report@bulk2.test,+91 90000 00001,R-100,Sales,Rep,boss@bulk2.test,2026-02
     await upload(admin, csv).expect(422); // now they exist
 
     // the same Employee ID cannot be given by hand either
-    await api().post('/api/admin/users').set(admin.auth).send({ name: 'Dup', email: 'dupid@bulk2.test', password: 'secret1', employeeId: 'r-100'.toUpperCase() }).expect(409);
-    await api().post('/api/admin/users').set(admin.auth).send({ name: 'Bad', email: 'badph@bulk2.test', password: 'secret1', phone: 'xyz' }).expect(400);
+    await api().post('/api/admin/users').set(admin.auth).send({ name: 'Dup', email: 'dupid@bulk2.test', password: 'Secret@123', employeeId: 'r-100'.toUpperCase() }).expect(409);
+    await api().post('/api/admin/users').set(admin.auth).send({ name: 'Bad', email: 'badph@bulk2.test', password: 'Secret@123', phone: 'xyz' }).expect(400);
   });
 });

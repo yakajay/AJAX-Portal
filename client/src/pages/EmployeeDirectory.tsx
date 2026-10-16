@@ -16,7 +16,7 @@ import {
 import type { User } from '../types';
 import { useSearchParams } from 'react-router-dom';
 import { apiFetch } from '../lib/api';
-import { Tabs, PasswordInput } from '../components/ui';
+import { Tabs, PasswordInput, PasswordStrength } from '../components/ui';
 import { Avatar } from '../components/Avatar';
 import { OrgChart, Departments } from '../components/org/OrgViews';
 
@@ -154,12 +154,12 @@ const EmployeeModal = ({
               <PasswordInput
                 required
                 
-                minLength={6}
                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all"
-                placeholder="At least 6 characters"
+                placeholder="Min 8 chars, upper/lower, number, symbol"
                 value={formData.password}
                 onChange={(e) => setFormData({...formData, password: e.target.value})}
               />
+              <PasswordStrength password={formData.password} />
             </div>
           )}
           <div className="grid grid-cols-2 gap-4">

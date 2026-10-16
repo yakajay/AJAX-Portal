@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { apiFetch } from '../lib/api';
 import { User, Mail, Lock, Save, Camera, Shield, Bell, Key } from 'lucide-react';
 import { ProfilePhoto } from '../components/profile/ProfilePhoto';
-import { PasswordInput } from '../components/ui';
+import { isStrongPassword } from '../lib/passwordPolicy';
+import { PasswordInput, PasswordStrength } from '../components/ui';
 
 const Profile = ({ user, onUserUpdate }) => {
   const [formData, setFormData] = useState({
@@ -19,6 +20,10 @@ const Profile = ({ user, onUserUpdate }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const wantsPasswordChange = !!(formData.currentPassword || formData.newPassword || formData.confirmPassword);
+    if (wantsPasswordChange && !isStrongPassword(formData.newPassword)) {
+      setStatus({ type: 'error', message: 'New password does not meet all the requirements.' });
+      return;
+    }
     if (wantsPasswordChange && formData.newPassword !== formData.confirmPassword) {
       setStatus({ type: 'error', message: 'New passwords do not match.' });
       return;
@@ -182,6 +187,7 @@ const Profile = ({ user, onUserUpdate }) => {
                         value={formData.newPassword}
                         onChange={(e) => setFormData({...formData, newPassword: e.target.value})}
                       />
+                      <PasswordStrength password={formData.newPassword} />
                     </div>
                     <div>
                       <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Confirm New Password</label>

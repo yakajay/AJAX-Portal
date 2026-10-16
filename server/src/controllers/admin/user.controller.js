@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { userModel } from '../../models/user.model.js';
-import { hashPassword } from '../../utils/password.js';
+import { hashPassword, passwordPolicyError } from '../../utils/password.js';
 import { sanitizeUser, normalizePermissions, ALL_ROLES } from '../../utils/format.js';
 import { findInvalidPermission } from '../../utils/permissions.js';
 import { isValidIso } from '../../utils/dates.js';
@@ -58,8 +58,8 @@ export const create = async (req, res) => {
   if (!email || !name || !password) {
     return res.status(400).json({ message: 'Name, email, and password are required.' });
   }
-  if (password.length < 6) {
-    return res.status(400).json({ message: 'Password must be at least 6 characters.' });
+  if (passwordPolicyError(password)) {
+    return res.status(400).json({ message: passwordPolicyError(password) });
   }
   if (!ALL_ROLES.includes(role)) return res.status(400).json({ message: 'Invalid role.' });
   if (!canAssignRole(req.user, role)) return forbidden(res, 'Only a Super Admin can create privileged accounts.');

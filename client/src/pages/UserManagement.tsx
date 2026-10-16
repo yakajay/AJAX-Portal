@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, UserPlus, Shield, User, Lock, X, Check, Search, Trash2, Key, Unlock, AlertCircle } from 'lucide-react';
-import { PasswordInput } from '../components/ui';
+import { PasswordInput, PasswordStrength } from '../components/ui';
 import { apiFetch, readError, requestDelete } from '../lib/api';
 import PermissionEditor from '../components/admin/PermissionEditor';
 import { Avatar } from '../components/Avatar';
@@ -118,8 +118,9 @@ const UserModal = ({ isOpen, onClose, onSave, editingUser }) => {
           {!editingUser && (
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Temporary Password</label>
-              <PasswordInput required minLength={6} autoComplete="new-password" className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} placeholder="At least 6 characters" />
+              <PasswordInput required autoComplete="new-password" className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} placeholder="Min 8 chars, upper/lower, number, symbol" />
+              <PasswordStrength password={formData.password} />
             </div>
           )}
           <div className="grid grid-cols-2 gap-4">

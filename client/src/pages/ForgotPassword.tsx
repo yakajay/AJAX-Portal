@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, ArrowLeft } from 'lucide-react';
-import { PasswordInput } from '../components/ui';
+import { isStrongPassword } from '../lib/passwordPolicy';
+import { PasswordInput, PasswordStrength } from '../components/ui';
 import { apiFetch, readError } from '../lib/api';
 import OtpForm from '../components/auth/OtpForm';
 
@@ -100,12 +101,12 @@ const ForgotPassword = () => {
               email={email}
               purpose="RESET_PASSWORD"
               submitLabel="Reset password"
-              submitting={submitting || newPassword.length < 6}
+              submitting={submitting || !isStrongPassword(newPassword)}
               onSubmit={resetPassword}
             >
               <div>
                 <label htmlFor="new-password" className="block text-sm font-medium text-slate-700">
-                  New password (min 6 characters)
+                  New password
                 </label>
                 <div className="mt-1 relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -116,13 +117,13 @@ const ForgotPassword = () => {
                     
                     autoComplete="new-password"
                     required
-                    minLength={6}
-                    value={newPassword}
+                                        value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     className={inputClass}
                     placeholder="••••••••"
                   />
                 </div>
+                <PasswordStrength password={newPassword} />
               </div>
             </OtpForm>
           )}

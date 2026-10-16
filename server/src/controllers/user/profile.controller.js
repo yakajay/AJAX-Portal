@@ -1,5 +1,5 @@
 import { userModel } from '../../models/user.model.js';
-import { hashPassword, verifyPassword } from '../../utils/password.js';
+import { hashPassword, verifyPassword, passwordPolicyError } from '../../utils/password.js';
 import { sanitizeUser } from '../../utils/format.js';
 import { isValidIso } from '../../utils/dates.js';
 import { revokeAllSessions } from '../../utils/sessions.js';
@@ -58,8 +58,8 @@ export const updatePreferences = async (req, res) => {
 
 export const changePassword = async (req, res) => {
   const { currentPassword, newPassword } = req.body;
-  if (!newPassword || newPassword.length < 6) {
-    return res.status(400).json({ message: 'New password must be at least 6 characters.' });
+  if (passwordPolicyError(newPassword)) {
+    return res.status(400).json({ message: passwordPolicyError(newPassword) });
   }
   if (!verifyPassword(currentPassword, req.user.password)) {
     // 400, not 401: a 401 tells the client its session expired and would sign the user out

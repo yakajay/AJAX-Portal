@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { X, Loader2, Eye, EyeOff } from 'lucide-react';
+import { X, Check, Loader2, Eye, EyeOff } from 'lucide-react';
+import { PASSWORD_RULES } from '../lib/passwordPolicy';
 
 // Small shared building blocks for the newer pages. They reuse the same Tailwind vocabulary as the
 // older pages (slate neutrals, blue brand accent) so light/dark theming applies automatically.
@@ -26,6 +27,32 @@ export const PasswordInput = ({ className = '', style, ...props }: Omit<React.In
           {visible ? <EyeOff size={18} /> : <Eye size={18} />}
         </button>
       )}
+    </div>
+  );
+};
+
+// Live checklist that ticks off each password rule as the user types.
+export const PasswordStrength = ({ password }: { password: string }) => {
+  if (!password) return null;
+  const met = PASSWORD_RULES.filter((r) => r.test(password)).length;
+  const bar = met === PASSWORD_RULES.length ? 'bg-emerald-500' : met >= 3 ? 'bg-amber-500' : 'bg-red-500';
+  return (
+    <div className="mt-2" aria-live="polite">
+      <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
+        <div className={`h-full transition-all ${bar}`} style={{ width: `${(met / PASSWORD_RULES.length) * 100}%` }} />
+      </div>
+      <ul className="mt-2 space-y-1">
+        {PASSWORD_RULES.map((r) => {
+          const ok = r.test(password);
+          return (
+            <li key={r.id} className={`flex items-center gap-1.5 text-xs ${ok ? 'text-emerald-600' : 'text-slate-400'}`}>
+              {ok ? <Check size={14} /> : <X size={14} />}
+              <span>{r.label}</span>
+              <span className="sr-only">{ok ? '(met)' : '(not met)'}</span>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 };
