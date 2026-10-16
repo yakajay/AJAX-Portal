@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, User, ShieldCheck } from 'lucide-react';
+import { PasswordInput } from '../components/ui';
 import { apiFetch, readError } from '../lib/api';
 import OtpForm from '../components/auth/OtpForm';
 
@@ -118,9 +119,9 @@ const Signup = () => {
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Lock className="h-5 w-5 text-slate-400" />
                 </div>
-                <input
+                <PasswordInput
                   required
-                  type="password"
+                  
                   className="appearance-none block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-xl placeholder-slate-400 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm"
                   placeholder="••••••••"
                   value={formData.password}
@@ -135,9 +136,9 @@ const Signup = () => {
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <ShieldCheck className="h-5 w-5 text-slate-400" />
                 </div>
-                <input
+                <PasswordInput
                   required
-                  type="password"
+                  
                   className="appearance-none block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-xl placeholder-slate-400 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm"
                   placeholder="••••••••"
                   value={formData.confirmPassword}

@@ -7,7 +7,7 @@ import { useAsync } from '../lib/useAsync';
 import { useI18n } from '../lib/i18n';
 import { LANGUAGES, type Lang } from '../lib/locales';
 import { useTheme } from '../lib/theme';
-import { Badge, Button, Card, ErrorNote, Field, PageHeader, Spinner, inputClass } from '../components/ui';
+import { Badge, Button, Card, ErrorNote, Field, PageHeader, Spinner, inputClass, PasswordInput } from '../components/ui';
 
 interface SessionRow { id: string; userAgent: string; ip: string; lastUsedAt: string; createdAt: string; current: boolean }
 
@@ -50,7 +50,7 @@ const TwoFactor = ({ user, onUserUpdate }: { user: User; onUserUpdate: (u: User)
         <div className="space-y-4 mt-1">
           <p className="text-sm text-slate-600">Sign-in asks for a code from your authenticator app instead of an emailed code. You can still request an emailed code at sign-in if you lose your phone.</p>
           <div className="grid sm:grid-cols-2 gap-4">
-            <Field label="Password"><input type="password" autoComplete="current-password" className={inputClass} value={password} onChange={(e) => setPassword(e.target.value)} /></Field>
+            <Field label="Password"><PasswordInput autoComplete="current-password" className={inputClass} value={password} onChange={(e) => setPassword(e.target.value)} /></Field>
             <Field label="Authenticator code"><input inputMode="numeric" maxLength={6} className={inputClass} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} /></Field>
           </div>
           <Button variant="danger" disabled={busy || !password || code.length !== 6} onClick={disable}><ShieldOff size={14} />Turn off</Button>

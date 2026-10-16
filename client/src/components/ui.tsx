@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { X, Loader2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { X, Loader2, Eye, EyeOff } from 'lucide-react';
 
 // Small shared building blocks for the newer pages. They reuse the same Tailwind vocabulary as the
 // older pages (slate neutrals, blue brand accent) so light/dark theming applies automatically.
@@ -7,6 +7,28 @@ import { X, Loader2 } from 'lucide-react';
 export const labelClass = 'block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5';
 export const inputClass =
   'w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:bg-white transition-all disabled:opacity-60';
+
+// Password field with a show/hide toggle that appears once something has been typed.
+export const PasswordInput = ({ className = '', style, ...props }: Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type'>) => {
+  const [visible, setVisible] = useState(false);
+  const hasValue = String(props.value ?? '').length > 0;
+  return (
+    <div className="relative">
+      <input {...props} type={visible && hasValue ? 'text' : 'password'} className={className} style={hasValue ? { ...style, paddingRight: '2.75rem' } : style} />
+      {hasValue && (
+        <button
+          type="button"
+          onClick={() => setVisible((v) => !v)}
+          aria-label={visible ? 'Hide password' : 'Show password'}
+          aria-pressed={visible}
+          className="absolute inset-y-0 right-0 px-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none focus-visible:text-slate-700"
+        >
+          {visible ? <EyeOff size={18} /> : <Eye size={18} />}
+        </button>
+      )}
+    </div>
+  );
+};
 
 export const PageHeader = ({ title, subtitle, actions }: { title: string; subtitle?: string; actions?: React.ReactNode }) => (
   <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock } from 'lucide-react';
+import { PasswordInput } from '../components/ui';
 import { apiFetch, readError, setSession } from '../lib/api';
 import { API_BASE_URL } from '../config';
 import OtpForm from '../components/auth/OtpForm';
@@ -179,10 +180,10 @@ const Login = ({ onLogin }) => {
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Lock className="h-5 w-5 text-slate-400" />
                 </div>
-                <input
+                <PasswordInput
                   id="password"
                   name="password"
-                  type="password"
+                  
                   autoComplete="current-password"
                   required
                   value={password}

@@ -16,7 +16,7 @@ import {
 import type { User } from '../types';
 import { useSearchParams } from 'react-router-dom';
 import { apiFetch } from '../lib/api';
-import { Tabs } from '../components/ui';
+import { Tabs, PasswordInput } from '../components/ui';
 import { Avatar } from '../components/Avatar';
 import { OrgChart, Departments } from '../components/org/OrgViews';
 
@@ -151,9 +151,9 @@ const EmployeeModal = ({
           {mode === 'add' && (
             <div>
               <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Temporary Password</label>
-              <input
+              <PasswordInput
                 required
-                type="password"
+                
                 minLength={6}
                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all"
                 placeholder="At least 6 characters"

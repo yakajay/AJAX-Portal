@@ -4,7 +4,7 @@ import { apiFetch, apiJson, apiSend, readError } from '../lib/api';
 import { loadWorkspace } from '../lib/workspace';
 import { errorMessage, formatDateTime } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
-import { Badge, Button, Card, Empty, ErrorNote, Field, PageHeader, Spinner, StatTile, Tabs, Th, inputClass } from '../components/ui';
+import { Badge, Button, Card, Empty, ErrorNote, Field, PageHeader, Spinner, StatTile, Tabs, Th, inputClass, PasswordInput } from '../components/ui';
 
 interface CompanyRecord {
   name: string;
@@ -375,7 +375,7 @@ const SsoTab = () => {
               </div>
               <Field label="Client ID"><input className={inputClass} value={value.oidc.clientId} onChange={(e) => patch({ oidc: { ...value.oidc, clientId: e.target.value } })} /></Field>
               <Field label="Client secret" hint={value.oidc.clientSecretSet ? 'A secret is saved. Leave blank to keep it.' : 'Stored encrypted. It is never shown again.'}>
-                <input type="password" autoComplete="new-password" className={inputClass} value={secret} onChange={(e) => setSecret(e.target.value)} placeholder={value.oidc.clientSecretSet ? '••••••••' : ''} />
+                <PasswordInput autoComplete="new-password" className={inputClass} value={secret} onChange={(e) => setSecret(e.target.value)} placeholder={value.oidc.clientSecretSet ? '••••••••' : ''} />
               </Field>
             </div>
           ) : (
@@ -489,7 +489,7 @@ const MailForm = () => {
           <div className="grid sm:grid-cols-2 gap-4 mt-4">
             <Field label="Email address / username"><input className={inputClass} autoComplete="off" value={value.username} onChange={(e) => patch({ username: e.target.value })} placeholder="hr@yourcompany.com" /></Field>
             <Field label="Password" hint={value.passwordSet ? 'A password is saved. Leave blank to keep it.' : 'Stored encrypted. It is never shown again.'}>
-              <input type="password" autoComplete="new-password" className={inputClass} value={password} onChange={(e) => setPassword(e.target.value)} placeholder={value.passwordSet ? '••••••••' : ''} />
+              <PasswordInput autoComplete="new-password" className={inputClass} value={password} onChange={(e) => setPassword(e.target.value)} placeholder={value.passwordSet ? '••••••••' : ''} />
             </Field>
             <Field label="Sender name"><input className={inputClass} value={value.fromName} onChange={(e) => patch({ fromName: e.target.value })} placeholder="Acme HR" /></Field>
             <Field label="Sender email address" hint="Must be allowed by your mail provider."><input type="email" className={inputClass} value={value.fromEmail} onChange={(e) => patch({ fromEmail: e.target.value })} placeholder="hr@yourcompany.com" /></Field>

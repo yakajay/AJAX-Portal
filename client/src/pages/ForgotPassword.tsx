@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, ArrowLeft } from 'lucide-react';
+import { PasswordInput } from '../components/ui';
 import { apiFetch, readError } from '../lib/api';
 import OtpForm from '../components/auth/OtpForm';
 
@@ -110,9 +111,9 @@ const ForgotPassword = () => {
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <Lock className="h-5 w-5 text-slate-400" />
                   </div>
-                  <input
+                  <PasswordInput
                     id="new-password"
-                    type="password"
+                    
                     autoComplete="new-password"
                     required
                     minLength={6}
