@@ -5,6 +5,7 @@ import { leaveModel } from '../../models/leave.model.js';
 import { todayLabel } from '../../utils/format.js';
 import { currentMonth, isValidMonth, monthBounds, workingDays, monthLabel } from '../../utils/dates.js';
 import { computePayslip, formatMoney, buildPayslipPdf } from '../../utils/payroll.js';
+import { loadBranding } from '../../utils/letterhead.js';
 import { holidaySet } from '../../services/leave.service.js';
 import { notify } from '../../utils/notify.js';
 import { audit } from '../../utils/audit.js';
@@ -174,7 +175,8 @@ export const markPaid = async (req, res) => {
 export const payslipPdf = async (req, res) => {
   const slip = await Payslip.findById(req.params.id).populate({ path: 'user', select: 'name email department designation' });
   if (!slip) return res.status(404).json({ message: 'Payslip not found.' });
-  const pdf = await buildPayslipPdf(slip.toJSON(), slip.user);
+  const { company, letterhead } = await loadBranding(req.company?.id);
+  const pdf = await buildPayslipPdf(slip.toJSON(), slip.user, company, letterhead);
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="payslip-${slip.month}.pdf"`);
   res.send(pdf);

@@ -100,6 +100,41 @@ export const removeLogo = async (req, res) => {
   res.json({ hasLogo: false });
 };
 
+// ---------------------------------------------------------------- Letterhead (printed on payslips and company letters)
+// PDFs can only embed PNG and JPEG, so those are the only types accepted.
+export const MAX_LETTERHEAD_BYTES = 1024 * 1024;
+
+// PUT /admin/company/letterhead - the request body is the image itself (image/png or image/jpeg)
+export const uploadLetterhead = async (req, res) => {
+  const body = req.body;
+  if (!Buffer.isBuffer(body) || !body.length) return bad(res, 'Send the image as the request body (PNG or JPEG, up to 1 MB).');
+  const type = sniffImageType(body);
+  if (type !== 'image/png' && type !== 'image/jpeg') return bad(res, 'The letterhead must be a PNG or JPEG image.');
+  await Company.updateOne({ _id: req.company.id }, { letterheadData: body, letterheadContentType: type, letterheadUpdatedAt: new Date() });
+  await audit(req, { action: 'company.letterhead', entity: 'company', entityId: req.company.id, summary: 'Uploaded the company letterhead', meta: { type, bytes: body.length } });
+  res.json({ hasLetterhead: true, letterheadUpdatedAt: new Date() });
+};
+
+// GET /admin/company/letterhead - the image, for the settings preview
+export const getLetterhead = async (req, res) => {
+  const company = await Company.findById(req.company.id).select('+letterheadData');
+  if (!company?.letterheadData?.length) return res.status(404).json({ message: 'No letterhead.' });
+  res.set({
+    'Content-Type': company.letterheadContentType,
+    'Cache-Control': 'private, no-store',
+    'X-Content-Type-Options': 'nosniff',
+    'Content-Security-Policy': "default-src 'none'; sandbox"
+  });
+  res.send(company.letterheadData);
+};
+
+// DELETE /admin/company/letterhead - documents go back to the plain text header
+export const removeLetterhead = async (req, res) => {
+  await Company.updateOne({ _id: req.company.id }, { letterheadData: null, letterheadContentType: '', letterheadUpdatedAt: null });
+  await audit(req, { action: 'company.letterhead', entity: 'company', entityId: req.company.id, summary: 'Removed the company letterhead' });
+  res.json({ hasLetterhead: false });
+};
+
 // ---------------------------------------------------------------- SSO
 const ssoView = (company) => {
   const origin = companyOrigin(company);

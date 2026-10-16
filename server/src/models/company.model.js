@@ -56,6 +56,10 @@ const companySchema = new mongoose.Schema(
     logoUpdatedAt: { type: Date, default: null },
     logoContentType: { type: String, default: '' },
     logoData: { type: Buffer, select: false },
+    // The company's letterhead: a wide banner image printed at the top of payslips and company letters
+    letterheadUpdatedAt: { type: Date, default: null },
+    letterheadContentType: { type: String, default: '' },
+    letterheadData: { type: Buffer, select: false },
     settings: {
       // Self-signup is off by default: a workspace belongs to one company, so people are added by its admins or SSO
       allowSelfSignup: { type: Boolean, default: false },
@@ -123,6 +127,7 @@ const companySchema = new mongoose.Schema(
   schemaOptions((ret) => {
     delete ret.dataKey;
     delete ret.logoData;
+    delete ret.letterheadData;
     if (ret.mail) {
       ret.mail.passwordSet = !!ret.mail.password;
       delete ret.mail.password;

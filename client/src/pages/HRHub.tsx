@@ -45,8 +45,12 @@ const AddDocumentModal = ({ isOpen, onClose, onAdd, employees }: { isOpen: boole
   });
   const [loading, setLoading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  // Letters can be written here and are produced as a PDF on the company letterhead
+  const [compose, setCompose] = useState(false);
+  const [letterBody, setLetterBody] = useState('');
 
   if (!isOpen) return null;
+  const writing = compose && formData.type === 'Letter';
 
   const pickFile = (picked?: File) => {
     if (!picked) return setFile(null);
@@ -59,6 +63,19 @@ const AddDocumentModal = ({ isOpen, onClose, onAdd, employees }: { isOpen: boole
     e.preventDefault();
     setLoading(true);
     try {
+      if (writing) {
+        const res = await apiFetch('/admin/documents/letter', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: formData.userId, subject: formData.name, body: letterBody, date: formData.date })
+        });
+        const letter = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(letter.message || 'Failed to create the letter');
+        onAdd({ ...letter, user: employees.find((emp) => emp.id === formData.userId) });
+        setLetterBody('');
+        onClose();
+        return;
+      }
       const response = await apiFetch('/admin/documents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -139,6 +156,28 @@ const AddDocumentModal = ({ isOpen, onClose, onAdd, employees }: { isOpen: boole
               <option>Tax</option>
             </select>
           </div>
+          {formData.type === 'Letter' && (
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input type="checkbox" checked={compose} onChange={(e) => setCompose(e.target.checked)} />
+              Write the letter here (printed on your company letterhead)
+            </label>
+          )}
+          {writing ? (
+            <div>
+              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Letter text</label>
+              <textarea
+                required
+                rows={8}
+                maxLength={10000}
+                aria-label="Letter text"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all"
+                placeholder="Dear ..."
+                value={letterBody}
+                onChange={(e) => setLetterBody(e.target.value)}
+              />
+              <p className="text-xs text-slate-400 mt-1">The document name above is used as the subject. The employee gets it as a PDF under Documents.</p>
+            </div>
+          ) : (
           <div>
             <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">File (optional)</label>
             <input
@@ -150,12 +189,13 @@ const AddDocumentModal = ({ isOpen, onClose, onAdd, employees }: { isOpen: boole
             />
             <p className="text-xs text-slate-400 mt-1">PDF, PNG, JPEG, DOCX or XLSX, up to 5 MB.</p>
           </div>
+          )}
           <button 
             type="submit"
             disabled={loading}
             className="w-full py-3 bg-blue-600 text-white rounded-xl text-sm font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 active:scale-95 disabled:opacity-50 mt-4"
           >
-            {loading ? 'Uploading...' : 'Upload Document'}
+            {loading ? 'Saving...' : writing ? 'Create Letter' : 'Upload Document'}
           </button>
         </form>
       </div>
