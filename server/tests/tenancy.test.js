@@ -308,14 +308,15 @@ describe('delete requests', () => {
   it('turns a delete into a pending request that the platform approves', async () => {
     const sa = await makePlatformAdmin();
     const admin = await makeSuperAdmin();
+    const deleter = await makeAdmin({ permissions: 'read,users:delete' }); // a company super admin deletes directly instead
     const victim = await makeUser({ name: 'Leaving Larry' });
 
-    const asked = await api().delete(`/api/admin/users/${victim.user.id}`).set(admin.auth).send({ reason: 'Resigned' }).expect(202);
-    expect(asked.body).toMatchObject({ status: 'Pending', targetType: 'user', targetLabel: victim.user.email, reason: 'Resigned', requestedByName: admin.user.name });
+    const asked = await api().delete(`/api/admin/users/${victim.user.id}`).set(deleter.auth).send({ reason: 'Resigned' }).expect(202);
+    expect(asked.body).toMatchObject({ status: 'Pending', targetType: 'user', targetLabel: victim.user.email, reason: 'Resigned', requestedByName: deleter.user.name });
     // Nothing was deleted yet
     await api().get('/api/auth/me').set(victim.auth).expect(200);
     // One open request per target
-    await api().delete(`/api/admin/users/${victim.user.id}`).set(admin.auth).expect(409);
+    await api().delete(`/api/admin/users/${victim.user.id}`).set(deleter.auth).expect(409);
 
     const mine = await api().get('/api/admin/delete-requests?status=Pending').set(admin.auth).expect(200);
     expect(mine.body.map((r) => r.id)).toContain(asked.body.id);
@@ -341,18 +342,30 @@ describe('delete requests', () => {
   it('rejecting leaves the record alone, needs a reason, and tells the requester', async () => {
     const sa = await makePlatformAdmin();
     const admin = await makeSuperAdmin();
+    const deleter = await makeAdmin({ permissions: 'read,users:delete' });
     const keep = await makeUser({ name: 'Keeper' });
-    const asked = await api().post('/api/admin/delete-requests').set(admin.auth).send({ targetType: 'user', targetId: keep.user.id, reason: 'Cleanup' }).expect(201);
+    const asked = await api().post('/api/admin/delete-requests').set(deleter.auth).send({ targetType: 'user', targetId: keep.user.id, reason: 'Cleanup' }).expect(201);
 
     await platformApi().patch(`/api/platform/delete-requests/${asked.body.id}`).set(sa.auth).send({ decision: 'reject' }).expect(400);
     const done = await platformApi().patch(`/api/platform/delete-requests/${asked.body.id}`).set(sa.auth).send({ decision: 'reject', note: 'Still employed' }).expect(200);
     expect(done.body).toMatchObject({ status: 'Rejected', decisionNote: 'Still employed' });
     await api().get('/api/auth/me').set(keep.auth).expect(200);
 
-    const inbox = await api().get('/api/user/notifications').set(admin.auth).expect(200);
+    const inbox = await api().get('/api/user/notifications').set(deleter.auth).expect(200);
     expect(inbox.body.items.some((n) => /rejected/.test(n.title))).toBe(true);
     // After a rejection a new request can be raised
-    await api().post('/api/admin/delete-requests').set(admin.auth).send({ targetType: 'user', targetId: keep.user.id }).expect(201);
+    await api().post('/api/admin/delete-requests').set(deleter.auth).send({ targetType: 'user', targetId: keep.user.id }).expect(201);
+  });
+
+  it('lets the company super admin delete an employee directly', async () => {
+    const admin = await makeSuperAdmin();
+    const victim = await makeUser({ name: 'Direct Dan' });
+    const res = await api().delete(`/api/admin/users/${victim.user.id}`).set(admin.auth).expect(200);
+    expect(res.body).toMatchObject({ deleted: true });
+    await api().get('/api/auth/me').set(victim.auth).expect(401);
+    const log = await api().get('/api/admin/audit?q=Direct').set(admin.auth).expect(200);
+    expect(log.body.items.map((i) => i.action)).toContain('user.delete');
+    await api().delete(`/api/admin/users/${victim.user.id}`).set(admin.auth).expect(404);
   });
 
   it('checks who may raise which request', async () => {

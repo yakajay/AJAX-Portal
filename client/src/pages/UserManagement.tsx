@@ -245,9 +245,9 @@ const UserManagement = () => {
   };
 
   const handleDelete = (id, name) => {
-    if (window.confirm(`Request deletion of "${name}"? The platform's Super Admin has to approve it before anything is removed.`)) {
+    if (window.confirm(`Delete "${name}"? This removes the employee from your company immediately.`)) {
       requestDelete(`/admin/users/${id}`)
-        .then((message) => alert(message))
+        .then((message) => { alert(message); return loadUsers(); })
         .catch((err) => alert(err.message));
     }
   };

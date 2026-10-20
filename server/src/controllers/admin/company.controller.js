@@ -8,8 +8,8 @@ import { assertPublicUrl, assertPublicHost } from '../../utils/safeFetch.js';
 import { buildCompanyTransport, fromAddress } from '../../utils/mailTransport.js';
 import { env } from '../../config/env.js';
 import { hasPermission } from '../../utils/permissions.js';
-import { describeTarget } from '../../services/deletion.service.js';
-import { seatsUsed } from '../../services/company.service.js';
+import { describeTarget, executeDeleteRequest } from '../../services/deletion.service.js';
+import { seatsUsed, ServiceError } from '../../services/company.service.js';
 import { oidcRedirectUri, samlAcsUrl, samlEntityId } from '../sso.controller.js';
 import { audit } from '../../utils/audit.js';
 
@@ -271,6 +271,21 @@ export const raiseDeleteRequest = async (req, { targetType, targetId, reason }) 
     }
   }
 
+  // A company admin (SUPER_ADMIN) removes employees of their own company directly, without the platform's approval
+  if (targetType === 'user' && req.user.role === 'SUPER_ADMIN') {
+    try {
+      const deleted = await executeDeleteRequest({ targetType, targetId: String(targetId), companyId: req.company.id });
+      await audit(req, {
+        action: 'user.delete', entity: 'user', entityId: String(targetId),
+        summary: `Deleted employee "${deleted}"`, meta: { targetType, targetId: String(targetId), reason: text(reason, 500) }
+      });
+      return { status: 200, body: { deleted: true, targetLabel: label, message: 'Employee deleted.' } };
+    } catch (error) {
+      if (error instanceof ServiceError) return { status: error.status, body: { message: error.message } };
+      throw error;
+    }
+  }
+
   const existing = await DeleteRequest.findOne({ targetType, targetId: String(targetId), status: 'Pending' });
   if (existing) return { status: 409, body: { message: 'A delete request for this is already pending.', request: existing } };
 
@@ -292,8 +307,7 @@ export const raiseDeleteRequest = async (req, { targetType, targetId, reason }) 
 // POST /admin/delete-requests { targetType, targetId, reason }
 export const createDeleteRequest = async (req, res) => {
   const { status, body } = await raiseDeleteRequest(req, req.body ?? {});
-  res.status(status === 202 ? 201 : status).json(body);
-};
+  res.status(status === 202 ? 201 : status).json(body);};
 
 // Used as the handler of the DELETE routes: admins can't delete, so the call becomes a request
 export const deleteViaRequest = (targetType) => async (req, res) => {
