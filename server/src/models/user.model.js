@@ -13,6 +13,7 @@ import { Notification } from './notification.model.js';
 import { SalaryStructure, Payslip } from './salary.model.js';
 import { Review, Goal } from './performance.model.js';
 import { Expense } from './expense.model.js';
+import { Exit } from './exit.model.js';
 import { Checklist } from './checklist.model.js';
 import { Department } from './department.model.js';
 
@@ -125,6 +126,9 @@ export const userModel = {
       Review.updateMany({ reviewerId: id }, { reviewerId: null }),
       Goal.deleteMany({ userId: id }),
       Expense.deleteMany({ userId: id }),
+      Exit.deleteMany({ userId: id }),
+      Exit.updateMany({ initiatedById: id }, { initiatedById: null }),
+      Exit.updateMany({ reviewedById: id }, { reviewedById: null }),
       Checklist.deleteMany({ userId: id }),
       Department.updateMany({ headId: id }, { headId: null }),
       User.updateMany({ managerId: id }, { managerId: null })

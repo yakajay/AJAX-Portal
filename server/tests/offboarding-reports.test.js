@@ -4,6 +4,8 @@ import { api, makeUser, makeAdmin, makeSuperAdmin, inTenant } from './helpers/fi
 import { SalaryStructure } from '../src/models/salary.model.js';
 import { Expense } from '../src/models/expense.model.js';
 import { Session } from '../src/models/session.model.js';
+import { Exit } from '../src/models/exit.model.js';
+import { Transaction } from '../src/models/transaction.model.js';
 import { summarizeAttendance } from '../src/utils/attendanceReport.js';
 
 beforeAll(connectTestDb);
@@ -97,6 +99,33 @@ describe('offboarding', () => {
       expect(await Session.countDocuments({ userId: emp.user.id, revokedAt: null })).toBe(0);
       expect((await Expense.findOne({ userId: emp.user.id })).status).toBe('Reimbursed');
     });
+  });
+
+  // An approved exit with a last day in the past, ready to settle
+  const approvedExit = async (hr, emp) => {
+    const exit = (await api().post('/api/user/exits').set(emp.auth).send({ reason: 'Moving', requestedLastDay: iso(10) }).expect(201)).body;
+    await api().put(`/api/admin/exits/${exit.id}/review`).set(hr.auth).send({ status: 'Approved', lastWorkingDay: iso(-1) }).expect(200);
+    await inTenant(() => SalaryStructure.create({ userId: emp.user.id, basic: 30000, hra: 0, allowances: 0, pfPercent: 0, taxPercent: 0 }));
+    return exit;
+  };
+
+  it('pays a settlement once when two admins settle at the same moment', async () => {
+    const hr = await makeSuperAdmin();
+    const emp = await makeUser({ joinDate: '2024-01-01' });
+    const exit = await approvedExit(hr, emp);
+    const before = await inTenant(() => Transaction.countDocuments({ method: 'Full & Final Settlement' }));
+    const results = await Promise.all([1, 2, 3].map(() => api().post(`/api/admin/exits/${exit.id}/settle`).set(hr.auth).send({})));
+    expect(results.map((r) => r.status).sort()).toEqual([200, 409, 409]);
+    expect(await inTenant(() => Transaction.countDocuments({ method: 'Full & Final Settlement' }))).toBe(before + 1);
+  });
+
+  it('removes a deleted employee\'s exit records with them', async () => {
+    const hr = await makeSuperAdmin();
+    const emp = await makeUser({ joinDate: '2024-01-01' });
+    await approvedExit(hr, emp);
+    expect(await inTenant(() => Exit.countDocuments({ userId: emp.user.id }))).toBe(1);
+    await api().delete(`/api/admin/users/${emp.user.id}`).set(hr.auth).expect(200);
+    expect(await inTenant(() => Exit.countDocuments({ userId: emp.user.id }))).toBe(0);
   });
 
   it('refuses to settle before the last working day, and lets a resignation be withdrawn', async () => {

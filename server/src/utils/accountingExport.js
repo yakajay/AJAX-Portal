@@ -31,15 +31,21 @@ const fromCents = (c) => (c / 100).toFixed(2);
 
 export const accountsFor = (settings) => ({ ...DEFAULT_ACCOUNTS, ...Object.fromEntries(Object.entries(settings ?? {}).filter(([k, v]) => ACCOUNT_KEYS.includes(k) && String(v ?? '').trim())) });
 
+// A payslip whose parts don't add up: payroll clamps net pay at zero when deductions exceed gross pay, so
+// gross less deductions is then below the net pay on the slip. Posting the slip as it stands would not balance.
+export const unbalancedPayslips = (payslips) =>
+  payslips.filter((p) => Math.abs(cents(p.gross) - cents(p.deductions?.pf) - cents(p.deductions?.tax) - cents(p.deductions?.other) - cents(p.net)) > 1);
+
 // Returns { lines: [{ account, debit, credit, memo }], totals, date }. Amounts are strings with 2 decimals.
-// Any cent-level rounding difference is absorbed by the "Salaries payable" line so the entry always balances.
+// Salaries payable is the sum of the payslips' net pay, so the journal agrees with the payslips; callers should
+// first refuse payslips from unbalancedPayslips(). Rounding of a cent or so is absorbed by the expense line.
 export const buildJournal = ({ payslips, accounts, month }) => {
   const sum = (pick) => payslips.reduce((t, p) => t + cents(pick(p)), 0);
-  const gross = sum((p) => p.gross);
   const pf = sum((p) => p.deductions?.pf);
   const tax = sum((p) => p.deductions?.tax);
   const other = sum((p) => p.deductions?.other);
-  const net = gross - pf - tax - other;
+  const net = sum((p) => p.net);
+  const gross = pf + tax + other + net;
   const memo = `Payroll ${month}`;
   const lines = [
     { account: accounts.salaryExpense, debit: fromCents(gross), credit: '', memo },
@@ -48,7 +54,7 @@ export const buildJournal = ({ payslips, accounts, month }) => {
     { account: accounts.otherPayable, debit: '', credit: fromCents(other), memo },
     { account: accounts.salariesPayable, debit: '', credit: fromCents(net), memo }
   ].filter((l) => cents(l.debit) || cents(l.credit));
-  return { lines, date: monthBounds(month).end, totals: { gross: fromCents(gross), pf: fromCents(pf), tax: fromCents(tax), other: fromCents(other), net: fromCents(net), reportedNet: fromCents(sum((p) => p.net)) } };
+  return { lines, date: monthBounds(month).end, totals: { gross: fromCents(gross), pf: fromCents(pf), tax: fromCents(tax), other: fromCents(other), net: fromCents(net), reportedGross: fromCents(sum((p) => p.gross)) } };
 };
 
 const xml = (s) => String(s).replace(/[<>&'"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' })[c]);
