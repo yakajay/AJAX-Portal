@@ -72,7 +72,10 @@ export const resolveTenant = async (req, res, next) => {
   if (target.kind === 'unknown') {
     target = await inferTarget(req);
     // With a dedicated console address, platform admins sign in there, never on the shared company address
-    if (target.kind === 'platform' && env.tenancy.platformHost) target = { kind: 'portal' };
+    // (the neutral 'portal' scope is still platform-level, so it would find them: refuse outright)
+    if (target.kind === 'platform' && env.tenancy.platformHost) {
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
   }
 
   if (target.kind === 'platform') {
