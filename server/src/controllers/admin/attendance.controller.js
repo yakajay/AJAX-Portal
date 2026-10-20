@@ -44,6 +44,7 @@ export const report = async (req, res) => {
       { header: 'Days present', value: (r) => r.daysPresent },
       { header: 'Total hours', value: (r) => r.totalHours },
       { header: 'Average hours/day', value: (r) => r.avgHours },
+      { header: 'Overtime hours', value: (r) => r.overtimeHours },
       { header: 'Late days', value: (r) => r.lateDays },
       { header: 'Early-out days', value: (r) => r.earlyOutDays }
     ]);

@@ -62,6 +62,8 @@ export const env = {
     // Local wall-clock times (viewer's timezone) used for late / early-out flags
     lateAfter: process.env.ATTENDANCE_LATE_AFTER || '09:30',
     earlyBefore: process.env.ATTENDANCE_EARLY_BEFORE || '17:30',
+    // Hours in a normal working day; time beyond this on a day counts as overtime (a shift's own length wins)
+    standardHours: parseFloat(process.env.ATTENDANCE_STANDARD_HOURS || '8'),
     // Optional check-in restrictions. Empty = unrestricted.
     allowedIps: (process.env.ATTENDANCE_ALLOWED_IPS || '').split(',').map((s) => s.trim()).filter(Boolean),
     office: process.env.OFFICE_LAT && process.env.OFFICE_LNG
