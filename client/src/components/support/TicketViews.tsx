@@ -113,7 +113,7 @@ export const TicketList = ({ user, scope }: { user: User; scope: 'mine' | 'queue
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2" role="group" aria-label="Filter tickets">
         {(staff ? (['open', 'mine', 'all'] as const) : (['open', 'all'] as const)).map((f) => (
-          <button key={f} onClick={() => setFilter(f)} aria-pressed={filter === f} className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest ${filter === f ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+          <button key={f} onClick={() => setFilter(f)} aria-pressed={filter === f} className={`px-4 py-1.5 rounded-full text-xs font-extrabold ${filter === f ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
             {f === 'mine' ? 'Assigned to me' : f}
           </button>
         ))}
@@ -134,7 +134,7 @@ export const TicketList = ({ user, scope }: { user: User; scope: 'mine' | 'queue
                     {staff && <td className="px-6 py-3 text-sm text-slate-600">{t.user?.name ?? '—'}</td>}
                     <td className="px-6 py-3"><Badge tone={PRIORITY_TONE[t.priority]}>{t.priority}</Badge></td>
                     <td className="px-6 py-3"><Badge tone={statusTone(t.status)}>{t.status}</Badge></td>
-                    <td className="px-6 py-3"><Badge tone={statusTone(t.slaState)}>{t.slaState}</Badge><span className="block text-[11px] text-slate-400 mt-0.5">{dueText(t)}</span></td>
+                    <td className="px-6 py-3"><Badge tone={statusTone(t.slaState)}>{t.slaState}</Badge><span className="block text-xs text-slate-400 mt-0.5">{dueText(t)}</span></td>
                     {staff && <td className="px-6 py-3 text-sm text-slate-600">{t.assignee?.name ?? <span className="text-slate-300">Unassigned</span>}</td>}
                   </tr>
                 ))}

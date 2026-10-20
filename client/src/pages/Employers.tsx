@@ -117,7 +117,7 @@ const Employers = ({ user }: { user: User }) => {
             {text('contactEmail', 'Contact email', { type: 'email', maxLength: 200 })}
             {text('address', 'Registered address', { maxLength: 400 })}
           </div>
-          <p className="text-xs font-black text-slate-400 uppercase tracking-widest pt-2">Payroll bank account (encrypted)</p>
+          <p className="text-xs font-extrabold text-slate-400 pt-2">Payroll bank account (encrypted)</p>
           <div className="grid sm:grid-cols-3 gap-4">
             {text('bankName', 'Bank', { maxLength: 64 })}
             {text('account', 'Account number', { maxLength: 64, placeholder: editing !== 'new' && editing?.payrollBank?.accountSet ? `Keep current (••••${editing.payrollBank.accountLast4})` : '' })}

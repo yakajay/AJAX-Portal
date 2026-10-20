@@ -103,7 +103,7 @@ const Expenses = ({ user }: { user: User | null }) => {
                       <tr key={e.id}>
                         <td className="px-6 py-4"><p className="text-sm font-bold text-slate-900">{e.title}</p><p className="text-xs text-slate-400">{e.category}{e.receiptRef ? ` · ${e.receiptRef}` : ''}</p>{e.reviewNote && <p className="text-xs text-slate-500 mt-1">Note: {e.reviewNote}</p>}</td>
                         <td className="px-6 py-4 text-sm text-slate-600">{formatDate(e.date)}</td>
-                        <td className="px-6 py-4 text-sm font-black text-slate-900">{money(e.amount, e.currency)}</td>
+                        <td className="px-6 py-4 text-sm font-extrabold text-slate-900">{money(e.amount, e.currency)}</td>
                         <td className="px-6 py-4"><Badge tone={statusTone(e.status)}>{e.status}</Badge></td>
                         <td className="px-6 py-4 text-right">
                           {e.status === 'Pending' && <button aria-label={`Withdraw ${e.title}`} className="p-2 text-slate-400 hover:text-rose-600" onClick={() => act(() => apiSend('DELETE', `/user/expenses/${e.id}`))}><Trash2 size={16} /></button>}
@@ -129,7 +129,7 @@ const Expenses = ({ user }: { user: User | null }) => {
                     <tr key={e.id}>
                       <td className="px-6 py-4 text-sm font-bold text-slate-900">{e.user?.name ?? 'Unknown'}</td>
                       <td className="px-6 py-4"><p className="text-sm text-slate-900">{e.title}</p><p className="text-xs text-slate-400">{e.category} · {formatDate(e.date)}{e.receiptRef ? ` · ${e.receiptRef}` : ''}</p></td>
-                      <td className="px-6 py-4 text-sm font-black text-slate-900">{money(e.amount, e.currency)}</td>
+                      <td className="px-6 py-4 text-sm font-extrabold text-slate-900">{money(e.amount, e.currency)}</td>
                       <td className="px-6 py-4"><Badge tone={statusTone(e.status)}>{e.status}</Badge></td>
                       <td className="px-6 py-4">
                         {canWrite && (

@@ -12,6 +12,14 @@ const en = {
   'nav.leave': 'Leave',
   'nav.outsourcing': 'Outsourcing',
   'nav.payroll': 'Payroll',
+  'nav.payrollTools': 'Salary & payroll tools',
+  'nav.documents': 'Documents',
+  'nav.crmOverview': 'Overview',
+  'nav.employees': 'Employees',
+  'nav.approvals': 'Approvals',
+  'nav.holidays': 'Holiday calendar',
+  'nav.leaveBalances': 'Leave balances',
+  'nav.rolesAccess': 'Roles & access',
   'nav.payslips': 'My payslips',
   'nav.attendance': 'Attendance',
   'nav.hrHub': 'HR Hub',
@@ -87,6 +95,14 @@ export type MessageKey = keyof typeof en;
 type Dict = Record<MessageKey, string>;
 
 const hi: Partial<Dict> = {
+  'nav.payrollTools': 'वेतन और पेरोल टूल',
+  'nav.documents': 'दस्तावेज़',
+  'nav.crmOverview': 'अवलोकन',
+  'nav.employees': 'कर्मचारी',
+  'nav.approvals': 'अनुमोदन',
+  'nav.holidays': 'अवकाश कैलेंडर',
+  'nav.leaveBalances': 'छुट्टी शेष',
+  'nav.rolesAccess': 'भूमिकाएँ और पहुँच',
   'nav.dashboard': 'डैशबोर्ड',
   'nav.directory': 'निर्देशिका',
   'nav.leave': 'छुट्टी',
@@ -164,6 +180,14 @@ const hi: Partial<Dict> = {
 };
 
 const es: Partial<Dict> = {
+  'nav.payrollTools': 'Herramientas de nómina',
+  'nav.documents': 'Documentos',
+  'nav.crmOverview': 'Resumen',
+  'nav.employees': 'Empleados',
+  'nav.approvals': 'Aprobaciones',
+  'nav.holidays': 'Calendario de festivos',
+  'nav.leaveBalances': 'Saldos de permisos',
+  'nav.rolesAccess': 'Roles y acceso',
   'nav.dashboard': 'Panel',
   'nav.directory': 'Directorio',
   'nav.leave': 'Permisos',

@@ -1,7 +1,9 @@
 import { leaveModel } from '../../models/leave.model.js';
 import { decideLeave } from '../../services/leave.service.js';
 import { Company } from '../../models/company.model.js';
-import { policyFor, validatePolicy } from '../../utils/leavePolicy.js';
+import { userModel } from '../../models/user.model.js';
+import { policyFor, validatePolicy, leaveBalances } from '../../utils/leavePolicy.js';
+import { isoDate } from '../../utils/dates.js';
 import { audit } from '../../utils/audit.js';
 
 const asRows = (policy) => Object.entries(policy).map(([type, p]) => ({ type, ...p }));
@@ -23,6 +25,26 @@ export const updatePolicy = async (req, res) => {
 
 export const listAll = async (req, res) => {
   res.json(await leaveModel.findAll());
+};
+
+// Every active employee's balance per leave type, as of today (for the leave balances screen)
+export const balances = async (req, res) => {
+  const policy = policyFor(req.company);
+  const asOf = isoDate(new Date());
+  const [users, leaves] = await Promise.all([userModel.findAll(), leaveModel.findAll()]);
+  const byUser = new Map();
+  for (const leave of leaves) {
+    const uid = String(leave.userId);
+    if (!byUser.has(uid)) byUser.set(uid, []);
+    byUser.get(uid).push(leave);
+  }
+  res.json(users.filter((u) => !u.locked).map((u) => ({
+    userId: u.id,
+    name: u.name,
+    department: u.department || null,
+    joinDate: u.joinDate || null,
+    balances: leaveBalances(byUser.get(u.id) ?? [], asOf, { joinDate: u.joinDate, policy })
+  })));
 };
 
 export const setStatus = async (req, res) => {

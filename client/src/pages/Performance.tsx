@@ -53,11 +53,11 @@ const ReviewCard = ({ review, mode, onSaved }: { review: Review; mode: 'mine' | 
   <Card title={mode === 'mine' ? review.cycle?.name : `${review.user?.name} · ${review.cycle?.name}`} actions={<Badge tone={statusTone(review.status)}>{review.status}</Badge>}>
     <div className="grid sm:grid-cols-2 gap-6">
       <div>
-        <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Self-assessment</p>
+        <p className="text-xs font-extrabold text-slate-400 mb-1">Self-assessment</p>
         {review.selfRating ? <><Stars value={review.selfRating} label="Self rating" /><p className="text-sm text-slate-600 mt-2">{review.selfComment || 'No comment.'}</p></> : <p className="text-sm text-slate-400">Not submitted yet.</p>}
       </div>
       <div>
-        <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Manager review{review.reviewer ? ` · ${review.reviewer.name}` : ''}</p>
+        <p className="text-xs font-extrabold text-slate-400 mb-1">Manager review{review.reviewer ? ` · ${review.reviewer.name}` : ''}</p>
         {review.managerRating ? <><Stars value={review.managerRating} label="Manager rating" /><p className="text-sm text-slate-600 mt-2">{review.managerComment || 'No comment.'}</p></> : <p className="text-sm text-slate-400">Pending.</p>}
       </div>
     </div>
@@ -77,7 +77,7 @@ const GoalCard = ({ goal, editable, onChanged }: { goal: Goal; editable: boolean
     <Card>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="font-black text-slate-900">{goal.title}</h3>
+          <h3 className="font-extrabold text-slate-900">{goal.title}</h3>
           {goal.user && <p className="text-xs text-slate-400">{goal.user.name}</p>}
           {goal.description && <p className="text-sm text-slate-500 mt-1">{goal.description}</p>}
           {goal.dueDate && <p className="text-xs text-slate-400 mt-1">Due {formatDate(goal.dueDate)}</p>}
@@ -179,7 +179,7 @@ const Performance = ({ user }: { user: User | null }) => {
       {tab === 'team' && (
         <div className="space-y-6">
           {teamReviews.data?.map((r) => <ReviewCard key={r.id} review={r} mode="team" onSaved={reloadAll} />)}
-          {teamGoals.data && teamGoals.data.length > 0 && <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">Team goals</h2>}
+          {teamGoals.data && teamGoals.data.length > 0 && <h2 className="text-sm font-extrabold text-slate-400">Team goals</h2>}
           {teamGoals.data?.map((g) => <GoalCard key={g.id} goal={g} editable={false} onChanged={() => undefined} />)}
         </div>
       )}
@@ -203,7 +203,7 @@ const Performance = ({ user }: { user: User | null }) => {
           <Field label="Description"><textarea rows={2} className={inputClass} value={goalForm.description} onChange={(e) => setGoalForm({ ...goalForm, description: e.target.value })} /></Field>
           <Field label="Due date"><input type="date" className={inputClass} value={goalForm.dueDate} onChange={(e) => setGoalForm({ ...goalForm, dueDate: e.target.value })} /></Field>
           <div>
-            <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Key results</p>
+            <p className="text-xs font-extrabold text-slate-400 mb-1.5">Key results</p>
             {goalForm.keyResults.map((k, i) => (
               <div key={i} className="flex gap-2 mb-2">
                 <input aria-label={`Key result ${i + 1}`} className={`${inputClass} flex-1`} placeholder="Measurable outcome" value={k.title} onChange={(e) => setGoalForm({ ...goalForm, keyResults: goalForm.keyResults.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)) })} />

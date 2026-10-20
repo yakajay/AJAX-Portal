@@ -100,7 +100,7 @@ const CreateCompany = ({ plans, onClose, onCreated }: { plans: Stats['plans']; o
         <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={form.customLogo} onChange={(e) => set({ customLogo: e.target.checked })} />Custom company logo (they can upload their own instead of ours)</label>
         <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={form.customEmail} onChange={(e) => set({ customEmail: e.target.checked })} />Own sender email (their admin can send OTPs and notifications from their own mailbox)</label>
         <div className="rounded-2xl bg-slate-50 p-4 space-y-3">
-          <p className="text-xs font-black uppercase tracking-widest text-slate-400">First admin (optional)</p>
+          <p className="text-xs font-extrabold text-slate-400">First admin (optional)</p>
           <div className="grid sm:grid-cols-2 gap-4">
             <Field label="Name"><input className={inputClass} value={form.adminName} onChange={(e) => set({ adminName: e.target.value })} /></Field>
             <Field label="Email" hint="We email an invitation to set a password."><input type="email" className={inputClass} value={form.adminEmail} onChange={(e) => set({ adminEmail: e.target.value })} /></Field>
@@ -204,11 +204,11 @@ const CompanyDetail = ({ id, plans, onClose, onChanged }: { id: string; plans: S
             </form>
           ) : (
             <dl className="grid sm:grid-cols-2 gap-3 text-sm">
-              <div><dt className="text-xs font-black uppercase tracking-widest text-slate-400">Plan</dt><dd className="text-slate-800">{plans[data.subscription.plan]?.label ?? data.subscription.plan}</dd></div>
-              <div><dt className="text-xs font-black uppercase tracking-widest text-slate-400">Primary contact</dt><dd className="text-slate-800">{data.primaryContact.name || '—'} {data.primaryContact.email && `· ${data.primaryContact.email}`}</dd></div>
-              <div><dt className="text-xs font-black uppercase tracking-widest text-slate-400">Custom logo</dt><dd className="text-slate-800">{data.features.customLogo ? 'Enabled' : 'Not enabled'}</dd></div>
-              <div><dt className="text-xs font-black uppercase tracking-widest text-slate-400">Own sender email</dt><dd className="text-slate-800">{data.features.customEmail ? 'Enabled' : 'Not enabled'}</dd></div>
-              <div className="sm:col-span-2"><dt className="text-xs font-black uppercase tracking-widest text-slate-400">Modules</dt><dd className="flex flex-wrap gap-2 mt-1">{data.modules.map((m) => <Badge key={m} tone="blue">{m}</Badge>)}</dd></div>
+              <div><dt className="text-xs font-extrabold text-slate-400">Plan</dt><dd className="text-slate-800">{plans[data.subscription.plan]?.label ?? data.subscription.plan}</dd></div>
+              <div><dt className="text-xs font-extrabold text-slate-400">Primary contact</dt><dd className="text-slate-800">{data.primaryContact.name || '—'} {data.primaryContact.email && `· ${data.primaryContact.email}`}</dd></div>
+              <div><dt className="text-xs font-extrabold text-slate-400">Custom logo</dt><dd className="text-slate-800">{data.features.customLogo ? 'Enabled' : 'Not enabled'}</dd></div>
+              <div><dt className="text-xs font-extrabold text-slate-400">Own sender email</dt><dd className="text-slate-800">{data.features.customEmail ? 'Enabled' : 'Not enabled'}</dd></div>
+              <div className="sm:col-span-2"><dt className="text-xs font-extrabold text-slate-400">Modules</dt><dd className="flex flex-wrap gap-2 mt-1">{data.modules.map((m) => <Badge key={m} tone="blue">{m}</Badge>)}</dd></div>
             </dl>
           )}
         </Card>

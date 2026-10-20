@@ -169,7 +169,7 @@ const Offboarding = ({ user }: { user: User | null }) => {
                       <td className="px-6 py-4 text-sm font-bold text-slate-900">{e.user?.name ?? 'Unknown'}</td>
                       <td className="px-6 py-4 text-sm text-slate-600">{e.type}</td>
                       <td className="px-6 py-4"><Badge tone={statusTone(e.status)}>{e.status}</Badge></td>
-                      <td className="px-6 py-4 text-sm font-black text-slate-900">{e.settlement && e.status === 'Settled' ? money(e.settlement.total, e.settlement.currency) : '-'}</td>
+                      <td className="px-6 py-4 text-sm font-extrabold text-slate-900">{e.settlement && e.status === 'Settled' ? money(e.settlement.total, e.settlement.currency) : '-'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -206,7 +206,7 @@ const Offboarding = ({ user }: { user: User | null }) => {
                 {([['Final month salary (prorated)', preview.salaryDue], ['Leave encashment', preview.leaveEncashment], ['Approved expense claims', preview.expensesDue], ['Deductions', -preview.deductions]] as const).map(([label, value]) => (
                   <div key={label} className="flex justify-between px-4 py-2"><dt className="text-slate-500">{label}</dt><dd className="font-bold">{money(value, preview.currency)}</dd></div>
                 ))}
-                <div className="flex justify-between px-4 py-3 bg-slate-50"><dt className="font-bold">Total payable</dt><dd className="font-black">{money(preview.total, preview.currency)}</dd></div>
+                <div className="flex justify-between px-4 py-3 bg-slate-50"><dt className="font-bold">Total payable</dt><dd className="font-extrabold">{money(preview.total, preview.currency)}</dd></div>
               </dl>
             )}
             <p className="text-xs text-slate-500">Settling locks the account, signs the person out everywhere and records the payout in the payments ledger. It cannot be undone.</p>

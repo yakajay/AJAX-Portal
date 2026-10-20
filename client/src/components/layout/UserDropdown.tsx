@@ -33,14 +33,14 @@ const UserDropdown = ({ user, onLogout }: { user: User | null; onLogout: () => v
         onClick={() => setIsOpen(!isOpen)}
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        className="flex items-center space-x-2 p-1.5 pr-3 rounded-full border border-slate-200 hover:bg-slate-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        className="flex items-center space-x-2 min-h-12 p-1.5 pr-3.5 rounded-full border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
       >
-        <div className="w-8 h-8 rounded-full bg-blue-600 overflow-hidden flex items-center justify-center text-white text-xs font-bold shadow-sm">
+        <div className="w-10 h-10 rounded-full bg-blue-600 overflow-hidden flex items-center justify-center text-white text-xs font-bold">
           {user ? <Avatar person={user} initials={initials} /> : initials}
         </div>
         <div className="hidden sm:flex flex-col items-start leading-tight">
           <span className="text-sm font-bold text-slate-900">{user?.name}</span>
-          <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">{user?.role?.replace('_', ' ')}</span>
+          <span className="text-xs text-slate-500">{user?.designation || user?.role?.replace('_', ' ')}</span>
         </div>
         <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
@@ -52,7 +52,7 @@ const UserDropdown = ({ user, onLogout }: { user: User | null; onLogout: () => v
             <div className="min-w-0">
               <p className="text-sm font-bold text-slate-900 truncate">{user?.name}</p>
               <p className="text-xs text-slate-500 truncate">{user?.email}</p>
-              <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest mt-0.5">
+              <p className="text-xs text-slate-500 font-extrabold mt-0.5">
                 {user?.role?.replace('_', ' ')}{user?.department ? ` · ${user.department}` : ''}
               </p>
             </div>

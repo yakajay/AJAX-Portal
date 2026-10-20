@@ -78,7 +78,7 @@ export const Timesheets = ({ user, contractors }: { user: User; contractors: Con
                     <tr key={t.id}>
                       <td className="px-6 py-3 text-sm font-bold text-slate-900">{c?.name ?? 'Unknown'}<span className="block text-xs font-normal text-slate-400">{t.notes}</span></td>
                       <td className="px-6 py-3 text-sm text-slate-600">{formatDate(t.weekStart)}</td>
-                      <td className="px-6 py-3 text-sm font-black text-slate-900">{t.hours}h</td>
+                      <td className="px-6 py-3 text-sm font-extrabold text-slate-900">{t.hours}h</td>
                       <td className="px-6 py-3 text-sm text-slate-600">{c && c.hourlyRate ? money(t.hours * c.hourlyRate, c.currency) : '—'}</td>
                       <td className="px-6 py-3"><Badge tone={statusTone(t.status)}>{t.status}</Badge></td>
                       <td className="px-6 py-3 text-right">{canWrite && t.status === 'Submitted' && (
@@ -155,7 +155,7 @@ export const Invoices = ({ user, contractors }: { user: User; contractors: Contr
                   <tr key={i.id}>
                     <td className="px-6 py-3 text-sm font-bold text-slate-900">{i.number}<span className="block text-xs font-normal text-slate-400">Issued {formatDate(i.issueDate)}</span></td>
                     <td className="px-6 py-3 text-sm text-slate-600">{i.contractor?.name}<span className="block text-xs text-slate-400">{i.contractor?.company}</span></td>
-                    <td className="px-6 py-3 text-sm font-black text-slate-900">{money(i.amount, i.currency)}</td>
+                    <td className="px-6 py-3 text-sm font-extrabold text-slate-900">{money(i.amount, i.currency)}</td>
                     <td className="px-6 py-3 text-sm text-slate-600">{formatDate(i.dueDate)}</td>
                     <td className="px-6 py-3"><Badge tone={statusTone(i.displayStatus)}>{i.displayStatus}</Badge></td>
                     <td className="px-6 py-3 text-right">{canWrite && i.status !== 'Paid' && (

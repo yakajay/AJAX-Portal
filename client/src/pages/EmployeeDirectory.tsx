@@ -1,13 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Search, 
-  Filter, 
   Mail, 
   Briefcase, 
-  MapPin, 
   ChevronRight,
   UserPlus,
-  MoreVertical,
   Download,
   X,
   CheckCircle2,
@@ -25,6 +21,7 @@ interface Employee {
   name: string;
   email: string;
   employeeId?: string | null;
+  designation?: string;
   avatarVersion?: number | null;
   role: string;
   department: string;
@@ -118,16 +115,16 @@ const EmployeeModal = ({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-300">
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-300">
         <div className="px-6 py-5 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
-          <h2 className="text-xl font-black text-slate-900 tracking-tight">{mode === 'add' ? 'Add New Employee' : 'Edit Employee Details'}</h2>
+          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">{mode === 'add' ? 'Add New Employee' : 'Edit Employee Details'}</h2>
           <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-400">
             <X size={20} />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Full Name</label>
+            <label className="block text-xs font-extrabold text-slate-400 mb-1.5">Full Name</label>
             <input 
               required
               type="text" 
@@ -138,7 +135,7 @@ const EmployeeModal = ({
             />
           </div>
           <div>
-            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Email Address</label>
+            <label className="block text-xs font-extrabold text-slate-400 mb-1.5">Email Address</label>
             <input 
               required
               type="email" 
@@ -150,7 +147,7 @@ const EmployeeModal = ({
           </div>
           {mode === 'add' && (
             <div>
-              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Temporary Password</label>
+              <label className="block text-xs font-extrabold text-slate-400 mb-1.5">Temporary Password</label>
               <PasswordInput
                 required
                 
@@ -164,7 +161,7 @@ const EmployeeModal = ({
           )}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Role</label>
+              <label className="block text-xs font-extrabold text-slate-400 mb-1.5">Role</label>
               <select 
                 disabled={!isSuperAdmin}
                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all disabled:opacity-50"
@@ -177,7 +174,7 @@ const EmployeeModal = ({
               </select>
             </div>
             <div>
-              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Department</label>
+              <label className="block text-xs font-extrabold text-slate-400 mb-1.5">Department</label>
               <select 
                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all"
                 value={formData.department}
@@ -192,7 +189,7 @@ const EmployeeModal = ({
           </div>
           
           <div>
-            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center">
+            <label className="block text-xs font-extrabold text-slate-400 mb-1.5 flex items-center">
               <GitBranch size={12} className="mr-1" /> Manager Tree
             </label>
             <select 
@@ -211,7 +208,7 @@ const EmployeeModal = ({
           <button 
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-blue-600 text-white rounded-xl text-sm font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 active:scale-95 disabled:opacity-50 mt-4"
+            className="w-full py-3 bg-blue-600 text-white rounded-xl text-sm font-extrabold hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 active:scale-95 disabled:opacity-50 mt-4"
           >
             {loading ? 'Saving...' : mode === 'add' ? 'Create Employee' : 'Update Details'}
           </button>
@@ -236,7 +233,7 @@ const ProfileModal = ({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-300">
+      <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-300">
         <div className="h-32 bg-gradient-to-r from-blue-600 to-indigo-600 relative">
           <button onClick={onClose} className="absolute top-4 right-4 p-2 bg-white/20 hover:bg-white/30 rounded-full text-white transition-colors">
             <X size={20} />
@@ -244,8 +241,8 @@ const ProfileModal = ({
         </div>
         <div className="px-8 pb-8">
           <div className="relative -mt-16 mb-6">
-            <div className="w-32 h-32 rounded-3xl bg-white p-1.5 shadow-xl border border-slate-100">
-              <div className="w-full h-full rounded-2xl bg-slate-100 overflow-hidden flex items-center justify-center text-4xl font-black text-blue-700">
+            <div className="w-32 h-32 rounded-2xl bg-white p-1.5 shadow-xl border border-slate-100">
+              <div className="w-full h-full rounded-2xl bg-slate-100 overflow-hidden flex items-center justify-center text-4xl font-extrabold text-blue-700">
                 <Avatar person={employee} initials={employee.name.substring(0, 2).toUpperCase()} />
               </div>
             </div>
@@ -253,21 +250,21 @@ const ProfileModal = ({
           
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h2 className="text-3xl font-black text-slate-900 tracking-tight">{employee.name}</h2>
+              <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">{employee.name}</h2>
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-xs font-black text-blue-600 uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded-md">
+                <span className="text-xs font-extrabold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
                   {employee.role.replace('_', ' ')}
                 </span>
                 <span className="text-slate-300">•</span>
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{employee.department} Department</span>
+                <span className="text-xs font-bold text-slate-400">{employee.department} Department</span>
               </div>
             </div>
 
             <div className="flex gap-2">
-              <button className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all">Message</button>
+              <button className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-extrabold hover:bg-slate-800 transition-all">Message</button>
               <button 
                 onClick={onEdit}
-                className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-50 transition-all"
+                className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-extrabold hover:bg-slate-50 transition-all"
               >
                 Edit Details
               </button>
@@ -277,14 +274,14 @@ const ProfileModal = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-10">
             <div className="space-y-6">
               <div>
-                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Contact Information</h3>
+                <h3 className="text-xs font-extrabold text-slate-400 mb-3">Contact Information</h3>
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400">
                       <Briefcase size={16} />
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-tight">Employee ID</p>
+                      <p className="text-xs font-bold text-slate-400 tracking-tight">Employee ID</p>
                       <p className="text-sm font-bold text-slate-900">{employee.employeeId || '—'}</p>
                     </div>
                   </div>
@@ -293,7 +290,7 @@ const ProfileModal = ({
                       <Mail size={16} />
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-tight">Email</p>
+                      <p className="text-xs font-bold text-slate-400 tracking-tight">Email</p>
                       <p className="text-sm font-bold text-slate-900">{employee.email}</p>
                     </div>
                   </div>
@@ -302,7 +299,7 @@ const ProfileModal = ({
                       <Briefcase size={16} />
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-tight">Employee ID</p>
+                      <p className="text-xs font-bold text-slate-400 tracking-tight">Employee ID</p>
                       <p className="text-sm font-bold text-slate-900">DB-{2000 + employee.id}</p>
                     </div>
                   </div>
@@ -311,7 +308,7 @@ const ProfileModal = ({
             </div>
             <div className="space-y-6">
               <div>
-                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Organization</h3>
+                <h3 className="text-xs font-extrabold text-slate-400 mb-3">Organization</h3>
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
                   <div className="flex items-center justify-between mb-4">
                     <span className="text-sm font-bold text-slate-600">Reporting Manager</span>
@@ -417,116 +414,95 @@ const DirectoryView = ({ user }: { user: User | null }) => {
     return matchesSearch && matchesDept;
   });
 
+  const departments = ['All Departments', ...[...new Set(employees.map(e => e.department).filter(Boolean))].sort()];
+  const inputCls = 'w-full min-h-11 px-3 bg-white border-[1.5px] border-slate-300 rounded-[10px] text-[15px] font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600';
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Employee Directory</h1>
-          <p className="text-slate-500 text-sm">Manage and view all team members across the organization.</p>
+    <div className="space-y-6 max-w-6xl">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <span className="text-sm font-semibold text-slate-500">{filteredEmployees.length} of {employees.length} people</span>
+          <h1 className="text-[32px] leading-tight font-extrabold text-slate-900 tracking-tight">Directory</h1>
         </div>
-        <div className="flex items-center gap-2">
-          <button 
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="text-[13px] font-bold text-slate-600">
+            Search people or teams
+            <input
+              type="search"
+              placeholder="Name, team or role"
+              className={`${inputCls} mt-1.5 w-64`}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </label>
+          <button
             onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm active:scale-95"
+            className="min-h-11 inline-flex items-center gap-2 px-4 rounded-[10px] border-[1.5px] border-blue-600 bg-white text-[15px] font-bold text-blue-800 hover:bg-blue-50 transition-colors"
           >
-            <Download size={16} />
+            <Download size={16} aria-hidden="true" />
             Export CSV
           </button>
           {isAdmin && (
-            <button 
+            <button
               onClick={openAddModal}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20 active:scale-95"
+              className="min-h-11 inline-flex items-center gap-2 px-4 rounded-[10px] bg-blue-600 text-white text-[15px] font-bold hover:bg-blue-700 transition-colors"
             >
-              <UserPlus size={16} />
-              Add Employee
+              <UserPlus size={16} aria-hidden="true" />
+              Add employee
             </button>
           )}
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4">
-        <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input 
-            type="text" 
-            placeholder="Search by name, ID, email, or role..."
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div className="flex gap-2">
-          <button className="flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors">
-            <Filter size={16} />
-            Filter
-          </button>
-          <select 
-            className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-            value={deptFilter}
-            onChange={(e) => setDeptFilter(e.target.value)}
+      <div role="group" aria-label="Filter by department" className="flex flex-wrap gap-2">
+        {departments.map((d) => (
+          <button
+            key={d}
+            type="button"
+            aria-pressed={deptFilter === d}
+            onClick={() => setDeptFilter(d)}
+            className={`min-h-11 px-3.5 rounded-full text-sm font-bold border-[1.5px] border-blue-600 transition-colors ${deptFilter === d ? 'bg-blue-600 text-white' : 'bg-white text-blue-800 hover:bg-blue-50'}`}
           >
-            <option>All Departments</option>
-            <option>Engineering</option>
-            <option>Human Resources</option>
-            <option>Operations</option>
-            <option>Sales</option>
-          </select>
-        </div>
+            {d === 'All Departments' ? 'Everyone' : d}
+          </button>
+        ))}
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center h-64">
+        <div className="flex items-center justify-center h-64" role="status" aria-label="Loading">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
+      ) : filteredEmployees.length === 0 ? (
+        <p className="text-[15px] text-slate-500">No one matches that search.</p>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
           {filteredEmployees.map((emp) => (
-            <div key={emp.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow group overflow-hidden">
-              <div className="h-24 bg-gradient-to-r from-blue-600 to-blue-400 p-4 relative">
-                <button className="absolute top-4 right-4 p-1 rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors">
-                  <MoreVertical size={16} />
-                </button>
-              </div>
-              <div className="px-6 pb-6 -mt-10 relative">
-                <div className="w-20 h-20 rounded-2xl bg-white p-1 shadow-md mb-3 border border-slate-100">
-                  <div className="w-full h-full rounded-xl bg-slate-100 overflow-hidden flex items-center justify-center text-xl font-black text-blue-700">
-                    <Avatar person={emp} initials={emp.name.substring(0, 2).toUpperCase()} />
-                  </div>
+            <article key={emp.id} className="p-5 rounded-2xl bg-white border border-slate-200 flex flex-col gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 shrink-0 rounded-full bg-blue-100 text-blue-800 overflow-hidden flex items-center justify-center text-base font-extrabold" aria-hidden="true">
+                  <Avatar person={emp} initials={emp.name.split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()} />
                 </div>
-                
-                <h3 className="text-lg font-black text-slate-900 leading-tight group-hover:text-blue-600 transition-colors">{emp.name}</h3>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
-                  {emp.role.replace('_', ' ')}
-                </p>
-                {emp.employeeId && <p className="text-xs font-black text-blue-600 mt-1">ID: {emp.employeeId}</p>}
-
-                <div className="mt-6 space-y-3">
-                  <div className="flex items-center text-sm text-slate-600">
-                    <Mail size={14} className="mr-2 text-slate-400" />
-                    <span className="truncate">{emp.email}</span>
-                  </div>
-                  <div className="flex items-center text-sm text-slate-600">
-                    <Briefcase size={14} className="mr-2 text-slate-400" />
-                    <span>{emp.department} Department</span>
-                  </div>
-                  <div className="flex items-center text-sm text-slate-600">
-                    <GitBranch size={14} className="mr-2 text-slate-400" />
-                    <span className="truncate">Manager: {emp.manager?.name || 'Independent'}</span>
-                  </div>
+                <div className="flex flex-col min-w-0">
+                  <h3 className="text-base font-extrabold text-slate-900 truncate">{emp.name}</h3>
+                  <span className="text-sm text-slate-600 truncate">{emp.designation || emp.role.replace('_', ' ')}</span>
                 </div>
-
-                <button 
-                  onClick={() => {
-                    setSelectedEmployee(emp);
-                    setIsProfileOpen(true);
-                  }}
-                  className="mt-6 w-full py-2 bg-slate-50 rounded-xl text-sm font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-all flex items-center justify-center group/btn active:scale-95"
-                >
-                  View Profile
-                  <ChevronRight size={16} className="ml-1 group-hover/btn:translate-x-1 transition-transform" />
-                </button>
               </div>
-            </div>
+              <div className="flex flex-col gap-1.5 text-sm text-slate-600">
+                <span><strong className="text-slate-900">{emp.department}</strong>{emp.employeeId ? ` · ${emp.employeeId}` : ''}</span>
+                <span className="inline-flex items-center gap-2 min-w-0"><GitBranch size={14} className="shrink-0 text-slate-500" aria-hidden="true" /><span className="truncate">Reports to {emp.manager?.name || 'no one'}</span></span>
+                <a href={`mailto:${emp.email}`} className="inline-flex items-center gap-2 min-w-0 text-blue-800 font-semibold hover:underline"><Mail size={14} className="shrink-0" aria-hidden="true" /><span className="truncate">{emp.email}</span></a>
+              </div>
+              <button
+                onClick={() => {
+                  setSelectedEmployee(emp);
+                  setIsProfileOpen(true);
+                }}
+                className="mt-auto min-h-11 rounded-[10px] bg-slate-50 border border-slate-200 text-sm font-bold text-slate-800 hover:bg-blue-50 transition-colors inline-flex items-center justify-center"
+              >
+                View profile
+                <ChevronRight size={16} className="ml-1" aria-hidden="true" />
+              </button>
+            </article>
           ))}
         </div>
       )}

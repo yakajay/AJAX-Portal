@@ -74,7 +74,7 @@ const DeleteRequests = ({ user }: { user: User }) => {
               <tbody className="divide-y divide-slate-100">
                 {data.map((r) => (
                   <tr key={r.id}>
-                    <td className="px-6 py-3"><p className="text-sm font-bold text-slate-900">{r.targetLabel}</p><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{TARGET_LABELS[r.targetType] ?? r.targetType}</p></td>
+                    <td className="px-6 py-3"><p className="text-sm font-bold text-slate-900">{r.targetLabel}</p><p className="text-xs font-extrabold text-slate-400">{TARGET_LABELS[r.targetType] ?? r.targetType}</p></td>
                     <td className="px-6 py-3 text-sm text-slate-600">{r.requestedByName}<span className="block text-xs text-slate-400">{formatDateTime(r.createdAt)}</span></td>
                     <td className="px-6 py-3 text-sm text-slate-600">{r.reason || '—'}</td>
                     <td className="px-6 py-3"><Badge tone={statusTone(r.status)}>{r.status}</Badge></td>

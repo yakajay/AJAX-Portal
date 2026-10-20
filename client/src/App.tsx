@@ -34,6 +34,16 @@ const DeleteRequests = lazy(() => import('./pages/DeleteRequests'));
 const Companies = lazy(() => import('./pages/platform/Companies'));
 const PlatformRequests = lazy(() => import('./pages/platform/PlatformRequests'));
 const PlatformAudit = lazy(() => import('./pages/platform/PlatformAudit'));
+const Documents = lazy(() => import('./pages/Documents'));
+const CrmOverview = lazy(() => import('./pages/crm/CrmOverview'));
+const CrmEmployees = lazy(() => import('./pages/crm/CrmEmployees'));
+const CrmEmployeeDetail = lazy(() => import('./pages/crm/CrmEmployeeDetail'));
+const CrmApprovals = lazy(() => import('./pages/crm/CrmApprovals'));
+const CrmHolidays = lazy(() => import('./pages/crm/CrmHolidays'));
+const CrmLeaveBalances = lazy(() => import('./pages/crm/CrmLeaveBalances'));
+const CrmPayroll = lazy(() => import('./pages/crm/CrmPayroll'));
+const CrmRoles = lazy(() => import('./pages/crm/CrmRoles'));
+import { Restricted } from './components/crm/shared';
 import type { User } from './types';
 import { getToken, setSession, clearToken, apiFetch, UNAUTHORIZED_EVENT } from './lib/api';
 import { I18nProvider } from './lib/i18n';
@@ -155,6 +165,16 @@ function App() {
                   <Route path="/profile" element={<Profile user={user} onUserUpdate={handleUserUpdate} />} />
                   <Route path="/support" element={<Support user={user} />} />
                   <Route path="/payslips" element={<Payslips />} />
+                  <Route path="/documents" element={<Documents />} />
+                  {/* CRM: admin workspace. Employees who open these see why instead of being bounced away. */}
+                  <Route path="/crm" element={isAdmin ? <CrmOverview /> : <Restricted superOnly={false} />} />
+                  <Route path="/crm/employees" element={isAdmin ? <CrmEmployees user={user} /> : <Restricted superOnly={false} />} />
+                  <Route path="/crm/employees/:id" element={isAdmin ? <CrmEmployeeDetail user={user} /> : <Restricted superOnly={false} />} />
+                  <Route path="/crm/approvals" element={isAdmin ? <CrmApprovals user={user} /> : <Restricted superOnly={false} />} />
+                  <Route path="/crm/holidays" element={isAdmin ? <CrmHolidays user={user} /> : <Restricted superOnly={false} />} />
+                  <Route path="/crm/leave-balances" element={isAdmin ? <CrmLeaveBalances user={user} /> : <Restricted superOnly={false} />} />
+                  <Route path="/crm/payroll" element={isAdmin ? <CrmPayroll user={user} /> : <Restricted superOnly={false} />} />
+                  <Route path="/crm/roles" element={user.role === 'SUPER_ADMIN' ? <CrmRoles user={user} /> : <Restricted superOnly={isAdmin} />} />
                   <Route path="/expenses" element={<Expenses user={user} />} />
                   <Route path="/performance" element={<Performance user={user} />} />
                   <Route path="/onboarding" element={<Onboarding user={user} />} />

@@ -1,12 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Clock, 
   LogIn, 
   LogOut, 
   Calendar as CalendarIcon, 
   CheckCircle2, 
-  AlertCircle, 
-  TrendingUp, 
   History,
   ChevronLeft,
   ChevronRight
@@ -15,6 +12,7 @@ import { formatDate, formatTime, formatDuration, localDayKey, userTimeZone } fro
 import { apiFetch, downloadFile } from '../lib/api';
 import { can } from '../lib/permissions';
 import { getLocation } from '../lib/geolocation';
+import { Tabs } from '../components/ui';
 import { MonthlySummary, CorrectionsQueue, AttendanceReport, AttendanceEditor, ShiftManager } from '../components/attendance/AttendanceExtras';
 
 type DayMode = 'leave' | 'regularize' | 'manual';
@@ -27,7 +25,7 @@ const STATUS_DOT: Record<string, string> = {
 };
 
 const inputCls = 'w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30';
-const labelCls = 'block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5';
+const labelCls = 'block text-xs font-extrabold text-slate-400 mb-1.5';
 
 // Hovering (or focusing/tapping) a date opens it here, with the three ways to fix it up
 const DayPanel = ({ dayKey, logs, leaves, onLogAdded, onLeaveAdded }: {
@@ -113,12 +111,12 @@ const DayPanel = ({ dayKey, logs, leaves, onLogAdded, onLeaveAdded }: {
     <div className="border-t border-slate-100 p-6 space-y-4" aria-live="polite">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h4 className="font-black text-slate-900 tracking-tight">
+          <h4 className="font-extrabold text-slate-900 tracking-tight">
             {date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           </h4>
           <p className="text-xs text-slate-500 mt-0.5">{summary}</p>
         </div>
-        <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg bg-slate-100 text-slate-600 whitespace-nowrap">{status}</span>
+        <span className="text-xs font-extrabold px-3 py-1 rounded-lg bg-slate-100 text-slate-600 whitespace-nowrap">{status}</span>
       </div>
 
       <div role="tablist" className="flex flex-wrap gap-2">
@@ -130,7 +128,7 @@ const DayPanel = ({ dayKey, logs, leaves, onLogAdded, onLeaveAdded }: {
             aria-selected={mode === t.key}
             disabled={t.disabled}
             onClick={() => { setMode(t.key); setMessage(null); }}
-            className={`px-4 py-2 text-xs font-black uppercase tracking-widest rounded-xl border transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+            className={`px-4 py-2 text-xs font-extrabold rounded-xl border transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
               mode === t.key ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
             }`}
           >
@@ -166,7 +164,7 @@ const DayPanel = ({ dayKey, logs, leaves, onLogAdded, onLeaveAdded }: {
           </div>
         )}
         <div className="flex items-center gap-4">
-          <button type="submit" disabled={busy || (mode === 'leave' && isWeekend)} className="px-6 py-3 bg-blue-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-700 disabled:opacity-50 transition-all">
+          <button type="submit" disabled={busy || (mode === 'leave' && isWeekend)} className="px-6 py-3 bg-blue-600 text-white rounded-xl text-xs font-extrabold hover:bg-blue-700 disabled:opacity-50 transition-all">
             {busy ? 'Saving…' : mode === 'leave' ? 'Submit leave request' : mode === 'regularize' ? 'Send regularization' : 'Save punch times'}
           </button>
           {message && (
@@ -212,27 +210,26 @@ const CalendarView = ({ logs, leaves, onLogAdded, onLeaveAdded }: {
   const todayKey = localDayKey(new Date());
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden h-full">
-      <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
-        <h3 className="font-black text-slate-900 tracking-tight flex items-center">
-          <CalendarIcon size={18} className="mr-2 text-blue-600" />
+    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+      <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+        <h2 className="text-lg font-extrabold text-slate-900 flex items-center">
+          <CalendarIcon size={18} className="mr-2 text-blue-600" aria-hidden="true" />
           {monthNames[month]} {year}
-        </h3>
+        </h2>
         <div className="flex gap-2">
-          <button onClick={prevMonth} aria-label="Previous month" className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400"><ChevronLeft size={18} /></button>
-          <button onClick={nextMonth} aria-label="Next month" className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400"><ChevronRight size={18} /></button>
+          <button onClick={prevMonth} aria-label="Previous month" className="w-11 h-11 flex items-center justify-center hover:bg-slate-100 rounded-lg text-slate-600"><ChevronLeft size={18} /></button>
+          <button onClick={nextMonth} aria-label="Next month" className="w-11 h-11 flex items-center justify-center hover:bg-slate-100 rounded-lg text-slate-600"><ChevronRight size={18} /></button>
         </div>
       </div>
       <div className="p-4">
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Hover or tap a date to manage it</p>
         <div className="grid grid-cols-7 gap-1 mb-2">
           {dayNames.map(d => (
-            <div key={d} className="text-center text-[10px] font-black text-slate-400 uppercase tracking-widest py-2">{d}</div>
+            <div key={d} className="text-center text-xs font-bold text-slate-500 py-2">{d}</div>
           ))}
         </div>
         <div className="grid grid-cols-7 gap-1">
           {calendarDays.map((day, idx) => {
-            if (day === null) return <div key={`empty-${idx}`} className="h-12"></div>;
+            if (day === null) return <div key={`empty-${idx}`} className="h-14"></div>;
             const dayKey = localDayKey(new Date(year, month, day));
             const status = getDayStatus(dayKey);
             const isToday = dayKey === todayKey;
@@ -248,26 +245,16 @@ const CalendarView = ({ logs, leaves, onLogAdded, onLeaveAdded }: {
                 onClick={select}
                 aria-pressed={isSelected}
                 aria-label={`${monthNames[month]} ${day}${status ? `, ${status}` : ''}`}
-                className={`h-12 flex flex-col items-center justify-center rounded-xl text-xs font-bold transition-all relative ${
-                  isToday ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'hover:bg-slate-50 text-slate-700'
+                className={`h-14 flex flex-col items-center justify-center gap-0.5 rounded-xl text-sm font-bold transition-colors ${
+                  isToday ? 'bg-blue-600 text-white' : 'bg-slate-50 hover:bg-blue-50 text-slate-800'
                 } ${isSelected ? 'ring-2 ring-slate-900' : ''}`}
               >
                 {day}
-                {status && (
-                  <div className={`absolute bottom-1.5 w-1 h-1 rounded-full ${STATUS_DOT[status]}`}></div>
-                )}
+                <span className={`h-1.5 w-1.5 rounded-full ${status ? STATUS_DOT[status] : 'bg-transparent'}`} aria-hidden="true" />
               </button>
             );
           })}
         </div>
-      </div>
-      <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-center gap-6 flex-wrap">
-        {[['bg-emerald-500', 'Present'], ['bg-sky-500', 'Leave'], ['bg-amber-500', 'Pending / Half Day']].map(([dot, label]) => (
-          <div key={label} className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${dot}`}></div>
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</span>
-          </div>
-        ))}
       </div>
       <DayPanel dayKey={selected} logs={logs} leaves={leaves} onLogAdded={onLogAdded} onLeaveAdded={onLeaveAdded} />
     </div>
@@ -352,137 +339,62 @@ const Attendance = ({ user }: { user: any }) => {
     });
   };
 
+  const tabs: { id: typeof activeView; label: string; badge?: number }[] = [
+    { id: 'calendar', label: 'Calendar' },
+    { id: 'history', label: 'History' },
+    { id: 'summary', label: 'Summary' },
+    ...(isAdminUser || pendingCorrections > 0 ? [{ id: 'corrections' as const, label: 'Corrections', badge: pendingCorrections }] : []),
+    ...(canSeeReport ? [{ id: 'report' as const, label: 'Report' }, { id: 'edit' as const, label: 'Edit' }, { id: 'shifts' as const, label: 'Shifts' }] : [])
+  ];
+
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Attendance</h1>
-          <p className="text-slate-500 text-sm mt-1">Track your hours and manage your daily working sessions.</p>
+    <div className="space-y-6 max-w-6xl">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <span className="text-sm font-semibold text-slate-500">{new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} · hover or tap a date to manage it</span>
+          <h1 className="text-[32px] leading-tight font-extrabold text-slate-900 tracking-tight">Attendance</h1>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 shadow-sm">
-            <button 
-              onClick={() => setActiveView('calendar')}
-              className={`px-6 py-2 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeView === 'calendar' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-            >
-              Calendar
-            </button>
-            <button 
-              onClick={() => setActiveView('history')}
-              className={`px-6 py-2 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeView === 'history' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-            >
-              History
-            </button>
-            <button 
-              onClick={() => setActiveView('summary')}
-              className={`px-6 py-2 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeView === 'summary' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-            >
-              Summary
-            </button>
-            {(isAdminUser || pendingCorrections > 0) && (
-              <button 
-                onClick={() => setActiveView('corrections')}
-                className={`px-6 py-2 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeView === 'corrections' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-              >
-                Corrections{pendingCorrections > 0 && <span className="ml-2 px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[10px]">{pendingCorrections}</span>}
-              </button>
-            )}
-            {canSeeReport && (
-              <button 
-                onClick={() => setActiveView('report')}
-                className={`px-6 py-2 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeView === 'report' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-              >
-                Report
-              </button>
-            )}
-            {canSeeReport && (
-              <button 
-                onClick={() => setActiveView('edit')}
-                className={`px-6 py-2 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeView === 'edit' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-              >
-                Edit
-              </button>
-            )}
-            {canSeeReport && (
-              <button 
-                onClick={() => setActiveView('shifts')}
-                className={`px-6 py-2 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeView === 'shifts' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-              >
-                Shifts
-              </button>
-            )}
-          </div>
-          <div className="text-[10px] font-black uppercase tracking-widest bg-white px-4 py-2 rounded-xl border border-slate-200 text-slate-400 shadow-sm">
-            Today: <span className="text-slate-900 ml-1">{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
-          </div>
-        </div>
+        <ul className="flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold text-slate-600" aria-label="Calendar key">
+          {[['bg-emerald-500', 'Present'], ['bg-amber-500', 'Pending'], ['bg-sky-500', 'Leave']].map(([dot, label]) => (
+            <li key={label} className="flex items-center gap-2"><span className={`w-2.5 h-2.5 rounded-full ${dot}`} aria-hidden="true" />{label}</li>
+          ))}
+        </ul>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm text-center space-y-8 relative overflow-hidden group">
-            <div className={`absolute top-0 inset-x-0 h-1.5 ${isCheckedIn ? 'bg-blue-500' : 'bg-slate-200'}`}></div>
-            
-            <div className={`w-24 h-24 rounded-3xl mx-auto flex items-center justify-center transition-all duration-500 ${isCheckedIn ? 'bg-blue-50 text-blue-600 shadow-lg shadow-blue-600/10' : 'bg-slate-50 text-slate-300'}`}>
-              <Clock size={48} className={isCheckedIn ? 'animate-pulse' : ''} />
-            </div>
-            
-            <div>
-              <h2 className="text-2xl font-black text-slate-900 tracking-tight">{isCheckedIn ? 'Session Active' : doneToday ? 'All Done for Today' : 'Start Session'}</h2>
-              <p className="text-sm font-bold text-slate-400 mt-2 leading-relaxed">
-                {isCheckedIn ? 'Tracking your working hours in real-time.' : doneToday ? "Today's attendance is recorded as a single entry. Use the calendar to request a correction." : 'Clock in to begin tracking your productivity for today.'}
-              </p>
-            </div>
+      <Tabs tabs={tabs} value={activeView} onChange={setActiveView} />
 
-            <button 
+      <div className="flex flex-wrap gap-5 items-start">
+        <div className="flex-1 basis-72 min-w-0 flex flex-col gap-5">
+          <div className="p-6 rounded-2xl bg-blue-600 text-white flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-3">
+              <span className="font-bold text-[15px]">Today's attendance</span>
+              <span className="text-[13px] font-bold px-2.5 py-1 rounded-full bg-white/20">{isCheckedIn ? 'Clocked in' : doneToday ? 'Done for today' : 'Clocked out'}</span>
+            </div>
+            <p className="text-sm text-blue-100">
+              {isCheckedIn ? 'Tracking your working hours in real time.' : doneToday ? "Today's attendance is recorded as a single entry. Use the calendar to request a correction." : 'Clock in to start today’s session.'}
+            </p>
+            <button
               onClick={handleAction}
               disabled={isLoading || doneToday}
-              className={`w-full py-4 rounded-2xl disabled:opacity-60 disabled:cursor-not-allowed font-black uppercase tracking-widest text-xs transition-all transform active:scale-95 shadow-xl flex items-center justify-center group/btn ${
-                isCheckedIn 
-                ? 'bg-rose-600 text-white hover:bg-rose-700 shadow-rose-600/20' 
-                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-600/20'
-              }`}
+              className="min-h-12 rounded-[10px] bg-white text-blue-800 font-bold text-base flex items-center justify-center gap-2 hover:bg-blue-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
             >
-              {isLoading ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              ) : isCheckedIn ? (
-                <>
-                  <LogOut size={18} className="mr-2 group-hover/btn:-translate-x-1 transition-transform" />
-                  Clock Out Now
-                </>
-              ) : (
-                <>
-                  <LogIn size={18} className="mr-2 group-hover/btn:translate-x-1 transition-transform" />
-                  {doneToday ? 'Done for Today' : 'Clock In Now'}
-                </>
-              )}
+              {isCheckedIn ? <LogOut size={18} aria-hidden="true" /> : <LogIn size={18} aria-hidden="true" />}
+              {isLoading ? 'Working…' : isCheckedIn ? 'Clock out' : doneToday ? 'Done for today' : 'Clock in'}
             </button>
           </div>
 
-          <div className="bg-slate-900 p-6 rounded-3xl text-white shadow-xl shadow-slate-900/20 relative overflow-hidden group">
-            <div className="relative z-10">
-              <div className="flex items-center gap-2 mb-6">
-                <div className="p-1.5 bg-blue-500/20 rounded-lg text-blue-400">
-                  <TrendingUp size={16} />
-                </div>
-                <h3 className="font-black text-[10px] uppercase tracking-widest">Performance Insights</h3>
+          <div className="p-6 rounded-2xl bg-white border border-slate-200 flex flex-col gap-3.5">
+            <h2 className="text-lg font-extrabold text-slate-900">Month summary</h2>
+            {[['Days present', String(daysPresent)], ['Hours worked', `${Math.round(hoursWorked * 10) / 10}h`], ['Average per day', daysPresent ? `${(hoursWorked / daysPresent).toFixed(1)}h` : '—']].map(([k, v]) => (
+              <div key={k} className="flex items-baseline justify-between gap-3 pb-3 border-b border-slate-100 last:border-0">
+                <span className="text-sm text-slate-600">{k}</span>
+                <span className="text-xl font-extrabold text-slate-900">{v}</span>
               </div>
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <p className="text-3xl font-black tracking-tight">{daysPresent}</p>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Days Present This Month</p>
-                </div>
-                <div>
-                  <p className="text-3xl font-black tracking-tight">{Math.round(hoursWorked * 10) / 10}h</p>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Hours This Month</p>
-                </div>
-              </div>
-            </div>
-            <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-blue-500 rounded-full opacity-10 blur-3xl group-hover:scale-150 transition-transform duration-700"></div>
+            ))}
           </div>
         </div>
 
-        <div className="lg:col-span-2">
+        <div className="flex-[2] basis-[28rem] min-w-0">
           {activeView === 'summary' ? (
             <MonthlySummary />
           ) : activeView === 'corrections' ? (
@@ -501,54 +413,46 @@ const Attendance = ({ user }: { user: any }) => {
               onLeaveAdded={(leave) => setLeaves((prev) => [leave, ...prev])}
             />
           ) : (
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden h-full">
-              <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
-                <h3 className="font-black text-slate-900 tracking-tight flex items-center">
-                  <History size={18} className="mr-2 text-blue-600" />
-                  Attendance History
-                  <span className="ml-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Times in {userTimeZone()}</span>
-                </h3>
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                  <History size={18} className="text-blue-600" aria-hidden="true" />
+                  History
+                  <span className="text-[13px] font-semibold text-slate-500">Times in {userTimeZone()}</span>
+                </h2>
                 <button
                   onClick={() => downloadFile(`/user/attendance/export?month=${new Date().toISOString().slice(0, 7)}&tz=${encodeURIComponent(userTimeZone())}`, 'attendance.csv').catch((e) => alert(e.message))}
-                  className="text-[10px] font-black uppercase tracking-widest text-blue-600 hover:underline"
+                  className="min-h-11 px-2 text-sm font-bold text-blue-800 hover:underline"
                 >
-                  Download Log
+                  Download log
                 </button>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
                     <tr className="bg-slate-50">
-                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">In</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Out</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Duration</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                      {['Date', 'In', 'Out', 'Duration', 'Status'].map((h) => <th key={h} scope="col" className="px-6 py-3 text-xs font-bold text-slate-500">{h}</th>)}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {logs.length > 0 ? logs.map((log: any) => (
-                      <tr key={log.id} className="hover:bg-slate-50/50 transition-colors group">
-                        <td className="px-6 py-4 font-black text-slate-900">{formatDate(log.checkInAt)}</td>
-                        <td className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-tighter">{formatTime(log.checkInAt)}</td>
-                        <td className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-tighter">{log.checkOutAt ? formatTime(log.checkOutAt) : '--:--'}</td>
-                        <td className="px-6 py-4 text-sm font-bold text-slate-600">
-                          {log.checkOutAt ? formatDuration(log.checkInAt, log.checkOutAt) : <span className="text-blue-600 animate-pulse">Tracking...</span>}
+                      <tr key={log.id} className="hover:bg-slate-50">
+                        <td className="px-6 py-4 font-bold text-slate-900">{formatDate(log.checkInAt)}</td>
+                        <td className="px-6 py-4 text-sm font-semibold text-slate-600">{formatTime(log.checkInAt)}</td>
+                        <td className="px-6 py-4 text-sm font-semibold text-slate-600">{log.checkOutAt ? formatTime(log.checkOutAt) : '--:--'}</td>
+                        <td className="px-6 py-4 text-sm font-semibold text-slate-700">
+                          {log.checkOutAt ? formatDuration(log.checkInAt, log.checkOutAt) : <span className="text-blue-800">Tracking…</span>}
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-widest ${
-                            log.status === 'Present' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-                          }`}>
-                            <CheckCircle2 size={12} className="mr-1" />
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[13px] font-bold ${log.status === 'Present' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                            <CheckCircle2 size={13} className="mr-1" aria-hidden="true" />
                             {log.status}
                           </span>
                         </td>
                       </tr>
                     )) : (
                       <tr>
-                        <td colSpan={5} className="px-6 py-20 text-center text-slate-400 font-bold text-sm italic">
-                          No activity recorded yet.
-                        </td>
+                        <td colSpan={5} className="px-6 py-16 text-center text-slate-500 font-semibold text-sm">No activity recorded yet.</td>
                       </tr>
                     )}
                   </tbody>

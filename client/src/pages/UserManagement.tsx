@@ -317,7 +317,7 @@ const UserManagement = () => {
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <table className="w-full text-left">
-          <thead className="bg-slate-50 text-slate-600 text-xs font-bold uppercase tracking-wider">
+          <thead className="bg-slate-50 text-slate-600 text-xs font-bold">
             <tr>
               <th className="px-6 py-4">User</th>
               <th className="px-6 py-4">Role</th>
@@ -359,7 +359,7 @@ const UserManagement = () => {
                 <td className="px-6 py-4">
                   <div className="flex flex-wrap gap-1">
                     {(Array.isArray(u.permissions) ? u.permissions : (u.permissions?.split(',') || [])).map(p => (
-                      <span key={p} className="text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded uppercase font-bold">
+                      <span key={p} className="text-xs px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded font-bold">
                         {p}
                       </span>
                     ))}

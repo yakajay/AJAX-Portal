@@ -78,11 +78,11 @@ const NotificationBell = () => {
         aria-label={`${t('header.notifications')}${inbox.unread ? ` (${inbox.unread} unread)` : ''}`}
         aria-haspopup="true"
         aria-expanded={open}
-        className="relative flex items-center justify-center w-10 h-10 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        className="relative flex items-center justify-center w-12 h-12 rounded-full border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
       >
         <Bell size={18} />
         {inbox.unread > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-rose-500 text-white text-[10px] font-black flex items-center justify-center">
+          <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-rose-500 text-white text-xs font-extrabold flex items-center justify-center">
             {inbox.unread > 9 ? '9+' : inbox.unread}
           </span>
         )}
@@ -91,7 +91,7 @@ const NotificationBell = () => {
       {open && (
         <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-xl shadow-2xl border border-slate-100 z-[100] overflow-hidden">
           <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-            <span className="text-sm font-black text-slate-900">{t('header.notifications')}</span>
+            <span className="text-sm font-extrabold text-slate-900">{t('header.notifications')}</span>
             {inbox.unread > 0 && (
               <button onClick={markAll} className="text-xs font-bold text-blue-600 hover:underline">{t('header.markAllRead')}</button>
             )}
@@ -105,13 +105,13 @@ const NotificationBell = () => {
                   <span className="min-w-0">
                     <span className="block text-sm font-bold text-slate-900">{n.title}</span>
                     {n.body && <span className="block text-xs text-slate-500 truncate">{n.body}</span>}
-                    <span className="block text-[11px] text-slate-400 mt-0.5">{timeAgo(n.createdAt)}</span>
+                    <span className="block text-xs text-slate-400 mt-0.5">{timeAgo(n.createdAt)}</span>
                   </span>
                 </button>
               </li>
             ))}
           </ul>
-          <Link to="/notifications" onClick={() => setOpen(false)} className="block text-center py-3 text-xs font-black uppercase tracking-widest text-blue-600 border-t border-slate-100 hover:bg-slate-50">
+          <Link to="/notifications" onClick={() => setOpen(false)} className="block text-center py-3 text-xs font-extrabold text-blue-600 border-t border-slate-100 hover:bg-slate-50">
             {t('header.viewAll')}
           </Link>
         </div>

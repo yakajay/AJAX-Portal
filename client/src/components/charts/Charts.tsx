@@ -30,7 +30,7 @@ export const BarChart = ({ data, label, height = 180, unit = '' }: { data: Point
       </div>
       <div className="flex gap-3 mt-2" aria-hidden="true">
         {data.map((d) => (
-          <span key={d.label} className="flex-1 min-w-0 text-center text-[11px] font-semibold text-slate-500 truncate" title={d.label}>{d.label}</span>
+          <span key={d.label} className="flex-1 min-w-0 text-center text-xs font-semibold text-slate-500 truncate" title={d.label}>{d.label}</span>
         ))}
       </div>
     </figure>
@@ -61,7 +61,7 @@ export const LineChart = ({ data, label, height = 180, unit = '' }: { data: Poin
         ))}
       </svg>
       <div className="flex justify-between mt-2" aria-hidden="true">
-        {data.map((d) => <span key={d.label} className="text-[11px] font-semibold text-slate-500">{d.label}</span>)}
+        {data.map((d) => <span key={d.label} className="text-xs font-semibold text-slate-500">{d.label}</span>)}
       </div>
     </figure>
   );
@@ -77,7 +77,7 @@ export const HBar = ({ data, label }: { data: Point[]; label: string }) => {
           <div className="flex-1 h-3 rounded-full bg-slate-100 overflow-hidden">
             <div className="h-full rounded-full bg-blue-600" style={{ width: `${(d.value / max) * 100}%` }} />
           </div>
-          <span className="w-8 text-right text-xs font-black text-slate-900">{d.value}</span>
+          <span className="w-8 text-right text-xs font-extrabold text-slate-900">{d.value}</span>
         </li>
       ))}
     </ul>

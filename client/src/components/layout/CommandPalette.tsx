@@ -101,7 +101,7 @@ const CommandPalette = ({ open, onClose, user, onLogout }: { open: boolean; onCl
             aria-activedescendant={results[active] ? `palette-${results[active].id}` : undefined}
             className="flex-1 py-4 bg-transparent outline-none text-sm font-semibold text-slate-900 placeholder-slate-400"
           />
-          <kbd className="text-[10px] font-bold text-slate-400 border border-slate-200 rounded px-1.5 py-0.5">Esc</kbd>
+          <kbd className="text-xs font-bold text-slate-400 border border-slate-200 rounded px-1.5 py-0.5">Esc</kbd>
         </div>
         <ul id="palette-list" role="listbox" className="max-h-80 overflow-y-auto py-2">
           {results.length === 0 && <li className="px-4 py-8 text-center text-sm text-slate-400 font-semibold">{t('palette.empty')}</li>}
@@ -109,7 +109,7 @@ const CommandPalette = ({ open, onClose, user, onLogout }: { open: boolean; onCl
             const header = entry.group !== lastGroup ? (lastGroup = entry.group) : null;
             return (
               <li key={entry.id} role="presentation">
-                {header && <p className="px-4 pt-3 pb-1 text-[10px] font-black uppercase tracking-widest text-slate-400">{t(header as 'palette.pages')}</p>}
+                {header && <p className="px-4 pt-3 pb-1 text-xs font-extrabold text-slate-400">{t(header as 'palette.pages')}</p>}
                 <button
                   id={`palette-${entry.id}`}
                   role="option"
@@ -126,7 +126,7 @@ const CommandPalette = ({ open, onClose, user, onLogout }: { open: boolean; onCl
             );
           })}
         </ul>
-        <div className="px-4 py-2 border-t border-slate-100 text-[11px] text-slate-400 font-semibold">{t('palette.hint')}</div>
+        <div className="px-4 py-2 border-t border-slate-100 text-xs text-slate-400 font-semibold">{t('palette.hint')}</div>
       </div>
     </div>
   );

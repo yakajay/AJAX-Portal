@@ -191,3 +191,17 @@ describe('holidays and leave policy (admin)', () => {
     await api().post('/api/user/leaves').set(me.auth).send({ type: 'Study Leave', startDate: '2030-06-03', endDate: '2030-06-04' }).expect(201);
   });
 });
+
+describe('leave balances (admin)', () => {
+  it('lists every active employee with their balances and leaves out locked accounts', async () => {
+    const admin = await makeAdmin();
+    const me = await makeUser({ joinDate: '2020-01-01' });
+    const gone = await makeUser({ locked: true });
+    await api().get('/api/admin/leave-balances').set(me.auth).expect(403);
+    const res = await api().get('/api/admin/leave-balances').set(admin.auth).expect(200);
+    const mine = res.body.find((r) => r.userId === me.user.id);
+    expect(mine.balances.map((b) => b.type)).toEqual(['Annual Leave', 'Sick Leave', 'Casual Leave']);
+    expect(mine.balances[0]).toMatchObject({ taken: 0, pending: 0 });
+    expect(res.body.some((r) => r.userId === gone.user.id)).toBe(false);
+  });
+});

@@ -134,7 +134,7 @@ const CandidateDetail = ({ candidate, canWrite, canHire, onClose, onChanged }: {
         <ErrorNote error={error} />
         {hired && (
           <div role="status" className="px-4 py-3 rounded-xl bg-emerald-50 text-emerald-800 text-sm">
-            {hired.user.name} is now an employee ({hired.user.employeeId}). Temporary password, shown only now: <code className="font-black">{hired.tempPassword}</code>. Share it privately.
+            {hired.user.name} is now an employee ({hired.user.employeeId}). Temporary password, shown only now: <code className="font-extrabold">{hired.tempPassword}</code>. Share it privately.
           </div>
         )}
 
@@ -167,7 +167,7 @@ const CandidateDetail = ({ candidate, canWrite, canHire, onClose, onChanged }: {
         )}
 
         <div>
-          <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Notes</h3>
+          <h3 className="text-xs font-extrabold text-slate-400 mb-2">Notes</h3>
           {!current.notes.length ? <p className="text-sm text-slate-400 italic">No notes yet.</p> : (
             <ul className="space-y-2">
               {current.notes.map((n) => (
@@ -221,7 +221,7 @@ const Recruitment = ({ user }: { user: User }) => {
               return (
                 <button key={j.id} role="listitem" aria-current={job?.id === j.id} onClick={() => setJobId(j.id)}
                   className={`w-full text-left p-4 rounded-2xl border transition-all ${job?.id === j.id ? 'border-blue-600 bg-blue-50' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
-                  <span className="block font-black text-slate-900">{j.title}</span>
+                  <span className="block font-extrabold text-slate-900">{j.title}</span>
                   <span className="block text-xs text-slate-500">{[j.department, j.location].filter(Boolean).join(' · ') || '—'}</span>
                   <span className="flex items-center gap-2 mt-2 text-xs text-slate-500"><Badge tone={j.status === 'Open' ? 'green' : 'slate'}>{j.status}</Badge>{total} candidate{total === 1 ? '' : 's'} · {j.stageCounts.Hired ?? 0}/{j.openings} hired</span>
                 </button>
@@ -232,7 +232,7 @@ const Recruitment = ({ user }: { user: User }) => {
           <div className="lg:col-span-3 space-y-4">
             {job && (
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div><h2 className="text-xl font-black text-slate-900">{job.title}</h2>{job.description && <p className="text-sm text-slate-500 max-w-2xl whitespace-pre-wrap">{job.description}</p>}</div>
+                <div><h2 className="text-xl font-extrabold text-slate-900">{job.title}</h2>{job.description && <p className="text-sm text-slate-500 max-w-2xl whitespace-pre-wrap">{job.description}</p>}</div>
                 {canWrite && (
                   <div className="flex gap-2">
                     <Button variant="secondary" small onClick={() => setJobForm(job)}>Edit</Button>
@@ -248,7 +248,7 @@ const Recruitment = ({ user }: { user: User }) => {
                   const list = (candidates.data ?? []).filter((c) => c.stage === stage);
                   return (
                     <section key={stage} aria-label={`${stage} candidates`} className="rounded-2xl border border-slate-200 bg-slate-50/60 p-3 space-y-2">
-                      <h3 className="flex justify-between text-xs font-black uppercase tracking-widest text-slate-400 px-1"><span>{stage}</span><span>{list.length}</span></h3>
+                      <h3 className="flex justify-between text-xs font-extrabold text-slate-400 px-1"><span>{stage}</span><span>{list.length}</span></h3>
                       {list.map((c) => (
                         <button key={c.id} onClick={() => setOpenId(c.id)} className="w-full text-left bg-white rounded-xl border border-slate-200 px-3 py-2 hover:border-blue-400">
                           <span className="block text-sm font-bold text-slate-900">{c.name}</span>
