@@ -8,6 +8,7 @@ import platformRoutes from './platform.routes.js';
 import { resolveTenant, requireTenantHost, requirePlatformHost } from '../middleware/tenant.js';
 import { renderMetrics } from '../utils/metrics.js';
 import { env } from '../config/env.js';
+import { version, commit } from '../utils/version.js';
 
 const router = Router();
 
@@ -15,7 +16,7 @@ const dbUp = () => mongoose.connection.readyState === 1;
 
 // Liveness: always 200 while the process is up (used by the Docker healthcheck)
 router.get('/health', (req, res) =>
-  res.json({ status: 'ok', db: dbUp() ? 'up' : 'down', uptimeSeconds: Math.round(process.uptime()) })
+  res.json({ status: 'ok', version, commit, db: dbUp() ? 'up' : 'down', uptimeSeconds: Math.round(process.uptime()) })
 );
 // Readiness: 503 until MongoDB is connected
 router.get('/health/ready', (req, res) =>

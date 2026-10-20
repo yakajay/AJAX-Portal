@@ -364,3 +364,12 @@ describe('custom leave policy', () => {
     expect(balances[0]).toMatchObject({ type: 'Study Leave', carriedForward: 1, remaining: 3 });
   });
 });
+
+describe('release versioning', () => {
+  it('has a CHANGELOG entry for the current server version', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { version } = await import('../src/utils/version.js');
+    const changelog = readFileSync(new URL('../../CHANGELOG.md', import.meta.url), 'utf8');
+    expect(changelog).toMatch(new RegExp(`^## \\[${version.replaceAll('.', '\\.')}\\] - \\d{4}-\\d{2}-\\d{2}`, 'm'));
+  });
+});

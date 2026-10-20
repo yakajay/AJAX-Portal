@@ -182,6 +182,8 @@ describe('operations endpoints', () => {
   it('reports health, readiness, metrics and the OpenAPI document', async () => {
     const health = await api().get('/api/health').expect(200);
     expect(health.body).toMatchObject({ status: 'ok', db: 'up' });
+    expect(health.body.version).toMatch(/^\d+\.\d+\.\d+/);
+    expect(health.body).toHaveProperty('commit');
     await api().get('/api/health/ready').expect(200);
 
     const metrics = await api().get('/api/metrics').expect(200);
