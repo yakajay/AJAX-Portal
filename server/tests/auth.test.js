@@ -137,7 +137,10 @@ describe('authenticator-app 2FA', () => {
     outbox.length = 0;
     const step1 = await api().post('/api/auth/login').send({ email: me.user.email, password: 'Password@1' }).expect(200);
     expect(step1.body.method).toBe('totp');
+    expect(step1.body.methods).toEqual(['totp', 'email']);
     expect(outbox).toHaveLength(0);
+    // No email code was requested, so an email-style code cannot sign in
+    await api().post('/api/auth/login/verify').send({ email: me.user.email, otp: '123456' }).expect(401);
     await api().post('/api/auth/login/verify').send({ email: me.user.email, otp: '000000' }).expect(401);
     const done = await api().post('/api/auth/login/verify').send({ email: me.user.email, otp: totp(setup.body.secret) }).expect(200);
     expect(done.body.token).toBeTruthy();

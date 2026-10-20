@@ -93,13 +93,14 @@ export const login = async (req, res) => {
     return res.json({
       otpRequired: true,
       method: 'totp',
+      methods: ['totp', 'email'],
       email,
       message: 'Enter the 6-digit code from your authenticator app.'
     });
   }
 
   await issueOtp(email, OTP_PURPOSE.LOGIN);
-  res.json({ otpRequired: true, method: 'email', email, message: 'Enter the code we emailed you to finish signing in.' });
+  res.json({ otpRequired: true, method: 'email', methods: ['email'], email, message: 'Enter the code we emailed you to finish signing in.' });
 };
 
 // POST /auth/login/verify - step 2: exchange the one-time code for a JWT
@@ -115,7 +116,8 @@ export const verifyLogin = async (req, res) => {
     // A code that was already used (even once, even by the real user) is refused
     valid = step !== null && (await userModel.consumeTotpStep(user.id, step));
   }
-  // Emailed codes always work too (the only method for users without an authenticator app)
+  // Emailed codes exist only if one was issued: automatically for users without an authenticator app,
+  // or on request (resend-otp) for users with one
   if (!valid) valid = await checkOtp(email, OTP_PURPOSE.LOGIN, req.body.otp);
   if (!valid) {
     return res.status(401).json(
@@ -198,6 +200,8 @@ export const logo = async (req, res) => {
 // Works for a suspended company too, so its people are told why they cannot sign in.
 export const workspace = (req, res) => {
   if (req.tenant.kind === 'platform') return res.json({ kind: 'platform', name: 'Platform console' });
+  // Shared address, nobody identified yet: a neutral sign-in page; the portal is chosen from the email
+  if (req.tenant.kind === 'portal') return res.json({ kind: 'portal', name: 'YakFlow', status: 'active' });
   const { company } = req;
   const sso = ssoReady(company);
   res.json({

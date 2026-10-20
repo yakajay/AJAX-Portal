@@ -1,7 +1,10 @@
+import mongoose from 'mongoose';
 import { Company } from '../models/company.model.js';
 import { env } from '../config/env.js';
 import { primeCompanyKey } from '../utils/crypto.js';
-import { enterScope } from '../utils/tenantContext.js';
+import { enterScope, runAcrossTenants } from '../utils/tenantContext.js';
+import { verifyToken } from '../utils/token.js';
+import { hashRefreshToken } from '../models/session.model.js';
 
 // Decides which company (or the platform console) a request is for, from its Host header:
 //   admin.<baseDomain> or <baseDomain>   -> the platform console (Super Admin)
@@ -31,18 +34,56 @@ const SUSPENDED_MESSAGES = {
 // X-Forwarded-Host. The reverse proxy must therefore pass the browser's Host through unchanged.
 const requestHost = (req) => String(req.headers.host || '').replace(/:\d+$/, '');
 
+// On an address that names no workspace (e.g. a shared *.web.app URL) the portal is worked out from who is
+// asking: the token's company once signed in, the user's company from the email while signing in.
+// Returns { kind: 'platform' | 'tenant' (with companyId) | 'portal' | 'ambiguous' }.
+const inferTarget = async (req) => {
+  const [scheme, bearer] = String(req.headers.authorization || '').split(' ');
+  if (scheme === 'Bearer' && bearer) {
+    try {
+      const { cid } = verifyToken(bearer);
+      if (cid) return { kind: 'tenant', companyId: cid };
+      if (cid === null) return { kind: 'platform' };
+    } catch { /* an invalid token is rejected later by authenticate */ }
+  }
+
+  const body = req.body || {};
+  let companyIds = null;
+  if (typeof body.email === 'string' && body.email.trim()) {
+    const users = await runAcrossTenants(() =>
+      mongoose.model('User').find({ email: body.email.trim().toLowerCase() }).select('companyId'));
+    companyIds = [...new Set(users.map((u) => (u.companyId ? String(u.companyId) : null)))];
+  } else if (typeof body.refreshToken === 'string' && body.refreshToken) {
+    const session = await runAcrossTenants(() =>
+      mongoose.model('Session').findOne({ refreshHash: hashRefreshToken(body.refreshToken) }).select('companyId'));
+    if (session) companyIds = [session.companyId ? String(session.companyId) : null];
+  }
+  if (!companyIds?.length) return { kind: 'portal' };
+  if (companyIds.length > 1) return { kind: 'ambiguous' };
+  return companyIds[0] ? { kind: 'tenant', companyId: companyIds[0] } : { kind: 'platform' };
+};
+
 export const resolveTenant = async (req, res, next) => {
-  const target = classifyHost(requestHost(req));
+  let target = classifyHost(requestHost(req));
+  if (target.kind === 'unknown') target = await inferTarget(req);
 
   if (target.kind === 'platform') {
     req.tenant = { kind: 'platform' };
     return enterScope({ scope: 'platform', companyId: null }, next);
   }
-  if (target.kind === 'unknown') {
-    return res.status(404).json({ code: 'WORKSPACE_NOT_FOUND', message: 'No workspace is configured for this address.' });
+  if (target.kind === 'portal') {
+    // Nobody identified yet: platform-scoped so lookups find nothing, and the login page can show a neutral form
+    req.tenant = { kind: 'portal' };
+    return enterScope({ scope: 'platform', companyId: null }, next);
+  }
+  if (target.kind === 'ambiguous') {
+    return res.status(409).json({
+      code: 'AMBIGUOUS_WORKSPACE',
+      message: 'This email belongs to more than one workspace. Open your company address to sign in.'
+    });
   }
 
-  const company = await Company.findOne({ slug: target.slug }).select('+dataKey');
+  const company = await Company.findOne(target.companyId ? { _id: target.companyId } : { slug: target.slug }).select('+dataKey');
   if (!company || company.status === 'deleted') {
     return res.status(404).json({ code: 'WORKSPACE_NOT_FOUND', message: 'This workspace does not exist.' });
   }

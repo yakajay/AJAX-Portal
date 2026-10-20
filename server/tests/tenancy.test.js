@@ -34,10 +34,17 @@ describe('which workspace a request is for', () => {
     expect((await platformApi().get('/api/auth/workspace').expect(200)).body.kind).toBe('platform');
   });
 
-  it('404s for a workspace that does not exist or a host that is not ours', async () => {
+  it('404s for a workspace that does not exist under our domain', async () => {
     const missing = await api('nothere.localhost').get('/api/auth/workspace').expect(404);
     expect(missing.body.code).toBe('WORKSPACE_NOT_FOUND');
-    await api('evil.example.com').get('/api/auth/workspace').expect(404);
+  });
+
+  it('serves a neutral sign-in on a shared address, then routes by token', async () => {
+    expect((await api('shared.example.com').get('/api/auth/workspace').expect(200)).body.kind).toBe('portal');
+    const mine = await makeAdmin();
+    const known = await api('shared.example.com').get('/api/auth/workspace').set(mine.auth).expect(200);
+    expect(known.body.kind).toBe('tenant');
+    await api('shared.example.com').get('/api/auth/me').set(mine.auth).expect(200);
   });
 });
 

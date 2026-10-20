@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import QRCode from 'qrcode';
 import { Laptop, LogOut, ShieldCheck, ShieldOff, Trash2 } from 'lucide-react';
 import type { User } from '../types';
 import { apiJson, apiSend } from '../lib/api';
@@ -16,6 +17,18 @@ const describeAgent = (ua: string) => {
   const browser = /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : 'Browser';
   const os = /Windows/.test(ua) ? 'Windows' : /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iOS' : /Mac OS/.test(ua) ? 'macOS' : /Linux/.test(ua) ? 'Linux' : '';
   return [browser, os].filter(Boolean).join(' on ');
+};
+
+// Rendered in the browser so the secret is never sent to a third-party QR service
+const SetupQr = ({ url }: { url: string }) => {
+  const [src, setSrc] = useState('');
+  useEffect(() => {
+    let live = true;
+    QRCode.toDataURL(url, { width: 192, margin: 1 }).then((d) => live && setSrc(d)).catch(() => live && setSrc(''));
+    return () => { live = false; };
+  }, [url]);
+  if (!src) return null;
+  return <img src={src} width={192} height={192} alt="QR code to add this account to your authenticator app" className="rounded-xl border border-slate-200 bg-white p-2" />;
 };
 
 const TwoFactor = ({ user, onUserUpdate }: { user: User; onUserUpdate: (u: User) => void }) => {
@@ -59,9 +72,10 @@ const TwoFactor = ({ user, onUserUpdate }: { user: User; onUserUpdate: (u: User)
         <div className="space-y-4">
           <ol className="list-decimal pl-5 text-sm text-slate-600 space-y-1">
             <li>Open an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password, Authy…).</li>
-            <li>Add an account and choose <strong>enter a setup key</strong>.</li>
-            <li>Enter the key below, then type the 6-digit code it shows.</li>
+            <li>Add an account and <strong>scan the QR code</strong> below (or choose <strong>enter a setup key</strong>).</li>
+            <li>Type the 6-digit code it shows.</li>
           </ol>
+          <SetupQr url={setup.otpauthUrl} />
           <div className="rounded-xl bg-slate-50 border border-slate-200 p-4">
             <p className="text-xs font-black uppercase tracking-widest text-slate-400">Setup key</p>
             <p className="font-mono text-lg tracking-widest text-slate-900 break-all select-all">{setup.secret.match(/.{1,4}/g)?.join(' ')}</p>

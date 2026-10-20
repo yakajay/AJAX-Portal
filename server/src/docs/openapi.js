@@ -14,7 +14,7 @@ const MOUNTS = [
 ];
 
 const DESCRIPTIONS = {
-  'POST /auth/login': 'Step 1 of sign-in. Verifies email + password, then either emails a one-time code (`method: "email"`) or asks for an authenticator-app code (`method: "totp"`).',
+  'POST /auth/login': 'Step 1 of sign-in. Verifies email + password, then either emails a one-time code (`method: "email"`) or, for users with an authenticator app, asks for that code (`method: "totp"`) without sending any email. Those users can request an emailed code via `/auth/resend-otp`. `methods` lists the available options.',
   'POST /auth/login/verify': 'Step 2 of sign-in. Exchanges the one-time code for `{ token, refreshToken, user }`. The access token is short-lived; renew it with `/auth/refresh`.',
   'POST /auth/refresh': 'Exchanges a refresh token for a new access token. The refresh token rotates on every call.',
   'POST /auth/logout': 'Ends the current device session.',

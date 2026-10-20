@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { API_BASE_URL } from '../config';
+import { getToken } from './api';
 import type { Module } from './permissions';
 
-/** What the address in the browser belongs to: a company workspace or the platform (Super Admin) console. */
+/** What the address belongs to: a company workspace, the platform (Super Admin) console, or the shared portal address (decided at sign-in). */
 export interface Workspace {
-  kind: 'tenant' | 'platform';
+  kind: 'tenant' | 'platform' | 'portal';
   name: string;
   slug?: string;
   status?: 'active' | 'suspended' | 'inactive' | 'deleted';
@@ -22,7 +23,9 @@ let cached: Promise<Workspace | null> | null = null;
 /** Public call (no sign-in needed). Resolves to null when the address is not a known workspace. */
 export const loadWorkspace = (force = false): Promise<Workspace | null> => {
   if (!cached || force) {
-    cached = fetch(`${API_BASE_URL}/auth/workspace`)
+    // The token (when signed in) tells a shared address which company this is
+    const token = getToken();
+    cached = fetch(`${API_BASE_URL}/auth/workspace`, token ? { headers: { Authorization: `Bearer ${token}` } } : undefined)
       .then((res) => (res.ok ? (res.json() as Promise<Workspace>) : null))
       .catch(() => null);
   }
