@@ -10,7 +10,11 @@ const platformTransporter = env.smtp.host
       host: env.smtp.host,
       port: env.smtp.port,
       secure: env.smtp.port === 465,
-      auth: env.smtp.user ? { user: env.smtp.user, pass: env.smtp.pass } : undefined
+      auth: env.smtp.user ? { user: env.smtp.user, pass: env.smtp.pass } : undefined,
+      // Fail fast instead of hanging for minutes on a dead connection
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 20_000
     })
   : null;
 
