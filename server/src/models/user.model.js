@@ -33,6 +33,7 @@ const userSchema = new mongoose.Schema(
     avatarData: { type: Buffer, select: false, default: undefined },
     avatarType: { type: String, default: '' },
     avatarUpdatedAt: { type: Date, default: null },
+    entityId: { type: mongoose.Schema.Types.ObjectId, ref: 'LegalEntity', default: null }, // the employing legal entity
     shiftId: { type: mongoose.Schema.Types.ObjectId, ref: 'Shift', default: null },
     phone: { type: String, default: '', trim: true },
     employeeId: { type: String, default: null, trim: true }, // unique per company when set
