@@ -19,6 +19,8 @@ import * as performance from '../controllers/performance.controller.js';
 import * as expenses from '../controllers/expense.controller.js';
 import * as checklists from '../controllers/checklist.controller.js';
 import * as company from '../controllers/admin/company.controller.js';
+import * as exits from '../controllers/exit.controller.js';
+import * as reports from '../controllers/admin/report.controller.js';
 import * as sensitive from '../controllers/admin/sensitive.controller.js';
 
 // ADMIN and SUPER_ADMIN only. Each route also checks a per-module permission (see utils/permissions.js).
@@ -33,6 +35,7 @@ router.get('/dashboard/analytics', dashboard.analytics);
 
 router.get('/users', can('users').read, users.list);
 router.delete('/users/:id/avatar', can('users').write, users.removeAvatar);
+router.get('/users/export', can('users').read, reports.exportEmployees);
 router.get('/users/import/template', can('users').write, users.importTemplate);
 router.post('/users/import', can('users').write, text({ type: 'text/csv', limit: users.MAX_IMPORT_BYTES }), users.importUsers);
 router.post('/users', can('users').write, users.create);
@@ -105,6 +108,7 @@ router.put('/payroll/tax-policy', can('payroll').write, payroll.setTaxPolicy);
 router.get('/payroll/structures', can('payroll').read, payroll.listStructures);
 router.put('/payroll/structures/:userId', can('payroll').write, payroll.setStructure);
 router.post('/payroll/run-monthly', can('payroll').write, payroll.runMonthly);
+router.get('/payroll/payslips/export', can('payroll').read, reports.exportPayslips);
 router.get('/payroll/payslips', can('payroll').read, payroll.listPayslips);
 router.post('/payroll/payslips/mark-paid', can('payroll').write, payroll.markPaid);
 router.get('/payroll/payslips/:id/pdf', can('payroll').read, payroll.payslipPdf);
@@ -141,6 +145,16 @@ router.get('/checklists', can('onboarding').read, checklists.listAll);
 router.post('/checklists', can('onboarding').write, checklists.assign);
 router.put('/checklists/:id/tasks/:taskId', can('onboarding').write, checklists.completeTaskAsAdmin);
 router.delete('/checklists/:id', can('onboarding').delete, company.deleteViaRequest('checklist'));
+
+router.get('/reports/workforce', can('users').read, reports.workforce);
+router.get('/reports/payroll', can('payroll').read, reports.payrollCost);
+router.get('/reports/leave', can('leave').read, reports.leaveUsage);
+
+router.get('/exits', can('onboarding').read, exits.listAll);
+router.post('/exits', can('onboarding').write, exits.initiate);
+router.put('/exits/:id/review', can('onboarding').write, exits.review);
+router.get('/exits/:id/settlement', can('onboarding').write, can('payroll').read, exits.previewSettlement);
+router.post('/exits/:id/settle', can('onboarding').write, can('payroll').write, exits.settle);
 
 // Company settings, single sign-on and support access: the company admin (SUPER_ADMIN) only
 router.get('/company', requireSuperAdmin, company.get);

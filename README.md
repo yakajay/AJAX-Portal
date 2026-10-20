@@ -11,6 +11,9 @@ React + Vite client (`client/`) and Express + MongoDB API (`server/`).
 | **Payroll** | Salary structures per employee, a monthly payroll run (unpaid leave prorates pay), PDF payslips for employees and admins, mark-as-paid, plus the existing partner payments ledger. |
 | **Notifications** | In-app bell + page, email for important events (leave, tickets, payroll, expenses…), per-user opt-out and an optional daily digest. |
 | **Organisation** | Departments, reporting lines, an org chart, manager-level approvals, announcements, and birthday / work-anniversary reminders on the dashboard. |
+| **Recruitment** | Job openings, a candidate pipeline (applied → interview → offer → hired), notes, verified resume uploads, and one-click hire that creates the employee account. |
+| **Offboarding** | Resignation requests (withdrawable), HR-initiated exits (termination, retirement, end of contract), approval with a last working day, and a full-and-final settlement: prorated final salary, annual-leave encashment, approved expense claims and deductions. Settling locks the account, signs the person out and records the payout. Uses the `onboarding` module and permission. |
+| **Reports & exports** | Workforce (headcount, joiners/leavers, attrition, tenure), payroll cost by month, leave taken, and CSV exports of employees, a month's payslips and attendance. Attendance now reports **overtime** (time beyond the shift length, or `ATTENDANCE_STANDARD_HOURS`, default 8). |
 | **People processes** | Onboarding / offboarding checklists with acknowledgements, performance review cycles (self + manager rating), goals with key results, expense claims with approval and reimbursement. |
 | **Support** | Tickets with priority, SLA timers, assignment, a comment thread, and a staff queue. |
 | **Outsourcing** | Contract start/end dates with expiry alerts, weekly timesheets, invoices (with overdue detection). |
@@ -18,7 +21,7 @@ React + Vite client (`client/`) and Express + MongoDB API (`server/`).
 | **Multi-tenancy** | Each client company gets its own workspace at `<company>.yourplatform.com`, onboarded by the platform's Super Admin (plan, enabled modules, first admin, suspend / deactivate). Companies are isolated at the data layer, admins raise delete requests instead of deleting, and the Super Admin sees platform-level data only unless a company grants temporary support access. See [Multi-tenancy](#multi-tenancy-companies-subdomains-and-sso). |
 | **UX** | `Ctrl/Cmd+K` command palette, dashboard charts, English / Hindi / Spanish shell, dark mode, mobile-friendly layout. |
 
-Not included: general file uploads / storage; the only upload is the optional company logo (below) (receipts and ticket attachments take a reference or link instead; HR documents stay metadata-only).
+Not included: a general file store. Uploads are limited to the company logo, profile photos, HR documents and candidate resumes (each type- and size-checked); expense receipts and ticket attachments take a reference or link instead. Overtime is tracked and exported but not yet paid through payroll.
 
 ## Run with Docker
 
@@ -96,7 +99,7 @@ docker compose run --rm api node scripts/merge-attendance.js --tz Asia/Kolkata -
 `USER` accounts only ever see their own data (plus their direct reports through the manager screens). `ADMIN` accounts get the admin screens, gated by permission tokens stored on the account:
 
 - global tokens `read`, `write`, `delete` apply to **every** area, and `all` grants everything;
-- area tokens such as `payroll:write`, `hr:delete` or `users:*` grant more in **one** area only (areas: `users leave attendance hr payroll outsourcing support org announcements performance expenses onboarding`).
+- area tokens such as `payroll:write`, `hr:delete` or `users:*` grant more in **one** area only (areas: `users leave attendance hr payroll outsourcing support org announcements performance expenses onboarding recruitment`).
 
 For example `read,payroll:write` is an admin who can see everything but only change payroll. Inside a company, `SUPER_ADMIN` is the **company admin**: it bypasses all permission checks and is the only role that can read the audit log, manage other admins, edit company settings / SSO and grant support access. Edit permissions under **User Management**. The platform's own staff use the separate `PLATFORM_ADMIN` role, which only exists outside companies and only works on the platform console.
 

@@ -19,4 +19,4 @@ export const readShift = (body) => {
 
 // The late / early-out thresholds a shift implies; undefined means "use the company defaults"
 export const shiftThresholds = (shift) =>
-  shift ? { lateAfter: fromMinutes(Math.min(toMinutes(shift.startTime) + (shift.graceMinutes || 0), 1439)), earlyBefore: shift.endTime } : {};
+  shift ? { lateAfter: fromMinutes(Math.min(toMinutes(shift.startTime) + (shift.graceMinutes || 0), 1439)), earlyBefore: shift.endTime, standardHours: (toMinutes(shift.endTime) - toMinutes(shift.startTime)) / 60 } : {};

@@ -8,6 +8,7 @@ import './contractor.model.js';
 import './deleteRequest.model.js';
 import './department.model.js';
 import './document.model.js';
+import './exit.model.js';
 import './expense.model.js';
 import './holiday.model.js';
 import './leave.model.js';

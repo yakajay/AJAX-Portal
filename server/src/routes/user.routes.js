@@ -5,6 +5,7 @@ import * as profile from '../controllers/user/profile.controller.js';
 import * as security from '../controllers/user/security.controller.js';
 import * as attendance from '../controllers/user/attendance.controller.js';
 import * as leave from '../controllers/user/leave.controller.js';
+import * as exits from '../controllers/exit.controller.js';
 import * as hr from '../controllers/user/hr.controller.js';
 import * as support from '../controllers/user/support.controller.js';
 import * as dashboard from '../controllers/user/dashboard.controller.js';
@@ -47,7 +48,7 @@ router.use('/payslips', requireModule('payroll'));
 router.use('/support', requireModule('support'));
 router.use(['/performance', '/goals'], requireModule('performance'));
 router.use('/expenses', requireModule('expenses'));
-router.use('/checklists', requireModule('onboarding'));
+router.use(['/checklists', '/exits'], requireModule('onboarding'));
 router.use('/announcements', requireModule('announcements'));
 router.use(['/departments', '/org-chart'], requireModule('org'));
 
@@ -100,6 +101,9 @@ router.get('/expenses', expenses.listMine);
 router.post('/expenses', expenses.submit);
 router.delete('/expenses/:id', expenses.withdraw);
 
+router.get('/exits', exits.listMine);
+router.post('/exits', exits.submit);
+router.delete('/exits/:id', exits.withdraw);
 router.get('/checklists', checklists.listMine);
 router.put('/checklists/:id/tasks/:taskId', checklists.completeTaskAsEmployee);
 
