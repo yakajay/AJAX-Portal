@@ -65,7 +65,7 @@ export const SalaryStructures = ({ user }: { user: User }) => {
                     <td className="px-6 py-3 text-sm text-slate-700">{money(row.structure.basic, row.structure.currency)}</td>
                     <td className="px-6 py-3 text-sm text-slate-700">{money(row.structure.hra, row.structure.currency)}</td>
                     <td className="px-6 py-3 text-sm text-slate-700">{money(row.structure.allowances, row.structure.currency)}</td>
-                    <td className="px-6 py-3 text-sm font-black text-slate-900">{money(gross(row.structure), row.structure.currency)}</td>
+                    <td className="px-6 py-3 text-sm font-extrabold text-slate-900">{money(gross(row.structure), row.structure.currency)}</td>
                     <td className="px-6 py-3 text-xs text-slate-500">{row.structure.pfPercent}% / {row.structure.taxPercent}%</td>
                   </> : <td colSpan={5} className="px-6 py-3 text-xs text-slate-400 italic">No structure — not included in payroll runs</td>}
                   <td className="px-6 py-3 text-right">{canWrite && <Button small variant="secondary" aria-label={`Edit salary for ${row.user.name}`} onClick={() => open(row)}><Pencil size={12} />{row.structure ? 'Edit' : 'Set up'}</Button>}</td>
@@ -83,7 +83,7 @@ export const SalaryStructures = ({ user }: { user: User }) => {
           <div className="grid grid-cols-2 gap-4">{num('pfPercent', 'Provident fund (% of basic)', '0.1')}{num('taxPercent', 'Income tax (% of gross)', '0.1')}</div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Other deductions (itemised)</span>
+              <span className="text-xs font-extrabold text-slate-400">Other deductions (itemised)</span>
               <Button small variant="secondary" aria-label="Add deduction" onClick={() => setItems([...items, { name: '', type: 'fixed', value: '', preTax: false }])}><Plus size={12} />Add</Button>
             </div>
             {items.map((item, i) => {
@@ -182,7 +182,7 @@ export const MonthlyPayroll = ({ user }: { user: User }) => {
                     <td className="px-6 py-3 text-sm text-slate-600">{p.paidDays}/{p.workingDays}{p.unpaidLeaveDays > 0 && <span className="text-xs text-amber-700"> ({p.unpaidLeaveDays} unpaid)</span>}</td>
                     <td className="px-6 py-3 text-sm text-slate-700">{money(p.gross, p.currency)}</td>
                     <td className="px-6 py-3 text-sm text-slate-700">{money(p.totalDeductions, p.currency)}</td>
-                    <td className="px-6 py-3 text-sm font-black text-slate-900">{money(p.net, p.currency)}</td>
+                    <td className="px-6 py-3 text-sm font-extrabold text-slate-900">{money(p.net, p.currency)}</td>
                     <td className="px-6 py-3"><Badge tone={statusTone(p.status)}>{p.status}</Badge></td>
                     <td className="px-6 py-3 text-right"><Button small variant="secondary" aria-label={`Download payslip for ${p.user?.name}`} onClick={() => downloadFile(`/admin/payroll/payslips/${p.id}/pdf`, `payslip-${p.month}.pdf`).catch((e) => setActionError(errorMessage(e)))}><Download size={12} />PDF</Button></td>
                   </tr>
@@ -246,7 +246,7 @@ export const TaxPolicyEditor = ({ user }: { user: User }) => {
               const last = i === policy.slabs.length - 1;
               return (
                 <div key={i} className="grid grid-cols-12 gap-2 items-center">
-                  <span className="col-span-1 text-xs font-black text-slate-400">#{i + 1}</span>
+                  <span className="col-span-1 text-xs font-extrabold text-slate-400">#{i + 1}</span>
                   {last
                     ? <span className="col-span-5 text-sm text-slate-500">Everything above the previous band</span>
                     : <input aria-label={`Slab ${i + 1} upper limit`} required type="number" min="0" step="1" disabled={!canWrite} placeholder="Yearly income up to" className={`${inputClass} col-span-5`} value={s.upTo ?? ''} onChange={(e) => setSlab(i, { upTo: e.target.value })} />}

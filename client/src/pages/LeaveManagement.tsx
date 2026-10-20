@@ -1,12 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { AlertCircle, Ban, Check, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { Ban, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { User } from '../types';
 import { apiJson, apiSend } from '../lib/api';
 import { can } from '../lib/permissions';
 import { currentMonth, errorMessage, formatDate, monthLabel } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
 import { HolidayManager, LeavePolicyEditor } from '../components/leave/LeaveAdmin';
-import { Badge, Button, Card, Empty, ErrorNote, Field, Modal, PageHeader, Spinner, Tabs, Th, inputClass, statusTone } from '../components/ui';
+import { Badge, Button, Card, Empty, ErrorNote, Field, PageHeader, Spinner, Tabs, Th, inputClass, statusTone } from '../components/ui';
 
 interface LeaveRequest {
   id: string; userId: string; type: string; startDate: string; endDate: string; days: number;
@@ -39,12 +39,13 @@ const workingDaysBetween = (start: string, end: string, holidays: Set<string>) =
   return count;
 };
 
-const ApplyLeaveModal = ({ open, onClose, onApplied, balances, holidays, types }: {
-  open: boolean; onClose: () => void; onApplied: () => void; balances: Balance[]; holidays: Holiday[]; types: string[];
+const ApplyLeaveForm = ({ onApplied, balances, holidays, types }: {
+  onApplied: () => void; balances: Balance[]; holidays: Holiday[]; types: string[];
 }) => {
   const blank = { type: '', startDate: '', endDate: '', halfDay: false, halfDayPart: 'First Half', reason: '' };
   const [form, setForm] = useState(blank);
   const [error, setError] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const holidaySet = useMemo(() => new Set(holidays.map((h) => holidayIso(h.date)).filter((d): d is string => !!d)), [holidays]);
@@ -53,12 +54,15 @@ const ApplyLeaveModal = ({ open, onClose, onApplied, balances, holidays, types }
   const chosen = form.type || types[0] || '';
   const balance = balances.find((b) => b.type === chosen);
 
-  const set = (patch: Partial<typeof form>) => setForm((f) => {
-    const next = { ...f, ...patch };
-    // A half day is a single date
-    if (next.halfDay && next.startDate) next.endDate = next.startDate;
-    return next;
-  });
+  const set = (patch: Partial<typeof form>) => {
+    setSent(false);
+    setForm((f) => {
+      const next = { ...f, ...patch };
+      // A half day is a single date
+      if (next.halfDay && next.startDate) next.endDate = next.startDate;
+      return next;
+    });
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,8 +71,8 @@ const ApplyLeaveModal = ({ open, onClose, onApplied, balances, holidays, types }
     try {
       await apiSend('POST', '/user/leaves', { ...form, type: form.type || types[0], halfDayPart: form.halfDay ? form.halfDayPart : undefined });
       setForm(blank);
+      setSent(true);
       onApplied();
-      onClose();
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -77,34 +81,47 @@ const ApplyLeaveModal = ({ open, onClose, onApplied, balances, holidays, types }
   };
 
   return (
-    <Modal open={open} title="Apply for leave" onClose={onClose}>
-      <form onSubmit={submit} className="space-y-4">
-        <ErrorNote error={error} />
-        <Field label="Leave type">
-          <select className={inputClass} value={chosen} onChange={(e) => set({ type: e.target.value })}>{types.map((t) => <option key={t}>{t}</option>)}</select>
-        </Field>
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Start date"><input required type="date" className={inputClass} value={form.startDate} onChange={(e) => set({ startDate: e.target.value, endDate: form.endDate < e.target.value || form.halfDay ? e.target.value : form.endDate })} /></Field>
-          <Field label="End date"><input required type="date" min={form.startDate} disabled={form.halfDay} className={inputClass} value={form.endDate} onChange={(e) => set({ endDate: e.target.value })} /></Field>
+    <form onSubmit={submit} className="flex-[2] basis-80 min-w-0 p-6 rounded-2xl bg-white border border-slate-200 flex flex-col gap-4">
+      <h2 className="text-lg font-extrabold text-slate-900">Request leave</h2>
+      <ErrorNote error={error} />
+      <fieldset className="flex flex-col gap-2 border-0 p-0 m-0">
+        <legend className="p-0 mb-2 text-[13px] font-bold text-slate-600">Type</legend>
+        <div className="flex flex-wrap gap-2">
+          {types.map((t) => (
+            <button
+              key={t}
+              type="button"
+              aria-pressed={chosen === t}
+              onClick={() => set({ type: t })}
+              className={`min-h-11 px-4 rounded-full text-sm font-bold border-[1.5px] border-blue-600 transition-colors ${chosen === t ? 'bg-blue-600 text-white' : 'bg-white text-blue-800 hover:bg-blue-50'}`}
+            >
+              {t}
+            </button>
+          ))}
         </div>
-        <div className="flex flex-wrap items-center gap-4">
-          <label className="flex items-center gap-2 text-sm font-semibold text-slate-700"><input type="checkbox" checked={form.halfDay} onChange={(e) => set({ halfDay: e.target.checked })} />Half day</label>
-          {form.halfDay && (
-            <select aria-label="Which half" className={`${inputClass} !w-auto`} value={form.halfDayPart} onChange={(e) => set({ halfDayPart: e.target.value })}>
-              <option>First Half</option><option>Second Half</option>
-            </select>
-          )}
-        </div>
-        <div className="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm text-slate-600" aria-live="polite">
-          {estimate === null ? 'Pick your dates to see the length.' : estimate === 0
-            ? 'These dates are weekends or holidays only.'
-            : <><strong className="text-slate-900">{estimate} working day{estimate === 1 ? '' : 's'}</strong> (weekends and public holidays are not counted).</>}
-          {balance && <span className="block text-xs text-slate-400 mt-1">You have {balance.remaining} {chosen.toLowerCase()} day(s) available.</span>}
-        </div>
-        <Field label="Reason"><textarea required rows={3} className={inputClass} value={form.reason} onChange={(e) => set({ reason: e.target.value })} placeholder="Provide a brief reason for your leave…" /></Field>
-        <Button type="submit" disabled={saving || estimate === 0} className="w-full">{saving ? 'Submitting…' : 'Submit request'}</Button>
-      </form>
-    </Modal>
+      </fieldset>
+      <div className="flex flex-wrap gap-3">
+        <div className="flex-1 basis-36"><Field label="From"><input required type="date" className={inputClass} value={form.startDate} onChange={(e) => set({ startDate: e.target.value, endDate: form.endDate < e.target.value || form.halfDay ? e.target.value : form.endDate })} /></Field></div>
+        <div className="flex-1 basis-36"><Field label="To"><input required type="date" min={form.startDate} disabled={form.halfDay} className={inputClass} value={form.endDate} onChange={(e) => set({ endDate: e.target.value })} /></Field></div>
+      </div>
+      <div className="flex flex-wrap items-center gap-4">
+        <label className="flex items-center gap-2 min-h-11 text-sm font-semibold text-slate-700"><input type="checkbox" className="w-5 h-5" checked={form.halfDay} onChange={(e) => set({ halfDay: e.target.checked })} />Half day</label>
+        {form.halfDay && (
+          <select aria-label="Which half" className={`${inputClass} !w-auto`} value={form.halfDayPart} onChange={(e) => set({ halfDayPart: e.target.value })}>
+            <option>First Half</option><option>Second Half</option>
+          </select>
+        )}
+      </div>
+      <div className="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm text-slate-600" aria-live="polite">
+        {estimate === null ? 'Pick your dates to see the length.' : estimate === 0
+          ? 'These dates are weekends or holidays only.'
+          : <><strong className="text-slate-900">{estimate} working day{estimate === 1 ? '' : 's'}</strong> (weekends and public holidays are not counted).</>}
+        {balance && <span className="block text-[13px] text-slate-500 mt-1">You have {balance.remaining} {chosen.toLowerCase()} day(s) available.</span>}
+      </div>
+      <Field label="Reason"><textarea required rows={3} className={inputClass} value={form.reason} onChange={(e) => set({ reason: e.target.value })} placeholder="A brief reason for your manager" /></Field>
+      <Button type="submit" disabled={saving || estimate === 0}>{saving ? 'Submitting…' : 'Submit request'}</Button>
+      {sent && <span role="status" className="text-sm font-semibold text-blue-800">Request sent to your manager for approval.</span>}
+    </form>
   );
 };
 
@@ -139,7 +156,7 @@ const TeamCalendar = () => {
       {loading && !data ? <Spinner /> : (
         <div className="overflow-x-auto">
           <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 rounded-xl overflow-hidden min-w-[640px]">
-            {WEEKDAYS.map((d) => <div key={d} className="bg-slate-50 py-2 text-center text-[10px] font-black uppercase tracking-widest text-slate-400">{d}</div>)}
+            {WEEKDAYS.map((d) => <div key={d} className="bg-slate-50 py-2 text-center text-xs font-extrabold text-slate-400">{d}</div>)}
             {cells.map((day, i) => {
               if (!day) return <div key={`blank-${i}`} className="bg-slate-50 min-h-24" />;
               const date = iso(day);
@@ -149,15 +166,15 @@ const TeamCalendar = () => {
               return (
                 <div key={date} className={`min-h-24 p-1.5 ${weekend ? 'bg-slate-50' : 'bg-white'} ${date === today ? 'ring-2 ring-inset ring-blue-500' : ''}`}>
                   <div className="text-xs font-bold text-slate-500">{day}</div>
-                  {holiday && <div className="mt-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 rounded px-1 truncate" title={holiday.name}>{holiday.name}</div>}
+                  {holiday && <div className="mt-1 text-xs font-bold text-emerald-700 bg-emerald-100 rounded px-1 truncate" title={holiday.name}>{holiday.name}</div>}
                   <ul className="mt-1 space-y-0.5">
                     {out.slice(0, 3).map((l) => (
-                      <li key={l.id} title={`${l.name} · ${l.type}${l.halfDay ? ' (half day)' : ''} · ${l.status}`} className={`flex items-center gap-1 text-[10px] font-semibold rounded px-1 truncate ${l.status === 'Pending' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'}`}>
+                      <li key={l.id} title={`${l.name} · ${l.type}${l.halfDay ? ' (half day)' : ''} · ${l.status}`} className={`flex items-center gap-1 text-xs font-semibold rounded px-1 truncate ${l.status === 'Pending' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'}`}>
                         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${TYPE_DOT[l.type] ?? 'bg-slate-400'}`} />
                         <span className="truncate">{l.name.split(' ')[0]}{l.halfDay ? ' ½' : ''}</span>
                       </li>
                     ))}
-                    {out.length > 3 && <li className="text-[10px] font-bold text-slate-400">+{out.length - 3} more</li>}
+                    {out.length > 3 && <li className="text-xs font-bold text-slate-400">+{out.length - 3} more</li>}
                   </ul>
                 </div>
               );
@@ -198,7 +215,6 @@ const LeaveManagement = ({ user }: { user: User | null }) => {
   const isApprover = can(user, 'leave', 'read');
   const canDecide = can(user, 'leave', 'write');
   const [tab, setTab] = useState<TabId>('my');
-  const [applyOpen, setApplyOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const mine = useAsync(() => apiJson<LeaveRequest[]>('/user/leaves'));
@@ -243,80 +259,58 @@ const LeaveManagement = ({ user }: { user: User | null }) => {
   const upcoming = (holidays.data ?? []).filter((h) => (holidayIso(h.date) ?? '') >= new Date().toISOString().slice(0, 10)).sort((a, b) => (holidayIso(a.date) ?? '').localeCompare(holidayIso(b.date) ?? ''));
 
   return (
-    <div className="space-y-6">
-      <PageHeader title="Leave Management" subtitle="Track balances, see who's out, and submit or approve requests."
-        actions={<Button onClick={() => setApplyOpen(true)}><Plus size={14} />Apply for leave</Button>} />
+    <div className="space-y-6 max-w-6xl">
+      <PageHeader title="Leave" subtitle={`Leave year ${new Date().getFullYear()} · track balances, see who's out, and submit or approve requests`} />
       <Tabs tabs={tabs} value={tab} onChange={setTab} />
       <ErrorNote error={actionError ?? mine.error ?? balances.error} />
 
       {tab === 'my' && (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <section className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-5">
             {balances.data?.map((b) => (
-              <div key={b.type} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm font-bold text-slate-500 uppercase tracking-wider">{b.type}</span>
-                  <div className={`w-2 h-2 rounded-full ${TYPE_DOT[b.type] ?? 'bg-slate-500'}`} />
+              <div key={b.type} className="p-5 rounded-2xl bg-white border border-slate-200 flex flex-col gap-2.5">
+                <span className="text-[13px] font-semibold text-slate-500">{b.type}</span>
+                <span className="text-3xl font-extrabold tracking-tight text-slate-900">
+                  {b.remaining} <span className="text-[15px] font-semibold text-slate-500">of {b.total} days left</span>
+                </span>
+                <div className="h-2 rounded-full bg-slate-100 overflow-hidden flex" role="img" aria-label={`${b.taken} taken, ${b.pending} pending of ${b.total}`}>
+                  <div className="h-2 bg-blue-600" style={{ width: `${b.total ? (b.taken / b.total) * 100 : 0}%` }} />
+                  <div className="h-2 bg-amber-300" style={{ width: `${b.total ? (b.pending / b.total) * 100 : 0}%` }} />
                 </div>
-                <div className="flex items-end justify-between">
-                  <div>
-                    <p className="text-3xl font-black text-slate-900">{b.remaining}</p>
-                    <p className="text-xs text-slate-400 font-bold mt-1">DAYS AVAILABLE</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-slate-600">{b.taken} / {b.total}</p>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Taken this year</p>
-                  </div>
-                </div>
-                <div className="mt-4 w-full bg-slate-100 h-2 rounded-full overflow-hidden flex" role="img" aria-label={`${b.taken} taken, ${b.pending} pending of ${b.total}`}>
-                  <div className={`h-full ${TYPE_DOT[b.type] ?? 'bg-slate-500'}`} style={{ width: `${(b.taken / b.total) * 100}%` }} />
-                  <div className="h-full bg-amber-300" style={{ width: `${(b.pending / b.total) * 100}%` }} />
-                </div>
-                <p className="mt-3 text-[11px] text-slate-400">
-                  {b.accrued < b.total ? `${b.accrued} accrued so far` : 'Fully accrued'}
-                  {b.carriedForward > 0 && ` · includes ${b.carriedForward} carried forward`}
-                  {b.pending > 0 && ` · ${b.pending} pending`}
-                </p>
+                <span className="text-[13px] text-slate-500">
+                  {b.taken} taken{b.pending > 0 && ` · ${b.pending} pending`}
+                  {b.accrued < b.total ? ` · ${b.accrued} accrued so far` : ''}
+                  {b.carriedForward > 0 && ` · ${b.carriedForward} carried forward`}
+                </span>
               </div>
             ))}
-          </div>
+          </section>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card title="Leave history" flush className="lg:col-span-2">
-              {mine.loading && !mine.data ? <Spinner /> : !mine.data?.length ? <Empty>No leave requests found.</Empty> : (
-                <LeaveTable rows={mine.data} showEmployee={false} actions={(l) => l.status === 'Pending' ? (
-                  <Button small variant="ghost" onClick={() => apiSend('PATCH', `/user/leaves/${l.id}/cancel`).then(refreshAll).catch((e) => setActionError(errorMessage(e)))}>Cancel</Button>
-                ) : null} />
-              )}
-            </Card>
-            <div className="space-y-6">
-              <div className="bg-slate-900 text-white p-6 rounded-2xl shadow-xl shadow-slate-900/20">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-blue-500/20 rounded-lg text-blue-400"><AlertCircle size={20} /></div>
-                  <h2 className="font-bold tracking-tight">Leave policy</h2>
-                </div>
-                <ul className="text-slate-300 text-xs leading-relaxed space-y-2 list-disc pl-4">
-                  <li>Leave accrues monthly or is granted in full on 1 January, depending on the type.</li>
-                  <li>Unused days carry into next year up to each type's limit.</li>
-                  <li>Weekends and public holidays aren't counted against your balance.</li>
-                  <li>Unpaid leave is unlimited but reduces that month's pay.</li>
-                </ul>
-              </div>
+          <section className="flex flex-wrap gap-5 items-start">
+            <ApplyLeaveForm onApplied={refreshAll} balances={balances.data ?? []} holidays={holidays.data ?? []} types={(leaveTypes.data ?? []).map((t) => t.type)} />
+            <div className="flex-[3] basis-[26rem] min-w-0 flex flex-col gap-5">
+              <Card title="History" flush>
+                {mine.loading && !mine.data ? <Spinner /> : !mine.data?.length ? <Empty>No leave requests found.</Empty> : (
+                  <LeaveTable rows={mine.data} showEmployee={false} actions={(l) => l.status === 'Pending' ? (
+                    <Button small variant="ghost" onClick={() => apiSend('PATCH', `/user/leaves/${l.id}/cancel`).then(refreshAll).catch((e) => setActionError(errorMessage(e)))}>Cancel</Button>
+                  ) : null} />
+                )}
+              </Card>
               <Card title="Upcoming holidays">
-                <div className="space-y-4">
-                  {upcoming.length === 0 ? <p className="text-xs text-slate-400 italic">No upcoming holidays.</p> : upcoming.slice(0, 6).map((h) => (
+                <div className="space-y-3.5">
+                  {upcoming.length === 0 ? <p className="text-sm text-slate-500">No upcoming holidays.</p> : upcoming.slice(0, 4).map((h) => (
                     <div key={h.id} className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-slate-50 flex flex-col items-center justify-center border border-slate-100">
-                        <span className="text-[10px] font-black text-slate-400 uppercase leading-none">{formatDate(holidayIso(h.date), { month: 'short' })}</span>
-                        <span className="text-sm font-black text-slate-900 leading-none mt-0.5">{formatDate(holidayIso(h.date), { day: 'numeric' })}</span>
+                      <div className="w-11 h-11 rounded-xl bg-slate-50 flex flex-col items-center justify-center border border-slate-200">
+                        <span className="text-xs font-bold text-slate-500 leading-none">{formatDate(holidayIso(h.date), { month: 'short' })}</span>
+                        <span className="text-sm font-extrabold text-slate-900 leading-none mt-0.5">{formatDate(holidayIso(h.date), { day: 'numeric' })}</span>
                       </div>
-                      <p className="text-sm font-bold text-slate-900">{h.name}</p>
+                      <p className="text-[15px] font-bold text-slate-900">{h.name}</p>
                     </div>
                   ))}
                 </div>
               </Card>
             </div>
-          </div>
+          </section>
         </>
       )}
 
@@ -343,7 +337,6 @@ const LeaveManagement = ({ user }: { user: User | null }) => {
         </Card>
       )}
 
-      <ApplyLeaveModal open={applyOpen} onClose={() => setApplyOpen(false)} onApplied={refreshAll} balances={balances.data ?? []} holidays={holidays.data ?? []} types={(leaveTypes.data ?? []).map((t) => t.type)} />
     </div>
   );
 };

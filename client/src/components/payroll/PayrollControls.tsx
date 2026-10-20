@@ -145,7 +145,7 @@ const AccountingPanel = ({ month, canWrite }: { month: string; canWrite: boolean
         {preview && preview.lines.length > 0 && (
           <div className="overflow-x-auto border border-slate-100 rounded-xl">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-widest text-slate-400"><tr><th className="px-4 py-2">Account</th><th className="px-4 py-2 text-right">Debit</th><th className="px-4 py-2 text-right">Credit</th></tr></thead>
+              <thead className="bg-slate-50 text-xs text-slate-400"><tr><th className="px-4 py-2">Account</th><th className="px-4 py-2 text-right">Debit</th><th className="px-4 py-2 text-right">Credit</th></tr></thead>
               <tbody className="divide-y divide-slate-100">{preview.lines.map((l, i) => <tr key={i}><td className="px-4 py-2">{l.account}</td><td className="px-4 py-2 text-right">{l.debit}</td><td className="px-4 py-2 text-right">{l.credit}</td></tr>)}</tbody>
             </table>
           </div>

@@ -92,6 +92,7 @@ router.post('/entities', can('hr').write, entities.create);
 router.put('/entities/assign', can('hr').write, entities.assign);
 router.put('/entities/:id', can('hr').write, entities.update);
 
+router.get('/leave-balances', can('leave').read, leaves.balances);
 router.get('/leave-policy', can('leave').read, leaves.getPolicy);
 router.put('/leave-policy', can('leave').write, leaves.updatePolicy);
 

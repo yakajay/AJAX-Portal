@@ -39,16 +39,16 @@ const RunPayrollModal = ({ isOpen, onClose, onConfirm, companies }) => {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-300">
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-300">
         <div className="px-6 py-5 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
-          <h2 className="text-xl font-black text-slate-900 tracking-tight">Run New Payroll</h2>
+          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Run New Payroll</h2>
           <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-400">
             <X size={20} />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Select Partner Company</label>
+            <label className="block text-xs font-extrabold text-slate-400 mb-1.5">Select Partner Company</label>
             <select 
               required
               className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:bg-white transition-all"
@@ -60,7 +60,7 @@ const RunPayrollModal = ({ isOpen, onClose, onConfirm, companies }) => {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Amount (₹)</label>
+            <label className="block text-xs font-extrabold text-slate-400 mb-1.5">Amount (₹)</label>
             <input 
               required
               type="number" 
@@ -71,7 +71,7 @@ const RunPayrollModal = ({ isOpen, onClose, onConfirm, companies }) => {
             />
           </div>
           <div>
-            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Payment Method</label>
+            <label className="block text-xs font-extrabold text-slate-400 mb-1.5">Payment Method</label>
             <select 
               className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:bg-white transition-all"
               value={formData.method}
@@ -86,7 +86,7 @@ const RunPayrollModal = ({ isOpen, onClose, onConfirm, companies }) => {
           <button 
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-cyan-600 text-white rounded-xl text-sm font-black uppercase tracking-widest hover:bg-cyan-700 transition-all shadow-lg shadow-cyan-600/20 active:scale-95 disabled:opacity-50 mt-4"
+            className="w-full py-3 bg-cyan-600 text-white rounded-xl text-sm font-extrabold hover:bg-cyan-700 transition-all shadow-lg shadow-cyan-600/20 active:scale-95 disabled:opacity-50 mt-4"
           >
             {loading ? 'Processing...' : 'Confirm & Run Payroll'}
           </button>
@@ -103,14 +103,14 @@ const StatCard = ({ title, value, icon: Icon, trend, trendValue, color, bgColor 
         <Icon size={20} />
       </div>
       {trend && (
-        <div className={`flex items-center text-[10px] font-black ${trend === 'up' ? 'text-emerald-500' : 'text-rose-500'} bg-slate-50 px-2 py-0.5 rounded-lg`}>
+        <div className={`flex items-center text-xs font-extrabold ${trend === 'up' ? 'text-emerald-500' : 'text-rose-500'} bg-slate-50 px-2 py-0.5 rounded-lg`}>
           {trend === 'up' ? <TrendingUp size={12} className="mr-0.5" /> : <ArrowDownRight size={12} className="mr-0.5" />}
           {trendValue}
         </div>
       )}
     </div>
-    <h3 className="text-slate-400 text-[10px] font-black uppercase tracking-widest">{title}</h3>
-    <p className="text-2xl font-black text-slate-900 mt-1 tracking-tight">{value}</p>
+    <h3 className="text-slate-400 text-xs font-extrabold">{title}</h3>
+    <p className="text-2xl font-extrabold text-slate-900 mt-1 tracking-tight">{value}</p>
   </div>
 );
 
@@ -210,13 +210,13 @@ const PaymentsView = ({ user }) => {
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Payroll</h1>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Payroll</h1>
           <p className="text-slate-500 text-sm mt-1">Manage bulk payments, tax accruals, and transaction history.</p>
         </div>
         <div className="flex items-center gap-3">
           <button 
             onClick={exportReport}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-extrabold text-slate-700 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
           >
             <Download size={16} />
             {selectedIds.length > 0 ? `Export (${selectedIds.length})` : 'Export Report'}
@@ -224,7 +224,7 @@ const PaymentsView = ({ user }) => {
           {canWrite && (
             <button 
               onClick={() => setIsModalOpen(true)}
-              className="flex items-center gap-2 px-6 py-2 bg-cyan-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-cyan-700 transition-all shadow-lg shadow-cyan-600/20 active:scale-95"
+              className="flex items-center gap-2 px-6 py-2 bg-cyan-600 text-white rounded-xl text-xs font-extrabold hover:bg-cyan-700 transition-all shadow-lg shadow-cyan-600/20 active:scale-95"
             >
               <Plus size={16} />
               Run Payroll
@@ -268,9 +268,9 @@ const PaymentsView = ({ user }) => {
         />
       </div>
 
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
-          <h2 className="text-lg font-black text-slate-900 tracking-tight">Recent Transactions</h2>
+          <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">Recent Transactions</h2>
           {selectedIds.length > 0 && (
             <span className="text-xs font-bold text-cyan-600 bg-cyan-50 px-3 py-1 rounded-full animate-in slide-in-from-right-2">
               {selectedIds.length} items selected
@@ -291,12 +291,12 @@ const PaymentsView = ({ user }) => {
                     />
                   </th>
                 )}
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Recipient</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Amount</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Method</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Invoice</th>
+                <th className="px-6 py-4 text-xs font-extrabold text-slate-400">Recipient</th>
+                <th className="px-6 py-4 text-xs font-extrabold text-slate-400">Date</th>
+                <th className="px-6 py-4 text-xs font-extrabold text-slate-400">Amount</th>
+                <th className="px-6 py-4 text-xs font-extrabold text-slate-400">Status</th>
+                <th className="px-6 py-4 text-xs font-extrabold text-slate-400">Method</th>
+                <th className="px-6 py-4 text-xs font-extrabold text-slate-400 text-right">Invoice</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -312,15 +312,15 @@ const PaymentsView = ({ user }) => {
                       />
                     </td>
                   )}
-                  <td className="px-6 py-5 font-black text-slate-900 group-hover:text-cyan-600 transition-colors">{tx.recipient}</td>
+                  <td className="px-6 py-5 font-extrabold text-slate-900 group-hover:text-cyan-600 transition-colors">{tx.recipient}</td>
                   <td className="px-6 py-5 text-sm font-bold text-slate-500">{tx.date}</td>
-                  <td className="px-6 py-5 font-black text-slate-900">{tx.amount}</td>
+                  <td className="px-6 py-5 font-extrabold text-slate-900">{tx.amount}</td>
                   <td className="px-6 py-5">
                     <div className="flex items-center">
                       {tx.status === 'Success' && <CheckCircle2 size={16} className="text-emerald-500 mr-2" />}
                       {tx.status === 'Processing' && <Clock size={16} className="text-amber-500 mr-2 animate-pulse" />}
                       {tx.status === 'Failed' && <AlertCircle size={16} className="text-rose-500 mr-2" />}
-                      <span className={`text-[10px] font-black uppercase tracking-widest ${
+                      <span className={`text-xs font-extrabold ${
                         tx.status === 'Success' ? 'text-emerald-700' :
                         tx.status === 'Processing' ? 'text-amber-700' :
                         'text-rose-700'
@@ -335,7 +335,7 @@ const PaymentsView = ({ user }) => {
                     </span>
                   </td>
                   <td className="px-6 py-5 text-right">
-                    <button className="text-cyan-600 hover:text-cyan-700 font-black text-[10px] uppercase tracking-widest bg-cyan-50 hover:bg-cyan-100 px-3 py-1.5 rounded-lg transition-all">
+                    <button className="text-cyan-600 hover:text-cyan-700 font-extrabold text-xs bg-cyan-50 hover:bg-cyan-100 px-3 py-1.5 rounded-lg transition-all">
                       Download
                     </button>
                   </td>
@@ -358,10 +358,10 @@ const PaymentsView = ({ user }) => {
       
       {isProcessing && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-white p-8 rounded-3xl shadow-2xl text-center space-y-6 max-w-xs w-full animate-in zoom-in-95 duration-300 border border-slate-100">
+          <div className="bg-white p-8 rounded-2xl shadow-2xl text-center space-y-6 max-w-xs w-full animate-in zoom-in-95 duration-300 border border-slate-100">
             <div className="w-16 h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
             <div>
-              <p className="text-xl font-black text-slate-900 tracking-tight">Processing Funds</p>
+              <p className="text-xl font-extrabold text-slate-900 tracking-tight">Processing Funds</p>
               <p className="text-sm font-bold text-slate-400 mt-1 leading-relaxed">Securing transfers and updating ledgers...</p>
             </div>
           </div>

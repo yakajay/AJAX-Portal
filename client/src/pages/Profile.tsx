@@ -1,213 +1,114 @@
 import React, { useState } from 'react';
-import { apiFetch } from '../lib/api';
-import { User, Mail, Lock, Save, Camera, Shield, Bell, Key } from 'lucide-react';
+import { apiFetch, readError } from '../lib/api';
+import { formatDate } from '../lib/format';
 import { ProfilePhoto } from '../components/profile/ProfilePhoto';
-import { PasswordInput } from '../components/ui';
+import { Badge, Button, Field, PasswordInput, inputClass } from '../components/ui';
+import type { User } from '../types';
 
-const Profile = ({ user, onUserUpdate }) => {
-  const [formData, setFormData] = useState({
-    name: user?.name || '',
-    email: user?.email || '',
-    dateOfBirth: user?.dateOfBirth || '',
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
-  });
+const Locked = () => <Badge tone="slate">HR managed</Badge>;
 
-  const [status, setStatus] = useState({ type: '', message: '' });
+const Profile = ({ user, onUserUpdate }: { user: User; onUserUpdate?: (u: User) => void }) => {
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({ name: user?.name || '', dateOfBirth: user?.dateOfBirth || '', currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
 
-  const handleSubmit = async (e) => {
+  const reset = () => setForm({ name: user?.name || '', dateOfBirth: user?.dateOfBirth || '', currentPassword: '', newPassword: '', confirmPassword: '' });
+
+  const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    const wantsPasswordChange = !!(formData.currentPassword || formData.newPassword || formData.confirmPassword);
-    if (wantsPasswordChange && formData.newPassword !== formData.confirmPassword) {
-      setStatus({ type: 'error', message: 'New passwords do not match.' });
+    const wantsPasswordChange = !!(form.currentPassword || form.newPassword || form.confirmPassword);
+    if (wantsPasswordChange && form.newPassword !== form.confirmPassword) {
+      setStatus({ ok: false, text: 'New passwords do not match.' });
       return;
     }
-
-    const readError = async (res, fallback) => {
-      const body = await res.json().catch(() => ({}));
-      return body.message || body.error || fallback;
-    };
-
     try {
-      const profileRes = await apiFetch('/user/profile', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: formData.name, dateOfBirth: formData.dateOfBirth || null })
-      });
+      const profileRes = await apiFetch('/user/profile', { method: 'PUT', body: JSON.stringify({ name: form.name, dateOfBirth: form.dateOfBirth || null }) });
       if (!profileRes.ok) throw new Error(await readError(profileRes, 'Failed to update profile'));
       const updated = await profileRes.json();
-
       if (wantsPasswordChange) {
-        const pwRes = await apiFetch('/user/password', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            currentPassword: formData.currentPassword,
-            newPassword: formData.newPassword
-          })
-        });
+        const pwRes = await apiFetch('/user/password', { method: 'PUT', body: JSON.stringify({ currentPassword: form.currentPassword, newPassword: form.newPassword }) });
         if (!pwRes.ok) throw new Error(await readError(pwRes, 'Failed to update password'));
       }
-
       onUserUpdate?.({ ...user, ...updated });
-      setFormData({ ...formData, currentPassword: '', newPassword: '', confirmPassword: '' });
-      setStatus({ type: 'success', message: 'Profile updated successfully!' });
+      setForm((f) => ({ ...f, currentPassword: '', newPassword: '', confirmPassword: '' }));
+      setEditing(false);
+      setStatus({ ok: true, text: 'Profile updated.' });
     } catch (err) {
-      setStatus({ type: 'error', message: err.message });
+      setStatus({ ok: false, text: err instanceof Error ? err.message : 'Something went wrong' });
     }
-    setTimeout(() => setStatus({ type: '', message: '' }), 3000);
   };
 
+  const subtitle = [user?.designation, user?.department].filter(Boolean).join(' · ') || user?.role?.replace('_', ' ');
+  const set = (k: 'name' | 'dateOfBirth' | 'currentPassword' | 'newPassword' | 'confirmPassword') => (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [k]: e.target.value });
+
+  const hrRows: [string, string][] = [
+    ['Employee ID', user?.employeeId || '—'],
+    ['Designation', user?.designation || '—'],
+    ['Department', user?.department || '—'],
+    ['Date of joining', formatDate(user?.joinDate)],
+    ['Phone', user?.phone || '—']
+  ];
+
   return (
-    <div className="max-w-5xl mx-auto space-y-10">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Settings</h1>
-          <p className="text-slate-500 text-sm mt-1">Manage your personal information, security, and notification preferences.</p>
-        </div>
-      </div>
-
-      {status.message && (
-        <div className={`p-4 rounded-2xl border ${
-          status.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-rose-50 border-rose-100 text-rose-700'
-        } animate-in fade-in slide-in-from-top-2 flex items-center shadow-sm`}>
-          <Save size={18} className="mr-3" />
-          <span className="font-bold text-sm">{status.message}</span>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm text-center relative overflow-hidden group">
-            <div className="absolute top-0 inset-x-0 h-1.5 bg-cyan-600"></div>
-            <div className="mt-4"><ProfilePhoto user={user} onUserUpdate={onUserUpdate} /></div>
-            <h3 className="mt-6 text-xl font-black text-slate-900 tracking-tight">{formData.name}</h3>
-            <div className="inline-flex items-center px-3 py-1 bg-cyan-50 text-cyan-700 rounded-lg text-[10px] font-black uppercase tracking-widest mt-2 border border-cyan-100">
-              {user?.role?.replace('_', ' ')}
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-            <h4 className="font-black text-[10px] text-slate-400 uppercase tracking-widest mb-6">Preferences</h4>
-            <div className="space-y-2">
-              <button className="w-full flex items-center gap-3 px-4 py-3 text-sm font-black text-cyan-600 bg-cyan-50 rounded-2xl border border-cyan-100">
-                <User size={18} />
-                Profile Info
-              </button>
-              <button className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-500 hover:bg-slate-50 rounded-2xl transition-all border border-transparent hover:border-slate-100">
-                <Bell size={18} />
-                Notifications
-              </button>
-              <button className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-500 hover:bg-slate-50 rounded-2xl transition-all border border-transparent hover:border-slate-100">
-                <Shield size={18} />
-                Security
-              </button>
-            </div>
+    <form onSubmit={save} className="space-y-6 max-w-5xl">
+      <header className="flex flex-wrap items-center justify-between gap-5">
+        <div className="flex items-center gap-5 min-w-0">
+          <ProfilePhoto user={user} onUserUpdate={onUserUpdate} />
+          <div className="flex flex-col gap-1 min-w-0">
+            <h1 className="text-[32px] leading-tight font-extrabold text-slate-900 tracking-tight break-words">{user?.name}</h1>
+            <span className="text-[15px] text-slate-600">{subtitle}</span>
           </div>
         </div>
-
-        <div className="lg:col-span-2 space-y-8">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="px-8 py-5 border-b border-slate-100 bg-slate-50/30">
-              <h3 className="font-black text-slate-900 tracking-tight">Personal Details</h3>
-            </div>
-            <form onSubmit={handleSubmit} className="p-8 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Full Name</label>
-                  <div className="relative">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-                    <input 
-                      type="text" 
-                      className="w-full pl-12 pr-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:bg-white transition-all font-medium"
-                      value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Email Address</label>
-                  <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-                    <input 
-                      type="email" 
-                      className="w-full pl-12 pr-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:bg-white transition-all font-medium"
-                      value={formData.email}
-                      onChange={(e) => setFormData({...formData, email: e.target.value})}
-                    readOnly disabled title="Email is your sign-in identity and cannot be changed here"
-                      />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2" htmlFor="dob">Date of Birth</label>
-                  <input
-                    id="dob"
-                    type="date"
-                    max={new Date().toISOString().slice(0, 10)}
-                    className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:bg-white transition-all font-medium"
-                    value={formData.dateOfBirth}
-                    onChange={(e) => setFormData({...formData, dateOfBirth: e.target.value})}
-                  />
-                  <p className="text-xs text-slate-400 mt-1">Colleagues see your birthday (not the year) on the dashboard.</p>
-                </div>
-              </div>
-
-              <div className="pt-8 border-t border-slate-100">
-                <div className="flex items-center gap-2 mb-6">
-                  <Key size={18} className="text-cyan-600" />
-                  <h3 className="font-black text-slate-900 tracking-tight">Security & Password</h3>
-                </div>
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Current Password</label>
-                    <div className="relative">
-                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-                      <PasswordInput 
-                        
-                        className="w-full pl-12 pr-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:bg-white transition-all font-medium"
-                        placeholder="••••••••"
-                        value={formData.currentPassword}
-                        onChange={(e) => setFormData({...formData, currentPassword: e.target.value})}
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">New Password</label>
-                      <PasswordInput 
-                        
-                        className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:bg-white transition-all font-medium"
-                        placeholder="••••••••"
-                        value={formData.newPassword}
-                        onChange={(e) => setFormData({...formData, newPassword: e.target.value})}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Confirm New Password</label>
-                      <PasswordInput 
-                        
-                        className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:bg-white transition-all font-medium"
-                        placeholder="••••••••"
-                        value={formData.confirmPassword}
-                        onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end pt-4">
-                <button type="submit" className="flex items-center gap-2 px-8 py-3 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl active:scale-95">
-                  <Save size={18} />
-                  Update Profile
-                </button>
-              </div>
-            </form>
-          </div>
+        <div className="flex gap-2.5">
+          {editing ? (
+            <>
+              <Button variant="secondary" onClick={() => { reset(); setEditing(false); setStatus(null); }}>Cancel</Button>
+              <Button type="submit">Save changes</Button>
+            </>
+          ) : (
+            <Button variant="secondary" onClick={() => { setEditing(true); setStatus(null); }}>Edit profile</Button>
+          )}
         </div>
-      </div>
-    </div>
+      </header>
+
+      {status && <p role="status" className={`text-sm font-semibold ${status.ok ? 'text-blue-800' : 'text-rose-700'}`}>{status.text}</p>}
+      {editing && <p className="text-sm text-slate-600">Fields marked “HR managed” can only be changed by the People team.</p>}
+
+      <section className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-5 items-start">
+        <div className="p-6 rounded-2xl bg-white border border-slate-200 flex flex-col gap-4">
+          <h2 className="text-lg font-extrabold text-slate-900">Personal</h2>
+          <Field label="Full name"><input className={inputClass} value={form.name} onChange={set('name')} disabled={!editing} required /></Field>
+          <Field label="Work email">
+            <div className="flex items-center gap-3"><input type="email" className={inputClass} value={user?.email ?? ''} disabled readOnly /><Locked /></div>
+          </Field>
+          <Field label="Date of birth" hint="Colleagues see your birthday (not the year) on the dashboard.">
+            <input type="date" className={inputClass} max={new Date().toISOString().slice(0, 10)} value={form.dateOfBirth} onChange={set('dateOfBirth')} disabled={!editing} />
+          </Field>
+        </div>
+
+        <div className="p-6 rounded-2xl bg-white border border-slate-200 flex flex-col gap-1">
+          <h2 className="text-lg font-extrabold text-slate-900 mb-2">Employment</h2>
+          {hrRows.map(([k, v]) => (
+            <div key={k} className="flex items-center justify-between gap-3 py-3 border-b border-slate-100 last:border-0">
+              <span className="flex flex-col"><span className="text-[13px] text-slate-500">{k}</span><span className="text-[15px] font-semibold text-slate-900">{v}</span></span>
+              {editing && <Locked />}
+            </div>
+          ))}
+        </div>
+
+        {editing && (
+          <div className="p-6 rounded-2xl bg-white border border-slate-200 flex flex-col gap-4 md:col-span-2">
+            <h2 className="text-lg font-extrabold text-slate-900">Change password</h2>
+            <p className="text-sm text-slate-600">Leave these empty to keep your current password.</p>
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
+              <Field label="Current password"><PasswordInput autoComplete="current-password" className={inputClass} value={form.currentPassword} onChange={set('currentPassword')} /></Field>
+              <Field label="New password"><PasswordInput autoComplete="new-password" className={inputClass} value={form.newPassword} onChange={set('newPassword')} /></Field>
+              <Field label="Confirm new password"><PasswordInput autoComplete="new-password" className={inputClass} value={form.confirmPassword} onChange={set('confirmPassword')} /></Field>
+            </div>
+          </div>
+        )}
+      </section>
+    </form>
   );
 };
 

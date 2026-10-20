@@ -39,7 +39,7 @@ const Reports = ({ user }: { user: User | null }) => {
       <ErrorNote error={error ?? workforce.error ?? payroll.error ?? leave.error} />
 
       <Card>
-        <h2 className="text-sm font-black text-slate-900 mb-3">Exports</h2>
+        <h2 className="text-sm font-extrabold text-slate-900 mb-3">Exports</h2>
         <div className="flex flex-wrap items-end gap-3">
           <input type="month" aria-label="Month" className={`${inputClass} w-44`} value={month} onChange={(e) => setMonth(e.target.value)} />
           {canUsers && <Button variant="secondary" onClick={() => download('/admin/users/export', 'employees.csv')}><Download size={14} />Employees</Button>}

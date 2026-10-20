@@ -43,7 +43,7 @@ export const ProfilePhoto = ({ user, onUserUpdate }: { user: User & { avatarVers
   return (
     <div className="text-center">
       <div className="relative inline-block">
-        <div className="w-28 h-28 rounded-3xl bg-cyan-50 overflow-hidden flex items-center justify-center text-cyan-700 text-4xl font-black border-4 border-white shadow-xl mx-auto">
+        <div className="w-28 h-28 rounded-2xl bg-cyan-50 overflow-hidden flex items-center justify-center text-cyan-700 text-4xl font-extrabold border-4 border-white shadow-xl mx-auto">
           <Avatar person={user} />
         </div>
         <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" aria-label="Profile photo file" className="hidden" onChange={(e) => { void pick(e.target.files?.[0]); e.target.value = ''; }} />

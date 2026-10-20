@@ -48,7 +48,7 @@ const Header = ({ toggleSidebar, user, onLogout, onOpenPalette }: {
       >
         <Search size={16} aria-hidden="true" />
         <span className="flex-1 text-left">{t('header.search')}</span>
-        <kbd className="text-[10px] font-bold border border-slate-200 rounded px-1.5 py-0.5">{isMac ? '⌘' : 'Ctrl'} K</kbd>
+        <kbd className="text-xs font-bold border border-slate-200 rounded px-1.5 py-0.5">{isMac ? '⌘' : 'Ctrl'} K</kbd>
       </button>
 
       <div className="flex items-center space-x-3">

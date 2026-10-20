@@ -23,7 +23,7 @@ const ChecklistCard = ({ list, asAdmin, onToggle }: { list: ChecklistRecord; asA
   <Card>
     <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
       <div>
-        <h3 className="font-black text-slate-900">{asAdmin ? list.user?.name : list.title}</h3>
+        <h3 className="font-extrabold text-slate-900">{asAdmin ? list.user?.name : list.title}</h3>
         <p className="text-xs text-slate-400">{asAdmin ? list.title : list.kind === 'ONBOARDING' ? 'Onboarding' : 'Offboarding'}</p>
       </div>
       <Badge tone={statusTone(list.status)}>{list.status} · {list.progress}%</Badge>
@@ -45,7 +45,7 @@ const ChecklistCard = ({ list, asAdmin, onToggle }: { list: ChecklistRecord; asA
             <div className="min-w-0 flex-1">
               <p className={`text-sm font-bold ${task.done ? 'text-slate-400 line-through' : 'text-slate-900'}`}>{task.title}</p>
               {task.description && <p className="text-xs text-slate-500">{task.description}</p>}
-              <p className="text-[11px] text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-400 mt-0.5">
                 {task.owner === 'HR' ? 'Handled by HR' : 'You'}{task.requiresAck ? ' · needs acknowledgement' : ''}{task.done && task.doneAt ? ` · done ${formatDate(task.doneAt)}` : ''}
               </p>
             </div>

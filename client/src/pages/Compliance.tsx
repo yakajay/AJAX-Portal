@@ -50,7 +50,7 @@ const Overview = ({ canWrite, onConfigure }: { canWrite: boolean; onConfigure: (
             {!data.filings.length ? <div className="p-6"><Empty>No recurring filings set up. <button className="underline font-bold" onClick={onConfigure}>Add the ones that apply to your company</button>.</Empty></div> : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
-                  <thead className="bg-slate-50 text-xs uppercase tracking-widest text-slate-400"><tr><th className="px-6 py-3">Filing</th><th className="px-6 py-3">Period</th><th className="px-6 py-3">Due</th><th className="px-6 py-3">Status</th><th className="px-6 py-3" /></tr></thead>
+                  <thead className="bg-slate-50 text-xs text-slate-400"><tr><th className="px-6 py-3">Filing</th><th className="px-6 py-3">Period</th><th className="px-6 py-3">Due</th><th className="px-6 py-3">Status</th><th className="px-6 py-3" /></tr></thead>
                   <tbody className="divide-y divide-slate-100">
                     {data.filings.map((o) => (
                       <tr key={`${o.key}-${o.period}`}>
@@ -73,7 +73,7 @@ const Overview = ({ canWrite, onConfigure }: { canWrite: boolean; onConfigure: (
               <div className="space-y-5">
                 {flagged.map((c) => (
                   <div key={c.id}>
-                    <p className="flex items-center gap-2 text-sm font-black text-slate-900"><Badge tone={c.severity === 'error' ? 'rose' : 'amber'}>{c.severity}</Badge>{c.title} <span className="text-slate-400">({c.items.length})</span></p>
+                    <p className="flex items-center gap-2 text-sm font-extrabold text-slate-900"><Badge tone={c.severity === 'error' ? 'rose' : 'amber'}>{c.severity}</Badge>{c.title} <span className="text-slate-400">({c.items.length})</span></p>
                     <ul className="mt-2 text-sm text-slate-600 divide-y divide-slate-100 border border-slate-100 rounded-xl">
                       {c.items.map((i) => <li key={`${c.id}-${i.userId}`} className="px-4 py-2 flex justify-between gap-4"><span className="font-bold text-slate-800">{i.name}</span><span className="text-right">{i.detail}</span></li>)}
                     </ul>
@@ -132,7 +132,7 @@ const Rules = ({ canWrite }: { canWrite: boolean }) => {
             <label className="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" disabled={!canWrite} checked={s.requireTaxId} onChange={(e) => edit({ requireTaxId: e.target.checked })} />Every employee must have a tax ID on file</label>
           </div>
           <div className="space-y-3">
-            <div className="flex items-center justify-between"><span className="text-xs font-black text-slate-400 uppercase tracking-widest">Recurring filings and payments</span>
+            <div className="flex items-center justify-between"><span className="text-xs font-extrabold text-slate-400">Recurring filings and payments</span>
               {canWrite && <Button small variant="secondary" onClick={() => edit({ filings: [...s.filings, { name: '', frequency: 'monthly', dueDay: 15, dueMonth: null, authority: '', note: '' }] })}><Plus size={12} />Add filing</Button>}</div>
             {!s.filings.length && <Empty>No filings yet. Examples: provident fund return, tax-deducted-at-source payment, social security contribution.</Empty>}
             {s.filings.map((f, i) => (

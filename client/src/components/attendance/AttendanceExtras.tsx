@@ -53,7 +53,7 @@ export const MonthlySummary = () => {
                         <td className="px-6 py-3 text-sm font-bold text-slate-900">{formatDate(d.date, { weekday: 'short', month: 'short', day: 'numeric' })}</td>
                         <td className="px-6 py-3 text-sm text-slate-600">{time(d.firstIn)}</td>
                         <td className="px-6 py-3 text-sm text-slate-600">{time(d.lastOut)}</td>
-                        <td className="px-6 py-3 text-sm font-black text-slate-900">{d.hours}h</td>
+                        <td className="px-6 py-3 text-sm font-extrabold text-slate-900">{d.hours}h</td>
                         <td className="px-6 py-3 space-x-1">{d.late && <Badge tone="amber">Late</Badge>}{d.earlyOut && <Badge tone="amber">Early out</Badge>}{!d.late && !d.earlyOut && <span className="text-slate-300">—</span>}</td>
                       </tr>
                     ))}

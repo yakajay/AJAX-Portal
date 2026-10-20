@@ -15,6 +15,12 @@ commit, and merge to `main`. Use *major* for breaking changes, *minor* for new f
 Sections per release: **Added**, **Changed**, **Fixed**, **Security**, **Ops**.
 
 ## [Unreleased]
+### Added
+- CRM workspace for Admins and Super Admins (switch between HRMS and CRM in the sidebar): overview, employees with a details page (edit, suspend and reinstate, delete), approvals for leave, attendance corrections and expenses, holiday calendar, leave balances for every employee, payroll with payslip preview, and roles and access (Super Admin).
+- Documents page for employees' own HR documents.
+- `GET /api/admin/leave-balances`: every active employee's balance per leave type.
+### Changed
+- Redesigned the app shell, shared components and the Attendance, Leave, Payslips, Directory and Profile screens to match the new design (sentence-case labels, larger touch targets, month list and detail layout for payslips).
 
 ## [1.6.0] - 2026-10-21
 ### Added

@@ -80,7 +80,7 @@ const Announcements = ({ user }: { user: User | null }) => {
                 <div className="flex items-start gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="text-lg font-black text-slate-900">{a.title}</h2>
+                      <h2 className="text-lg font-extrabold text-slate-900">{a.title}</h2>
                       {a.pinned && <Badge tone="blue"><Pin size={10} className="mr-1" />Pinned</Badge>}
                       {expired && <Badge tone="slate">Expired</Badge>}
                     </div>

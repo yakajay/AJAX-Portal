@@ -50,16 +50,16 @@ const AddPartnerModal = ({ isOpen, onClose, onAdd }) => {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-300">
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-300">
         <div className="px-6 py-5 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
-          <h2 className="text-xl font-black text-slate-900 tracking-tight">Add New Partner</h2>
+          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Add New Partner</h2>
           <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-400">
             <X size={20} />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Contractor Name</label>
+            <label className="block text-xs font-extrabold text-slate-400 mb-1.5">Contractor Name</label>
             <input 
               required
               type="text" 
@@ -71,7 +71,7 @@ const AddPartnerModal = ({ isOpen, onClose, onAdd }) => {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Role</label>
+              <label className="block text-xs font-extrabold text-slate-400 mb-1.5">Role</label>
               <input 
                 required
                 type="text" 
@@ -82,7 +82,7 @@ const AddPartnerModal = ({ isOpen, onClose, onAdd }) => {
               />
             </div>
             <div>
-              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Status</label>
+              <label className="block text-xs font-extrabold text-slate-400 mb-1.5">Status</label>
               <select 
                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:bg-white transition-all"
                 value={formData.status}
@@ -95,7 +95,7 @@ const AddPartnerModal = ({ isOpen, onClose, onAdd }) => {
             </div>
           </div>
           <div>
-            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Partner Company</label>
+            <label className="block text-xs font-extrabold text-slate-400 mb-1.5">Partner Company</label>
             <input 
               required
               type="text" 
@@ -107,7 +107,7 @@ const AddPartnerModal = ({ isOpen, onClose, onAdd }) => {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Country</label>
+              <label className="block text-xs font-extrabold text-slate-400 mb-1.5">Country</label>
               <input 
                 required
                 type="text" 
@@ -118,7 +118,7 @@ const AddPartnerModal = ({ isOpen, onClose, onAdd }) => {
               />
             </div>
             <div>
-              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Rating (0-5)</label>
+              <label className="block text-xs font-extrabold text-slate-400 mb-1.5">Rating (0-5)</label>
               <input 
                 type="number" 
                 step="0.1" max="5" min="0"
@@ -130,17 +130,17 @@ const AddPartnerModal = ({ isOpen, onClose, onAdd }) => {
           </div>
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Contract start</label>
+              <label className="block text-xs font-extrabold text-slate-400 mb-1.5">Contract start</label>
               <input type="date" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:bg-white transition-all"
                 value={formData.contractStart} onChange={(e) => setFormData({...formData, contractStart: e.target.value})} />
             </div>
             <div>
-              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Contract end</label>
+              <label className="block text-xs font-extrabold text-slate-400 mb-1.5">Contract end</label>
               <input type="date" min={formData.contractStart} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:bg-white transition-all"
                 value={formData.contractEnd} onChange={(e) => setFormData({...formData, contractEnd: e.target.value})} />
             </div>
             <div>
-              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Rate / hour</label>
+              <label className="block text-xs font-extrabold text-slate-400 mb-1.5">Rate / hour</label>
               <input type="number" min="0" step="0.01" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:bg-white transition-all"
                 value={formData.hourlyRate} onChange={(e) => setFormData({...formData, hourlyRate: e.target.value})} placeholder="0.00" />
             </div>
@@ -148,7 +148,7 @@ const AddPartnerModal = ({ isOpen, onClose, onAdd }) => {
           <button 
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-cyan-600 text-white rounded-xl text-sm font-black uppercase tracking-widest hover:bg-cyan-700 transition-all shadow-lg shadow-cyan-600/20 active:scale-95 disabled:opacity-50 mt-4"
+            className="w-full py-3 bg-cyan-600 text-white rounded-xl text-sm font-extrabold hover:bg-cyan-700 transition-all shadow-lg shadow-cyan-600/20 active:scale-95 disabled:opacity-50 mt-4"
           >
             {loading ? 'Adding...' : 'Add Partner'}
           </button>
@@ -192,18 +192,18 @@ const PartnersView = ({ user }) => {
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Outsourcing</h1>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Outsourcing</h1>
           <p className="text-slate-500 text-sm mt-1">Manage global partners and external talent pools.</p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 transition-all shadow-sm">
+          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-extrabold text-slate-700 hover:bg-slate-50 transition-all shadow-sm">
             <Filter size={16} />
             Filter
           </button>
           {canWrite && (
             <button 
               onClick={() => setIsModalOpen(true)}
-              className="flex items-center gap-2 px-6 py-2 bg-cyan-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-cyan-700 transition-all shadow-lg shadow-cyan-600/20 active:scale-95"
+              className="flex items-center gap-2 px-6 py-2 bg-cyan-600 text-white rounded-xl text-xs font-extrabold hover:bg-cyan-700 transition-all shadow-lg shadow-cyan-600/20 active:scale-95"
             >
               <UserPlus size={16} />
               Add Partner
@@ -218,8 +218,8 @@ const PartnersView = ({ user }) => {
             <Users size={28} />
           </div>
           <div>
-            <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Total Partners</p>
-            <p className="text-3xl font-black text-slate-900 mt-1">{contractors.length}</p>
+            <p className="text-xs text-slate-400 font-extrabold">Total Partners</p>
+            <p className="text-3xl font-extrabold text-slate-900 mt-1">{contractors.length}</p>
           </div>
         </div>
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center">
@@ -227,8 +227,8 @@ const PartnersView = ({ user }) => {
             <Plus size={28} />
           </div>
           <div>
-            <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Active Hires</p>
-            <p className="text-3xl font-black text-slate-900 mt-1">42</p>
+            <p className="text-xs text-slate-400 font-extrabold">Active Hires</p>
+            <p className="text-3xl font-extrabold text-slate-900 mt-1">42</p>
           </div>
         </div>
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center">
@@ -236,13 +236,13 @@ const PartnersView = ({ user }) => {
             <FileText size={28} />
           </div>
           <div>
-            <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Open Requests</p>
-            <p className="text-3xl font-black text-slate-900 mt-1">5</p>
+            <p className="text-xs text-slate-400 font-extrabold">Open Requests</p>
+            <p className="text-3xl font-extrabold text-slate-900 mt-1">5</p>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
           <div className="relative w-full max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
@@ -262,13 +262,13 @@ const PartnersView = ({ user }) => {
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-slate-50">
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Contractor</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Partner Company</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Contract ends</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Location</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Rating</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                  <th className="px-6 py-4 text-xs font-extrabold text-slate-400">Contractor</th>
+                  <th className="px-6 py-4 text-xs font-extrabold text-slate-400">Partner Company</th>
+                  <th className="px-6 py-4 text-xs font-extrabold text-slate-400">Status</th>
+                  <th className="px-6 py-4 text-xs font-extrabold text-slate-400">Contract ends</th>
+                  <th className="px-6 py-4 text-xs font-extrabold text-slate-400">Location</th>
+                  <th className="px-6 py-4 text-xs font-extrabold text-slate-400">Rating</th>
+                  <th className="px-6 py-4 text-xs font-extrabold text-slate-400 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -276,12 +276,12 @@ const PartnersView = ({ user }) => {
                   <tr key={contractor.id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="px-6 py-5">
                       <div className="flex items-center">
-                        <div className="w-10 h-10 rounded-xl bg-slate-100 mr-4 flex items-center justify-center font-black text-cyan-700 text-xs shadow-sm border border-slate-200 group-hover:bg-white transition-colors">
+                        <div className="w-10 h-10 rounded-xl bg-slate-100 mr-4 flex items-center justify-center font-extrabold text-cyan-700 text-xs shadow-sm border border-slate-200 group-hover:bg-white transition-colors">
                           {contractor.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
                         </div>
                         <div>
-                          <p className="text-sm font-black text-slate-900 group-hover:text-cyan-600 transition-colors">{contractor.name}</p>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{contractor.role}</p>
+                          <p className="text-sm font-extrabold text-slate-900 group-hover:text-cyan-600 transition-colors">{contractor.name}</p>
+                          <p className="text-xs font-bold text-slate-400 mt-0.5">{contractor.role}</p>
                         </div>
                       </div>
                     </td>
@@ -292,7 +292,7 @@ const PartnersView = ({ user }) => {
                       </div>
                     </td>
                     <td className="px-6 py-5">
-                      <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${
+                      <span className={`px-2 py-1 rounded-lg text-xs font-extrabold ${
                         contractor.status === 'Active' ? 'bg-emerald-100 text-emerald-700 shadow-sm shadow-emerald-600/10' :
                         contractor.status === 'On Bench' ? 'bg-cyan-100 text-cyan-700 shadow-sm shadow-cyan-600/10' :
                         'bg-amber-100 text-amber-700 shadow-sm shadow-amber-600/10'
@@ -310,7 +310,7 @@ const PartnersView = ({ user }) => {
                       </div>
                     </td>
                     <td className="px-6 py-5">
-                      <div className="flex items-center font-black text-slate-900">
+                      <div className="flex items-center font-extrabold text-slate-900">
                         <Star size={14} className="mr-1.5 text-amber-400 fill-amber-400" />
                         {contractor.rating.toFixed(1)}
                       </div>
