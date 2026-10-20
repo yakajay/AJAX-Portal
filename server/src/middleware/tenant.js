@@ -11,8 +11,9 @@ import { hashRefreshToken } from '../models/session.model.js';
 //   <slug>.<baseDomain>                  -> that company's workspace
 // and runs the rest of the request inside that scope, so the data layer can only see that tenant.
 export const classifyHost = (hostname) => {
-  const { baseDomain, platformSubdomain, defaultTenantSlug } = env.tenancy;
+  const { baseDomain, platformSubdomain, platformHost, defaultTenantSlug } = env.tenancy;
   const host = String(hostname || '').toLowerCase().replace(/\.$/, '');
+  if (platformHost && host === platformHost) return { kind: 'platform' };
   if (host === baseDomain || host === `${platformSubdomain}.${baseDomain}`) return { kind: 'platform' };
   if (host.endsWith(`.${baseDomain}`)) {
     const slug = host.slice(0, -(baseDomain.length + 1));
@@ -32,7 +33,10 @@ const SUSPENDED_MESSAGES = {
 
 // The raw Host header, not req.hostname: with TRUST_PROXY on, Express would prefer a client-supplied
 // X-Forwarded-Host. The reverse proxy must therefore pass the browser's Host through unchanged.
-const requestHost = (req) => String(req.headers.host || '').replace(/:\d+$/, '');
+const requestHost = (req) => {
+  const forwarded = env.tenancy.trustForwardedHost && String(req.headers['x-forwarded-host'] || '').split(',')[0].trim();
+  return String(forwarded || req.headers.host || '').replace(/:\d+$/, '');
+};
 
 // On an address that names no workspace (e.g. a shared *.web.app URL) the portal is worked out from who is
 // asking: the token's company once signed in, the user's company from the email while signing in.
@@ -65,7 +69,11 @@ const inferTarget = async (req) => {
 
 export const resolveTenant = async (req, res, next) => {
   let target = classifyHost(requestHost(req));
-  if (target.kind === 'unknown') target = await inferTarget(req);
+  if (target.kind === 'unknown') {
+    target = await inferTarget(req);
+    // With a dedicated console address, platform admins sign in there, never on the shared company address
+    if (target.kind === 'platform' && env.tenancy.platformHost) target = { kind: 'portal' };
+  }
 
   if (target.kind === 'platform') {
     req.tenant = { kind: 'platform' };

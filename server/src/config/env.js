@@ -41,6 +41,12 @@ export const env = {
     // Public URL parts, used to show admins the redirect URIs to register with their identity provider
     publicScheme: process.env.PUBLIC_SCHEME || (isProduction ? 'https' : 'http'),
     publicPort: process.env.PUBLIC_PORT || '',
+    // Exact host of the platform (Super Admin) console, e.g. crm.example.com. Any other address that names no
+    // company (e.g. app.example.com) is the shared sign-in for company admins and employees.
+    platformHost: (process.env.PLATFORM_HOST || '').trim().toLowerCase(),
+    // Behind Firebase Hosting the Host header is the Cloud Run address; the visitor's address arrives in
+    // X-Forwarded-Host. Only turn this on when every request really comes through such a proxy.
+    trustForwardedHost: process.env.TRUST_FORWARDED_HOST === 'true',
     // Full address people actually open (e.g. https://my-project.web.app) when every company shares one address
     // instead of <slug>.<baseDomain>. Shown as each company's address and used in links we email.
     publicUrl: (process.env.PUBLIC_URL || '').trim().replace(/\/+$/, ''),

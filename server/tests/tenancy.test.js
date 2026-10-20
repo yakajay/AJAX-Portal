@@ -27,6 +27,22 @@ describe('which workspace a request is for', () => {
     expect(classifyHost('')).toEqual({ kind: 'unknown' });
   });
 
+  it('treats the configured platform host as the console and other hosts as shared', async () => {
+    const { env } = await import('../src/config/env.js');
+    env.tenancy.platformHost = 'crm.example.com';
+    try {
+      expect(classifyHost('crm.example.com')).toEqual({ kind: 'platform' });
+      expect(classifyHost('app.example.com')).toEqual({ kind: 'unknown' });
+      // A platform admin's email on the shared address gets the neutral form, not the console
+      await makePlatformAdmin({ email: 'root@example.com', password: 'secret123' });
+      const res = await api('app.example.com').post('/api/auth/login').send({ email: 'root@example.com', password: 'secret123' });
+      expect(res.status).toBe(401);
+      expect((await api('app.example.com').get('/api/auth/workspace').expect(200)).body.kind).toBe('portal');
+    } finally {
+      env.tenancy.platformHost = '';
+    }
+  });
+
   it('describes the workspace to the login page', async () => {
     const res = await api().get('/api/auth/workspace').expect(200);
     expect(res.body).toMatchObject({ kind: 'tenant', name: 'Acme Corp', slug: 'acme', status: 'active', sso: { enabled: false } });
