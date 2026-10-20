@@ -363,8 +363,9 @@ describe('delete requests', () => {
     const res = await api().delete(`/api/admin/users/${victim.user.id}`).set(admin.auth).expect(200);
     expect(res.body).toMatchObject({ deleted: true });
     await api().get('/api/auth/me').set(victim.auth).expect(401);
-    const log = await api().get('/api/admin/audit?q=Direct').set(admin.auth).expect(200);
-    expect(log.body.items.map((i) => i.action)).toContain('user.delete');
+    // The audit summary names the employee by email, so look the entry up by action
+    const log = await api().get('/api/admin/audit?action=user.delete').set(admin.auth).expect(200);
+    expect(log.body.items.map((i) => i.entityId)).toContain(victim.user.id);
     await api().delete(`/api/admin/users/${victim.user.id}`).set(admin.auth).expect(404);
   });
 
@@ -425,7 +426,7 @@ describe('delete requests', () => {
 
   it('keeps one company from approving or even seeing another company\'s requests', async () => {
     const co = await makeCompany('rival');
-    const admin = await makeSuperAdmin();
+    const admin = await makeAdmin({ permissions: 'read,users:delete' }); // a company super admin deletes directly instead of asking
     const rival = await makeSuperAdmin({}, co.company);
     const target = await makeUser();
     const asked = await api().post('/api/admin/delete-requests').set(admin.auth).send({ targetType: 'user', targetId: target.user.id }).expect(201);
