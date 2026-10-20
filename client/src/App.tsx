@@ -37,6 +37,7 @@ const PlatformAudit = lazy(() => import('./pages/platform/PlatformAudit'));
 import type { User } from './types';
 import { getToken, setSession, clearToken, apiFetch, UNAUTHORIZED_EVENT } from './lib/api';
 import { I18nProvider } from './lib/i18n';
+import { loadWorkspace } from './lib/workspace';
 
 function App() {
   const [user, setUser] = useState<User | null>(() => {
@@ -54,10 +55,12 @@ function App() {
     clearToken();
     sessionStorage.removeItem('user');
     sessionStorage.removeItem('lastActivity');
+    void loadWorkspace(true);
   }, []);
 
   const handleLogin = (userData: User, token: string, refreshToken?: string) => {
     setSession(token, refreshToken);
+    void loadWorkspace(true); // now that we are signed in, the shared address knows our company
     setUser(userData);
     sessionStorage.setItem('user', JSON.stringify(userData));
     sessionStorage.setItem('lastActivity', Date.now().toString());

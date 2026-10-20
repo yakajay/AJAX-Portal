@@ -21,6 +21,8 @@ const OtpForm = ({ email, purpose, submitLabel, method = 'email', submitting, on
   const [cooldown, setCooldown] = useState(method === 'totp' ? 0 : RESEND_COOLDOWN);
   const [notice, setNotice] = useState('');
   const [emailSent, setEmailSent] = useState(method !== 'totp');
+  // For MFA users the email code is only sent when they pick it
+  const [choice, setChoice] = useState<'app' | 'email'>(method === 'totp' ? 'app' : 'email');
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -50,8 +52,30 @@ const OtpForm = ({ email, purpose, submitLabel, method = 'email', submitting, on
         onSubmit(otp);
       }}
     >
+      {method === 'totp' && (
+        <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1 text-sm font-medium">
+          {([
+            ['app', 'Authenticator app'],
+            ['email', 'Email code']
+          ] as const).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => {
+                setChoice(value);
+                setOtp('');
+                if (value === 'email' && !emailSent && cooldown <= 0) void resend();
+              }}
+              className={`rounded-lg py-2 ${choice === value ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
       <p className="text-sm text-slate-600">
-        {method === 'totp' && !emailSent ? (
+        {method === 'totp' && choice === 'app' ? (
           <>Open your authenticator app and enter the 6-digit code for <span className="font-medium text-slate-900">{email}</span>.</>
         ) : (
           <>We emailed a 6-digit code to <span className="font-medium text-slate-900">{email}</span>.</>
@@ -93,14 +117,16 @@ const OtpForm = ({ email, purpose, submitLabel, method = 'email', submitting, on
         {submitLabel}
       </button>
 
-      <button
-        type="button"
-        onClick={resend}
-        disabled={cooldown > 0}
-        className="w-full text-sm font-medium text-emerald-600 hover:text-emerald-500 disabled:text-slate-400"
-      >
-        {cooldown > 0 ? `Resend code in ${cooldown}s` : method === 'totp' && !emailSent ? 'Email me a code instead' : 'Resend code'}
-      </button>
+      {choice === 'email' && (
+        <button
+          type="button"
+          onClick={resend}
+          disabled={cooldown > 0}
+          className="w-full text-sm font-medium text-emerald-600 hover:text-emerald-500 disabled:text-slate-400"
+        >
+          {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
+        </button>
+      )}
     </form>
   );
 };
