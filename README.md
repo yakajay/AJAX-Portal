@@ -26,6 +26,10 @@ React + Vite client (`client/`) and Express + MongoDB API (`server/`).
 
 Not included: acting as an Employer of Record (it needs a legal entity in each country), filing taxes with government agencies, live accounting-package sync, and a general file store. Uploads are limited to the company logo, profile photos, HR documents and candidate resumes (each type- and size-checked); expense receipts and ticket attachments take a reference or link instead. Overtime is tracked and exported but not yet paid through payroll.
 
+## Versions and releases
+
+Every release has an entry in [CHANGELOG.md](CHANGELOG.md) (features, fixes, ops changes). The version lives in `server/package.json`; the API reports it with the deployed commit at `GET /api/health` (`version`, `commit`) and in its startup log line, and each deploy tags the commit `v<version>`. When investigating an error: read the version from the log or health endpoint, then `git show v<version>` and the changelog entry for what shipped. To cut a release run `scripts/release.sh patch|minor|major`, fill in the changelog, and merge to `main`; the tests fail if the changelog has no entry for the current version.
+
 ## Run with Docker
 
 Requires Docker Desktop (Compose v2).

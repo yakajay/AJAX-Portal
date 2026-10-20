@@ -3,6 +3,7 @@ import { env } from './src/config/env.js';
 import { connectDB } from './src/config/db.js';
 import { logger } from './src/utils/logger.js';
 import { startJobs } from './src/jobs.js';
+import { version, commit, revision } from './src/utils/version.js';
 
 try {
   await connectDB();
@@ -12,7 +13,7 @@ try {
 }
 
 const server = app.listen(env.port, () => {
-  logger.info({ port: env.port }, 'YakFlow API listening');
+  logger.info({ port: env.port, version, commit, revision }, `YakFlow API v${version} (${commit.slice(0, 7)}) listening`);
 });
 const stopJobs = startJobs();
 

@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: read
+  contents: write # tags the released version
   id-token: write
 
 env:
@@ -75,8 +75,11 @@ jobs:
       - name: Deploy backend to Cloud Run
         # Existing env vars (MongoDB, secrets) are kept on the service automatically
         run: |
+          VERSION=$(node -p "require('./server/package.json').version")
           gcloud run deploy "$SERVICE" \
             --source server \
+            --update-env-vars "GIT_SHA=${GITHUB_SHA}" \
+            --update-labels "app-version=${VERSION//./-},git-sha=${GITHUB_SHA::12}" \
             --project "$PROJECT_ID" \
             --region "$REGION" \
             --port 5000 \
@@ -86,6 +89,15 @@ jobs:
         run: |
           URL=$(gcloud run services describe "$SERVICE" --region "$REGION" --project "$PROJECT_ID" --format='value(status.url)')
           curl -fsS "$URL/api/health"
+      - name: Tag the released version
+        run: |
+          VERSION=$(node -p "require('./server/package.json').version")
+          if git ls-remote --exit-code --tags origin "refs/tags/v${VERSION}" >/dev/null; then
+            echo "v${VERSION} already tagged; this deploy is a rebuild of that version (commit ${GITHUB_SHA::7})."
+          else
+            git tag "v${VERSION}" "$GITHUB_SHA"
+            git push origin "v${VERSION}"
+          fi
 
   deploy-client:
     needs: [changes, test, deploy-server]
