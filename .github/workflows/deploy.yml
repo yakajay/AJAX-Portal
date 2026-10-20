@@ -123,5 +123,9 @@ jobs:
           service_account: ${{ env.DEPLOY_SA }}
       - run: npm ci
       - run: npm run build
+        env:
+          # Repository variables (Settings > Secrets and variables > Actions > Variables); blank = no redirect
+          VITE_APP_URL: ${{ vars.APP_URL }}
+          VITE_PLATFORM_URL: ${{ vars.PLATFORM_URL }}
       - name: Deploy frontend to Firebase Hosting
         run: npx --yes firebase-tools@latest deploy --only hosting --project "$PROJECT_ID" --non-interactive
