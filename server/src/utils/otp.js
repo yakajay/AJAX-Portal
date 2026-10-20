@@ -32,16 +32,30 @@ export const issueOtp = async (email, purpose) => {
   }
 
   const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
-  await otpModel.replace(email, purpose, {
+  const record = await otpModel.replace(email, purpose, {
     codeHash: hashCode(email, purpose, code),
     expiresAt: new Date(Date.now() + env.otpTtlMinutes * 60 * 1000)
   });
 
-  await sendMail({
+  const mail = {
     to: email,
     subject: `YakFlow - ${SUBJECTS[purpose]}`,
     text: `Your verification code is ${code}. It expires in ${env.otpTtlMinutes} minutes. If you did not request it, ignore this email.`
-  });
+  };
+  try {
+    try {
+      await sendMail(mail);
+    } catch (err) {
+      // SMTP servers drop connections now and then; one quick retry hides most of those
+      console.warn(`[otp] send failed, retrying once: ${err.message}`);
+      await sendMail(mail);
+    }
+  } catch (err) {
+    // The code never left, so drop it: otherwise the resend throttle above would swallow the user's
+    // next attempt (200 response, no email)
+    await otpModel.remove(record.id);
+    throw err;
+  }
   return true;
 };
 
