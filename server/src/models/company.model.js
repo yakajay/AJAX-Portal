@@ -71,6 +71,37 @@ const companySchema = new mongoose.Schema(
         standardDeduction: { type: Number, default: 0 },
         pfReducesTaxable: { type: Boolean, default: true }
       },
+      // Ledger accounts the payroll journal posts to (utils/accountingExport.js); blanks use the defaults
+      accounting: {
+        salaryExpense: { type: String, default: '', trim: true },
+        pfPayable: { type: String, default: '', trim: true },
+        taxPayable: { type: String, default: '', trim: true },
+        otherPayable: { type: String, default: '', trim: true },
+        salariesPayable: { type: String, default: '', trim: true },
+        entityName: { type: String, default: '', trim: true } // company name inside the accounting package (Tally)
+      },
+      // Thresholds and recurring filings the company is held to (utils/compliance.js). Nothing statutory is built in.
+      compliance: {
+        requireGovernmentId: { type: Boolean, default: false },
+        requireTaxId: { type: Boolean, default: false },
+        minimumWage: { amount: { type: Number, default: null }, currency: { type: String, default: 'INR' } },
+        noticePeriodDays: { type: Number, default: null },
+        settlementDays: { type: Number, default: null },
+        maxMonthlyOvertimeHours: { type: Number, default: null },
+        filings: {
+          type: [new mongoose.Schema({
+            key: { type: String, required: true },
+            name: { type: String, required: true },
+            frequency: { type: String, enum: ['monthly', 'quarterly', 'yearly'], required: true },
+            dueDay: { type: Number, required: true },
+            dueMonth: { type: Number, default: null },
+            since: { type: String, default: null }, // YYYY-MM-DD: deadlines before this are not tracked
+            authority: { type: String, default: '' },
+            note: { type: String, default: '' }
+          }, { _id: false })],
+          default: undefined
+        }
+      },
       // Leave types and entitlements; empty means the built-in defaults (utils/leavePolicy.js)
       leavePolicy: {
         type: [new mongoose.Schema({
