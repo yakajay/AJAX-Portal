@@ -5,6 +5,8 @@ import { Spinner } from './components/ui';
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Outsourcing = lazy(() => import('./pages/Outsourcing'));
 const Payroll = lazy(() => import('./pages/Payroll'));
+const Compliance = lazy(() => import('./pages/Compliance'));
+const Employers = lazy(() => import('./pages/Employers'));
 const Attendance = lazy(() => import('./pages/Attendance'));
 const HRHub = lazy(() => import('./pages/HRHub'));
 const EmployeeDirectory = lazy(() => import('./pages/EmployeeDirectory'));
@@ -141,6 +143,8 @@ function App() {
                   <Route path="/" element={<Dashboard user={user} />} />
                   <Route path="/outsourcing" element={isAdmin ? <Outsourcing user={user} /> : <Navigate to="/" replace />} />
                   <Route path="/payroll" element={isAdmin ? <Payroll user={user} /> : <Navigate to="/" replace />} />
+                  <Route path="/compliance" element={isAdmin ? <Compliance user={user} /> : <Navigate to="/" replace />} />
+                  <Route path="/employers" element={isAdmin ? <Employers user={user} /> : <Navigate to="/" replace />} />
                   <Route path="/attendance" element={<Attendance user={user} />} />
                   <Route path="/hr-hub" element={<HRHub user={user} />} />
                   <Route path="/directory" element={<EmployeeDirectory user={user} />} />

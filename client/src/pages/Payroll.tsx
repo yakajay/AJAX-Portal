@@ -17,6 +17,7 @@ import { apiFetch } from '../lib/api';
 import { can } from '../lib/permissions';
 import { Tabs } from '../components/ui';
 import { SalaryStructures, MonthlyPayroll, TaxPolicyEditor } from '../components/payroll/PayrollExtras';
+import { PayrollControls } from '../components/payroll/PayrollControls';
 
 const RunPayrollModal = ({ isOpen, onClose, onConfirm, companies }) => {
   const [formData, setFormData] = useState({
@@ -371,12 +372,13 @@ const PaymentsView = ({ user }) => {
 };
 
 const Payroll = ({ user }) => {
-  const [tab, setTab] = useState<'monthly' | 'structures' | 'tax' | 'payments'>('monthly');
+  const [tab, setTab] = useState<'monthly' | 'controls' | 'structures' | 'tax' | 'payments'>('monthly');
   return (
     <div className="space-y-6">
       <Tabs
         tabs={[
           { id: 'monthly', label: 'Monthly payroll' },
+          { id: 'controls', label: 'Checks & exports' },
           { id: 'structures', label: 'Salary structures' },
           { id: 'tax', label: 'Tax & deductions' },
           { id: 'payments', label: 'Partner payments' }
@@ -385,6 +387,7 @@ const Payroll = ({ user }) => {
         onChange={setTab}
       />
       {tab === 'monthly' && <MonthlyPayroll user={user} />}
+      {tab === 'controls' && <PayrollControls user={user} />}
       {tab === 'structures' && <SalaryStructures user={user} />}
       {tab === 'tax' && <TaxPolicyEditor user={user} />}
       {tab === 'payments' && <PaymentsView user={user} />}

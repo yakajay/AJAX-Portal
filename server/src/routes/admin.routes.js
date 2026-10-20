@@ -22,6 +22,9 @@ import * as company from '../controllers/admin/company.controller.js';
 import * as exits from '../controllers/exit.controller.js';
 import * as reports from '../controllers/admin/report.controller.js';
 import * as sensitive from '../controllers/admin/sensitive.controller.js';
+import * as payrollControl from '../controllers/admin/payrollControl.controller.js';
+import * as compliance from '../controllers/admin/compliance.controller.js';
+import * as entities from '../controllers/admin/entity.controller.js';
 
 // ADMIN and SUPER_ADMIN only. Each route also checks a per-module permission (see utils/permissions.js).
 // Account-level rules (e.g. only a Super Admin can manage admins) are enforced inside the user controller.
@@ -77,6 +80,18 @@ router.put('/recruitment/candidates/:id/resume', can('recruitment').write, raw({
 router.get('/recruitment/candidates/:id/resume', can('recruitment').read, recruitment.downloadResume);
 router.post('/recruitment/candidates/:id/hire', can('recruitment').write, can('users').write, recruitment.hire);
 
+// Compliance rules, checks and the filing calendar
+router.get('/compliance', can('hr').read, compliance.report);
+router.get('/compliance/settings', can('hr').read, compliance.getSettings);
+router.put('/compliance/settings', can('hr').write, compliance.setSettings);
+router.post('/compliance/filings', can('hr').write, compliance.markFiling);
+
+// Employer records: the legal entities employees belong to
+router.get('/entities', can('hr').read, entities.list);
+router.post('/entities', can('hr').write, entities.create);
+router.put('/entities/assign', can('hr').write, entities.assign);
+router.put('/entities/:id', can('hr').write, entities.update);
+
 router.get('/leave-policy', can('leave').read, leaves.getPolicy);
 router.put('/leave-policy', can('leave').write, leaves.updatePolicy);
 
@@ -108,6 +123,14 @@ router.put('/payroll/tax-policy', can('payroll').write, payroll.setTaxPolicy);
 router.get('/payroll/structures', can('payroll').read, payroll.listStructures);
 router.put('/payroll/structures/:userId', can('payroll').write, payroll.setStructure);
 router.post('/payroll/run-monthly', can('payroll').write, payroll.runMonthly);
+router.get('/payroll/checks', can('payroll').read, payrollControl.checks);
+// Bank and accounting files carry account numbers and ledger totals: payroll write access, and every download is audited
+router.get('/payroll/bank-export/preview', can('payroll').write, payrollControl.bankPreview);
+router.get('/payroll/bank-export', can('payroll').write, payrollControl.bankExport);
+router.get('/payroll/accounting', can('payroll').read, payrollControl.getAccounting);
+router.put('/payroll/accounting', can('payroll').write, payrollControl.setAccounting);
+router.get('/payroll/accounting-export/preview', can('payroll').read, payrollControl.accountingPreview);
+router.get('/payroll/accounting-export', can('payroll').write, payrollControl.accountingExport);
 router.get('/payroll/payslips/export', can('payroll').read, reports.exportPayslips);
 router.get('/payroll/payslips', can('payroll').read, payroll.listPayslips);
 router.post('/payroll/payslips/mark-paid', can('payroll').write, payroll.markPaid);

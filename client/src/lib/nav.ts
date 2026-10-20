@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Users, UserCheck, CreditCard, Clock, FileText, Calendar, Receipt, Target, ClipboardCheck,
-  Megaphone, Bell, Settings, ScrollText, LifeBuoy, SlidersHorizontal, WalletCards, UserPlus, Building2, Trash2, Building, UserMinus, BarChart3, type LucideIcon
+  Megaphone, Bell, Settings, ScrollText, LifeBuoy, SlidersHorizontal, WalletCards, UserPlus, Building2, Trash2, Building, UserMinus, BarChart3, ShieldCheck, Landmark, type LucideIcon
 } from 'lucide-react';
 import type { User } from '../types';
 import { isAdminRole, isPlatformRole } from './api';
@@ -37,6 +37,8 @@ export const NAV_ITEMS: NavItem[] = [
   { path: '/payroll', label: 'nav.payroll', icon: CreditCard, group: 'admin', module: 'payroll', keywords: 'salary run structure', visible: (u) => isAdminRole(u?.role) },
   { path: '/recruitment', label: 'nav.recruitment', icon: UserPlus, group: 'admin', module: 'recruitment', keywords: 'hiring jobs candidates interview applicants openings', visible: (u) => isAdminRole(u?.role) },
   { path: '/reports', label: 'nav.reports', icon: BarChart3, group: 'admin', keywords: 'analytics headcount attrition export csv overtime payroll cost', visible: (u) => isAdminRole(u?.role) },
+  { path: '/compliance', label: 'nav.compliance', icon: ShieldCheck, group: 'admin', module: 'hr', keywords: 'rules filings deadlines minimum wage notice period overdue labour law', visible: (u) => isAdminRole(u?.role) },
+  { path: '/employers', label: 'nav.employers', icon: Landmark, group: 'admin', module: 'hr', keywords: 'legal entity subsidiary company registration branch employer of record', visible: (u) => isAdminRole(u?.role) },
   { path: '/outsourcing', label: 'nav.outsourcing', icon: UserCheck, group: 'admin', module: 'outsourcing', keywords: 'contractors invoices timesheets', visible: (u) => isAdminRole(u?.role) },
   { path: '/settings', label: 'nav.userManagement', icon: Settings, group: 'admin', module: 'users', keywords: 'accounts roles permissions', visible: (u) => u?.role === 'SUPER_ADMIN' },
   { path: '/company', label: 'nav.companySettings', icon: Building, group: 'admin', keywords: 'company profile domain subdomain sso single sign-on saml oidc support access', visible: (u) => u?.role === 'SUPER_ADMIN' },
