@@ -41,6 +41,9 @@ export const env = {
     // Public URL parts, used to show admins the redirect URIs to register with their identity provider
     publicScheme: process.env.PUBLIC_SCHEME || (isProduction ? 'https' : 'http'),
     publicPort: process.env.PUBLIC_PORT || '',
+    // Full address people actually open (e.g. https://my-project.web.app) when every company shares one address
+    // instead of <slug>.<baseDomain>. Shown as each company's address and used in links we email.
+    publicUrl: (process.env.PUBLIC_URL || '').trim().replace(/\/+$/, ''),
     // Single-company installs without wildcard DNS: any host that is not under baseDomain serves this company
     defaultTenantSlug: (process.env.DEFAULT_TENANT_SLUG || '').trim().toLowerCase()
   },
