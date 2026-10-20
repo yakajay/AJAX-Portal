@@ -8,6 +8,7 @@ import { notify } from '../../utils/notify.js';
 import { audit } from '../../utils/audit.js';
 import { isAllowedUpload, safeFileName } from '../../utils/documentFiles.js';
 import { sendDocumentFile } from '../user/hr.controller.js';
+import { loadBranding, buildLetterPdf } from '../../utils/letterhead.js';
 
 export const listDocuments = async (req, res) => {
   res.json(await documentModel.findAll());
@@ -51,6 +52,33 @@ export const uploadDocumentFile = async (req, res) => {
 };
 
 export const downloadDocumentFile = async (req, res) => sendDocumentFile(req, res, await documentModel.findByIdWithFile(req.params.id));
+
+// POST /admin/documents/letter - writes a letter to an employee on the company's letterhead and files it
+// under their documents as a PDF. Without a letterhead it falls back to a plain header with the company name.
+export const generateLetter = async (req, res) => {
+  const { userId, subject, body, date } = req.body;
+  const cleanSubject = String(subject ?? '').trim();
+  const cleanBody = String(body ?? '').trim();
+  if (!userId || !cleanSubject || !cleanBody) return res.status(400).json({ message: 'Employee, subject and letter text are required.' });
+  if (cleanSubject.length > 150 || cleanBody.length > 10000) return res.status(400).json({ message: 'The subject may be up to 150 characters and the letter up to 10,000.' });
+  const employee = isValidId(userId) ? await userModel.findById(userId) : null;
+  if (!employee) return res.status(404).json({ message: 'Employee not found.' });
+
+  const { company, letterhead } = await loadBranding(req.company?.id, 'Company');
+  const label = date || todayLabel();
+  const pdf = await buildLetterPdf({
+    company, letterhead, date: label, subject: cleanSubject, body: cleanBody,
+    recipient: { name: employee.name, designation: employee.designation, department: employee.department },
+    signatory: req.user.name
+  });
+  const document = await documentModel.create({
+    userId, name: cleanSubject, type: 'Letter', date: label,
+    fileName: safeFileName(cleanSubject, 'application/pdf', 'letter'), contentType: 'application/pdf', size: pdf.length, fileData: pdf
+  });
+  await notify(userId, { type: 'document', title: `New document: ${document.name}`, body: 'Letter', link: '/hr-hub' });
+  await audit(req, { action: 'document.letter', entity: 'document', entityId: document.id, summary: `Issued letter "${document.name}" to user ${userId}`, meta: { letterhead: !!letterhead } });
+  res.status(201).json(document);
+};
 
 // --- Public holidays. Stored as a display label ("Oct 2, 2026"); the API takes and returns ISO dates too. ---
 const isoToLabel = (iso) =>

@@ -101,6 +101,7 @@ router.delete('/holidays/:id', can('hr').delete, company.deleteViaRequest('holid
 
 router.get('/documents', can('hr').read, hr.listDocuments);
 router.post('/documents', can('hr').write, hr.createDocument);
+router.post('/documents/letter', can('hr').write, hr.generateLetter);
 router.put('/documents/:id/file', can('hr').write, raw({ type: Object.keys(DOCUMENT_TYPES), limit: MAX_DOCUMENT_BYTES }), hr.uploadDocumentFile);
 router.get('/documents/:id/file', can('hr').read, hr.downloadDocumentFile);
 
@@ -189,6 +190,9 @@ router.post('/company/mail/test', requireSuperAdmin, company.testMail);
 // The logo is uploaded as the raw image body (the JSON parser would reject it)
 router.put('/company/logo', requireSuperAdmin, raw({ type: ['image/png', 'image/jpeg', 'image/webp'], limit: company.MAX_LOGO_BYTES }), company.uploadLogo);
 router.delete('/company/logo', requireSuperAdmin, company.removeLogo);
+router.put('/company/letterhead', requireSuperAdmin, raw({ type: ['image/png', 'image/jpeg'], limit: company.MAX_LETTERHEAD_BYTES }), company.uploadLetterhead);
+router.get('/company/letterhead', requireSuperAdmin, company.getLetterhead);
+router.delete('/company/letterhead', requireSuperAdmin, company.removeLetterhead);
 router.get('/support-access', requireSuperAdmin, company.listSupportAccess);
 router.post('/support-access', requireSuperAdmin, company.grantSupportAccess);
 router.post('/support-access/:id/revoke', requireSuperAdmin, company.revokeSupportAccess);
