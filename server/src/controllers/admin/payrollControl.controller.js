@@ -5,7 +5,7 @@ import { Company } from '../../models/company.model.js';
 import { isValidMonth, monthLabel } from '../../utils/dates.js';
 import { checkPayroll, previousMonth, DEFAULT_THRESHOLD_PERCENT } from '../../utils/payrollChecks.js';
 import { buildBankRows, bankProblem, BANK_FORMATS } from '../../utils/bankExport.js';
-import { buildJournal, renderJournal, accountsFor, ACCOUNT_KEYS, ACCOUNTING_FORMATS, DEFAULT_ACCOUNTS } from '../../utils/accountingExport.js';
+import { buildJournal, renderJournal, unbalancedPayslips, accountsFor, ACCOUNT_KEYS, ACCOUNTING_FORMATS, DEFAULT_ACCOUNTS } from '../../utils/accountingExport.js';
 import { toCsv } from '../../utils/csv.js';
 import { audit } from '../../utils/audit.js';
 
@@ -107,6 +107,14 @@ export const setAccounting = async (req, res) => {
 };
 
 // GET /admin/payroll/accounting-export?month=&format=csv|xero|quickbooks|tally
+const refuseUnbalanced = (res, slips, names) => {
+  const bad = unbalancedPayslips(slips);
+  if (!bad.length) return false;
+  const who = bad.slice(0, 5).map((p) => names.get(String(p.userId)) ?? 'an employee').join(', ');
+  res.status(409).json({ message: `${bad.length} payslip(s) do not balance (${who}${bad.length > 5 ? ', ...' : ''}): deductions are more than gross pay, so net pay was set to zero. Correct the salary structure and regenerate before exporting.`, unbalanced: bad.map((p) => String(p.userId)) });
+  return true;
+};
+
 export const accountingExport = async (req, res) => {
   const month = monthOf(req, res);
   if (!month) return;
@@ -116,6 +124,7 @@ export const accountingExport = async (req, res) => {
   if (!slips.length) return res.status(409).json({ message: 'There are no payslips for this month. Run payroll first.' });
   const currencies = [...new Set(slips.map((s) => s.currency))];
   if (currencies.length > 1) return bad(res, `This month has payslips in ${currencies.join(', ')}. Accounting entries need one currency.`);
+  if (refuseUnbalanced(res, slips, new Map((await User.find()).map((u) => [u.id, u.name])))) return;
   const company = await Company.findById(req.company.id);
   const settings = accountingView(company);
   const journal = buildJournal({ payslips: slips, accounts: settings.accounts, month });
@@ -132,6 +141,7 @@ export const accountingPreview = async (req, res) => {
   const month = monthOf(req, res);
   if (!month) return;
   const slips = plain(await Payslip.find({ month }));
+  if (refuseUnbalanced(res, slips, new Map((await User.find()).map((u) => [u.id, u.name])))) return;
   const company = await Company.findById(req.company.id);
   const journal = buildJournal({ payslips: slips, accounts: accountingView(company).accounts, month });
   res.json({ month, payslips: slips.length, currency: slips[0]?.currency ?? null, ...journal });

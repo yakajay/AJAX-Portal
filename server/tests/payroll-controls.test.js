@@ -3,7 +3,7 @@ import { connectTestDb, disconnectTestDb } from './helpers/db.js';
 import { makeUser, makeAdmin, makeSuperAdmin, makeCompany } from './helpers/fixtures.js';
 import { checkPayroll, percentChange, previousMonth } from '../src/utils/payrollChecks.js';
 import { buildBankRows, bankProblem } from '../src/utils/bankExport.js';
-import { buildJournal, renderJournal, accountsFor } from '../src/utils/accountingExport.js';
+import { buildJournal, renderJournal, accountsFor, unbalancedPayslips } from '../src/utils/accountingExport.js';
 import { validateComplianceSettings, obligationsFor, filingCalendar, evaluateChecks } from '../src/utils/compliance.js';
 
 beforeAll(connectTestDb);
@@ -98,6 +98,14 @@ describe('accounting journal', () => {
     expect(tally).toContain('<DATE>20260930</DATE>');
     expect(tally).toContain('<AMOUNT>-3400.30</AMOUNT>'); // debit entry is negative in Tally
     expect(tally).toContain('Acme &lt;Pvt&gt; &amp; Co');
+  });
+
+  it('posts payable from the payslips\' net pay and spots slips that do not balance', () => {
+    // net was clamped to zero because deductions (500) exceeded gross (300)
+    const clamped = { userId: 'x', gross: 300, net: 0, totalDeductions: 500, deductions: { pf: 100, tax: 100, other: 300 }, currency: 'INR' };
+    expect(unbalancedPayslips([slip('a', 1000), clamped]).map((p) => p.userId)).toEqual(['x']);
+    expect(unbalancedPayslips(slips)).toEqual([]);
+    expect(journal.lines.every((l) => Number(l.credit || 0) >= 0)).toBe(true);
   });
 
   it('keeps blank or default account names on the defaults', () => {
@@ -227,6 +235,15 @@ describe('payroll controls API', () => {
     expect(tally.text).toContain('<SVCURRENTCOMPANY>Acme Corp</SVCURRENTCOMPANY>');
     await co.api().get('/api/admin/payroll/accounting-export?month=2025-04&format=sage').set(admin.auth).expect(400);
     await co.api().get('/api/admin/payroll/accounting-export?month=2024-01').set(admin.auth).expect(409);
+  });
+
+  it('refuses to export a journal when a payslip was clamped to zero net pay', async () => {
+    const { co, admin, emp } = await setup('clamp');
+    await co.api().put(`/api/admin/payroll/structures/${emp.user.id}`).set(admin.auth).send({ otherDeductions: 50000 }).expect(200);
+    await co.api().post('/api/admin/payroll/run-monthly').set(admin.auth).send({ month: '2025-04' }).expect(201);
+    const res = await co.api().get('/api/admin/payroll/accounting-export?month=2025-04&format=csv').set(admin.auth).expect(409);
+    expect(res.body.message).toMatch(/do not balance \(Asha\)/);
+    await co.api().get('/api/admin/payroll/accounting-export/preview?month=2025-04').set(admin.auth).expect(409);
   });
 
   it('manages compliance rules, reports findings and tracks filings', async () => {

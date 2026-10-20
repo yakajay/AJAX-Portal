@@ -185,9 +185,14 @@ export const settle = async (req, res) => {
   }
   const { annualLeaveAvailable, ...figures } = result;
 
-  exit.settlement = { ...figures, note: String(req.body.note || '').trim().slice(0, 500), settledAt: new Date(), settledById: req.user.id };
-  exit.status = 'Settled';
-  await exit.save();
+  // Claim the exit with a conditional Approved -> Settled update before any payout side effect, so two admins
+  // settling at the same moment cannot both pay: only the one whose update matches goes on
+  const claimed = await Exit.updateOne(
+    { _id: exit.id, status: 'Approved' },
+    { $set: { status: 'Settled', settlement: { ...figures, note: String(req.body.note || '').trim().slice(0, 500), settledAt: new Date(), settledById: req.user.id } } }
+  );
+  if (claimed.modifiedCount !== 1) return res.status(409).json({ message: 'Only approved exits can be settled.' });
+  const settled = await Exit.findById(exit.id).populate(withUser);
   for (const claim of claims) { claim.status = 'Reimbursed'; claim.reimbursedAt = new Date(); await claim.save(); }
   if (result.total > 0) {
     await transactionModel.create({
@@ -200,5 +205,5 @@ export const settle = async (req, res) => {
     action: 'exit.settle', entity: 'exit', entityId: exit.id,
     summary: `Settled ${exit.user?.name}'s exit: ${formatMoney(result.total, result.currency)}`, meta: figures
   });
-  res.json(exit);
+  res.json(settled);
 };
