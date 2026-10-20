@@ -60,7 +60,7 @@ const AuditLog = () => {
                 {data.items.map((a) => (
                   <tr key={a.id} className="hover:bg-slate-50/50">
                     <td className="px-6 py-3 text-xs text-slate-500 whitespace-nowrap">{formatDateTime(a.createdAt)}</td>
-                    <td className="px-6 py-3 text-sm font-bold text-slate-900 whitespace-nowrap">{a.actorName}<span className="block text-[10px] font-semibold text-slate-400">{a.actorRole.replace('_', ' ')}</span></td>
+                    <td className="px-6 py-3 text-sm font-bold text-slate-900 whitespace-nowrap">{a.actorName}<span className="block text-xs font-semibold text-slate-400">{a.actorRole.replace('_', ' ')}</span></td>
                     <td className="px-6 py-3"><Badge tone="blue">{a.action}</Badge></td>
                     <td className="px-6 py-3 text-sm text-slate-600">{a.summary}</td>
                     <td className="px-6 py-3 text-xs text-slate-400 whitespace-nowrap">{a.ip || '—'}</td>

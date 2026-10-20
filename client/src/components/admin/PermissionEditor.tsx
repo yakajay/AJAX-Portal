@@ -17,7 +17,7 @@ const PermissionEditor = ({ value, onChange }: { value: string[]; onChange: (nex
   return (
     <div className="space-y-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
       <div>
-        <p className="text-xs font-bold text-slate-500 uppercase mb-1">Access to every area</p>
+        <p className="text-xs font-bold text-slate-500 mb-1">Access to every area</p>
         <div className="flex flex-wrap gap-4">
           {(['read', 'write', 'delete'] as Action[]).map((action) => (
             <label key={action} className="flex items-center text-sm text-slate-700 cursor-pointer capitalize">
@@ -28,10 +28,10 @@ const PermissionEditor = ({ value, onChange }: { value: string[]; onChange: (nex
         </div>
       </div>
       <details>
-        <summary className="text-xs font-bold text-slate-500 uppercase cursor-pointer">Fine-tune by area</summary>
+        <summary className="text-xs font-bold text-slate-500 cursor-pointer">Fine-tune by area</summary>
         <table className="mt-2 w-full text-sm">
           <thead>
-            <tr className="text-left text-[10px] uppercase tracking-widest text-slate-400"><th className="py-1">Area</th><th>Write</th><th>Delete</th></tr>
+            <tr className="text-left text-xs text-slate-400"><th className="py-1">Area</th><th>Write</th><th>Delete</th></tr>
           </thead>
           <tbody>
             {MODULES.map((module) => (

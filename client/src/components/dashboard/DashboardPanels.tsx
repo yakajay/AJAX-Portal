@@ -24,7 +24,7 @@ export const FeedPanels = () => {
       <section className="flex-[3] basis-96 min-w-0 bg-white p-6 rounded-2xl border border-slate-200">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2"><Megaphone size={18} className="text-blue-600" aria-hidden="true" />{t('dash.announcements')}</h2>
-          <Link to="/announcements" className="text-xs font-black uppercase tracking-widest text-blue-600 hover:underline">{t('header.viewAll')}</Link>
+          <Link to="/announcements" className="text-xs font-extrabold text-blue-600 hover:underline">{t('header.viewAll')}</Link>
         </div>
         {data.announcements.length === 0 ? <p className="text-sm text-slate-400">{t('dash.noAnnouncements')}</p> : (
           <ul className="space-y-4">
@@ -52,7 +52,7 @@ export const FeedPanels = () => {
                   <span className="block text-sm font-bold text-slate-900 truncate">{u.name}</span>
                   <span className="block text-xs text-slate-500">{u.kind === 'birthday' ? t('dash.birthday') : t('dash.anniversary', { n: u.years ?? 0 })}</span>
                 </span>
-                <span className={`text-xs font-black ${u.inDays === 0 ? 'text-blue-600' : 'text-slate-400'}`}>{when(u.inDays)}</span>
+                <span className={`text-xs font-extrabold ${u.inDays === 0 ? 'text-blue-600' : 'text-slate-400'}`}>{when(u.inDays)}</span>
               </li>
             ))}
           </ul>

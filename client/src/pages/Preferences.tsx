@@ -77,8 +77,8 @@ const TwoFactor = ({ user, onUserUpdate }: { user: User; onUserUpdate: (u: User)
           </ol>
           <SetupQr url={setup.otpauthUrl} />
           <div className="rounded-xl bg-slate-50 border border-slate-200 p-4">
-            <p className="text-xs font-black uppercase tracking-widest text-slate-400">Setup key</p>
-            <p className="font-mono text-lg tracking-widest text-slate-900 break-all select-all">{setup.secret.match(/.{1,4}/g)?.join(' ')}</p>
+            <p className="text-xs font-extrabold text-slate-400">Setup key</p>
+            <p className="font-mono text-lg text-slate-900 break-all select-all">{setup.secret.match(/.{1,4}/g)?.join(' ')}</p>
             <a href={setup.otpauthUrl} className="text-xs font-bold text-blue-600 hover:underline">Open in authenticator app</a>
           </div>
           <div className="flex flex-wrap items-end gap-3">

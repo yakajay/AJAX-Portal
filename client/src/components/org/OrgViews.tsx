@@ -93,7 +93,7 @@ export const Departments = ({ user }: { user: User }) => {
             <Card key={d.id}>
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <h3 className="font-black text-slate-900">{d.name}</h3>
+                  <h3 className="font-extrabold text-slate-900">{d.name}</h3>
                   <p className="text-sm text-slate-500 mt-1">{d.description || 'No description'}</p>
                 </div>
                 {canWrite && (

@@ -1,6 +1,7 @@
 import {
   LayoutDashboard, Users, UserCheck, CreditCard, Clock, FileText, Calendar, Receipt, Target, ClipboardCheck,
-  Megaphone, Bell, Settings, ScrollText, LifeBuoy, SlidersHorizontal, WalletCards, UserPlus, Building2, Trash2, Building, UserMinus, BarChart3, ShieldCheck, Landmark, type LucideIcon
+  Megaphone, Bell, Settings, ScrollText, LifeBuoy, SlidersHorizontal, WalletCards, UserPlus, Building2, Trash2, Building, UserMinus, BarChart3, ShieldCheck, Landmark,
+  UserCircle, FolderOpen, Inbox, CalendarDays, CalendarCheck, KeyRound, LayoutGrid, type LucideIcon
 } from 'lucide-react';
 import type { User } from '../types';
 import { isAdminRole, isPlatformRole } from './api';
@@ -11,7 +12,7 @@ export interface NavItem {
   path: string;
   label: MessageKey;
   icon: LucideIcon;
-  group: 'workspace' | 'people' | 'admin' | 'platform';
+  group: 'workspace' | 'people' | 'crm' | 'admin' | 'platform';
   /** Hidden when the company's plan does not include this module */
   module?: Module;
   /** Extra words the command palette matches on */
@@ -19,22 +20,37 @@ export interface NavItem {
   visible?: (user: User | null) => boolean;
 }
 
+/** The portal has two workspaces: HRMS (everyone) and CRM (admins). Which one an item belongs to follows its group. */
+export type Tool = 'hrms' | 'crm';
+export const toolOfGroup = (group: NavItem['group']): Tool => (group === 'crm' || group === 'admin' ? 'crm' : 'hrms');
+
+const isAdmin = (u: User | null) => isAdminRole(u?.role);
+
 export const NAV_ITEMS: NavItem[] = [
   { path: '/', label: 'nav.dashboard', icon: LayoutDashboard, group: 'workspace', keywords: 'home overview' },
   { path: '/attendance', label: 'nav.attendance', icon: Clock, group: 'workspace', module: 'attendance', keywords: 'clock in out timesheet hours' },
   { path: '/leave', label: 'nav.leave', icon: Calendar, group: 'workspace', module: 'leave', keywords: 'vacation holiday time off calendar' },
   { path: '/payslips', label: 'nav.payslips', icon: WalletCards, group: 'workspace', module: 'payroll', keywords: 'salary pay slip pdf' },
+  { path: '/documents', label: 'nav.documents', icon: FolderOpen, group: 'workspace', module: 'hr', keywords: 'offer letter appointment tax form certificate files' },
   { path: '/expenses', label: 'nav.expenses', icon: Receipt, group: 'workspace', module: 'expenses', keywords: 'reimbursement claim receipt' },
   { path: '/performance', label: 'nav.performance', icon: Target, group: 'workspace', module: 'performance', keywords: 'review goals okr' },
   { path: '/onboarding', label: 'nav.onboarding', icon: ClipboardCheck, group: 'workspace', module: 'onboarding', keywords: 'offboarding checklist' },
   { path: '/offboarding', label: 'nav.offboarding', icon: UserMinus, group: 'workspace', module: 'onboarding', keywords: 'resign resignation exit leaving settlement full final notice' },
   { path: '/directory', label: 'nav.directory', icon: Users, group: 'people', keywords: 'employees org chart departments' },
+  { path: '/profile', label: 'nav.profile', icon: UserCircle, group: 'people', keywords: 'account details photo phone address' },
   { path: '/hr-hub', label: 'nav.hrHub', icon: FileText, group: 'people', module: 'hr', keywords: 'documents policies' },
   { path: '/announcements', label: 'nav.announcements', icon: Megaphone, group: 'people', module: 'announcements', keywords: 'news' },
   { path: '/notifications', label: 'nav.notifications', icon: Bell, group: 'people' },
   { path: '/support', label: 'nav.support', icon: LifeBuoy, group: 'people', module: 'support', keywords: 'ticket help' },
   { path: '/preferences', label: 'nav.preferences', icon: SlidersHorizontal, group: 'people', keywords: 'language security 2fa sessions password' },
-  { path: '/payroll', label: 'nav.payroll', icon: CreditCard, group: 'admin', module: 'payroll', keywords: 'salary run structure', visible: (u) => isAdminRole(u?.role) },
+  { path: '/crm', label: 'nav.crmOverview', icon: LayoutGrid, group: 'crm', keywords: 'admin home headcount present today', visible: isAdmin },
+  { path: '/crm/employees', label: 'nav.employees', icon: Users, group: 'crm', module: 'users', keywords: 'people staff add employee suspend details', visible: isAdmin },
+  { path: '/crm/approvals', label: 'nav.approvals', icon: Inbox, group: 'crm', module: 'leave', keywords: 'pending leave regularisation expense approve reject requests', visible: isAdmin },
+  { path: '/crm/holidays', label: 'nav.holidays', icon: CalendarDays, group: 'crm', module: 'hr', keywords: 'public holiday calendar festival', visible: isAdmin },
+  { path: '/crm/leave-balances', label: 'nav.leaveBalances', icon: CalendarCheck, group: 'crm', module: 'leave', keywords: 'entitlement policy accrual days left', visible: isAdmin },
+  { path: '/crm/payroll', label: 'nav.payroll', icon: CreditCard, group: 'crm', module: 'payroll', keywords: 'salary run payslips generate month', visible: isAdmin },
+  { path: '/crm/roles', label: 'nav.rolesAccess', icon: KeyRound, group: 'crm', keywords: 'permissions admin super admin assign role', visible: (u) => u?.role === 'SUPER_ADMIN' },
+  { path: '/payroll', label: 'nav.payrollTools', icon: CreditCard, group: 'admin', module: 'payroll', keywords: 'salary structure bank file accounting journal checks tax', visible: (u) => isAdminRole(u?.role) },
   { path: '/recruitment', label: 'nav.recruitment', icon: UserPlus, group: 'admin', module: 'recruitment', keywords: 'hiring jobs candidates interview applicants openings', visible: (u) => isAdminRole(u?.role) },
   { path: '/reports', label: 'nav.reports', icon: BarChart3, group: 'admin', keywords: 'analytics headcount attrition export csv overtime payroll cost', visible: (u) => isAdminRole(u?.role) },
   { path: '/compliance', label: 'nav.compliance', icon: ShieldCheck, group: 'admin', module: 'hr', keywords: 'rules filings deadlines minimum wage notice period overdue labour law', visible: (u) => isAdminRole(u?.role) },
@@ -58,3 +74,13 @@ export const visibleNav = (user: User | null, modules?: readonly string[]) =>
     if (item.module && modules && !modules.includes(item.module)) return false;
     return !item.visible || item.visible(user);
   });
+
+/** Active when the page is the item itself, or (for CRM pages) a screen opened from it such as an employee's details. */
+export const isActivePath = (pathname: string, path: string) =>
+  pathname === path || (path !== '/' && path !== '/crm' && pathname.startsWith(`${path}/`));
+
+/** Which workspace the current page belongs to, so the sidebar shows the right list. */
+export const toolForPath = (pathname: string): Tool => {
+  const item = NAV_ITEMS.find((i) => isActivePath(pathname, i.path));
+  return item ? toolOfGroup(item.group) : 'hrms';
+};

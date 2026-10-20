@@ -139,7 +139,7 @@ const LetterheadCard = ({ company, onChanged }: { company: CompanyRecord; onChan
         </div>
         <p className="text-xs text-slate-400">PNG or JPEG, up to 1 MB. Use a wide banner (about A4 width, ideally under 130 px tall when printed). It is printed at the top of every payslip and of the letters you create in the HR Hub.</p>
         <div className="flex flex-wrap gap-3">
-          <label className={`inline-flex items-center rounded-xl bg-blue-600 text-white px-5 py-2.5 text-xs font-black uppercase tracking-widest cursor-pointer hover:bg-blue-700 ${busy ? 'opacity-50 pointer-events-none' : ''}`}>
+          <label className={`inline-flex items-center rounded-xl bg-blue-600 text-white px-5 py-2.5 text-xs font-extrabold cursor-pointer hover:bg-blue-700 ${busy ? 'opacity-50 pointer-events-none' : ''}`}>
             {version ? 'Replace letterhead' : 'Upload letterhead'}
             <input type="file" accept={LETTERHEAD_TYPES.join(',')} aria-label="Letterhead image" className="sr-only" onChange={(e) => void upload(e.target.files?.[0])} />
           </label>
@@ -209,7 +209,7 @@ const BrandingCard = ({ company, onChanged }: { company: CompanyRecord; onChange
             <p className="text-xs text-slate-400">PNG, JPEG or WebP, up to 256 KB. A wide image on a transparent background works best. It replaces our logo in the header, menu and login page.</p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <label className={`inline-flex items-center rounded-xl bg-blue-600 text-white px-5 py-2.5 text-xs font-black uppercase tracking-widest cursor-pointer hover:bg-blue-700 ${busy ? 'opacity-50 pointer-events-none' : ''}`}>
+            <label className={`inline-flex items-center rounded-xl bg-blue-600 text-white px-5 py-2.5 text-xs font-extrabold cursor-pointer hover:bg-blue-700 ${busy ? 'opacity-50 pointer-events-none' : ''}`}>
               {hasLogo ? 'Replace logo' : 'Upload logo'}
               <input type="file" accept={LOGO_TYPES.join(',')} className="sr-only" onChange={(e) => void upload(e.target.files?.[0])} />
             </label>
@@ -284,7 +284,7 @@ const DetailsTab = () => {
 
       <div className="space-y-6">
         <Card title="Domain">
-          <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Your workspace address</p>
+          <p className="text-xs font-extrabold text-slate-400">Your workspace address</p>
           <a className="block mt-1 font-mono text-sm text-blue-700 break-all" href={data.origin}>{data.domain}</a>
           <p className="text-xs text-slate-400 mt-3">
             Created for you when your company was set up. Your people sign in here. To change it, contact the platform administrator.

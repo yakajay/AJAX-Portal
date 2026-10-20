@@ -5,6 +5,8 @@ export interface User {
   role: string;
   department?: string;
   designation?: string;
+  employeeId?: string | null;
+  phone?: string;
   dateOfBirth?: string | null;
   joinDate?: string | null;
   managerId?: string | null;
