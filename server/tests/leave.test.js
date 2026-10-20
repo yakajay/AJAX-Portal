@@ -200,7 +200,9 @@ describe('leave balances (admin)', () => {
     await api().get('/api/admin/leave-balances').set(me.auth).expect(403);
     const res = await api().get('/api/admin/leave-balances').set(admin.auth).expect(200);
     const mine = res.body.find((r) => r.userId === me.user.id);
-    expect(mine.balances.map((b) => b.type)).toEqual(['Annual Leave', 'Sick Leave', 'Casual Leave']);
+    // Whatever policy the company currently has (earlier tests may have changed it)
+    const policy = await api().get('/api/admin/leave-policy').set(admin.auth).expect(200);
+    expect(mine.balances.map((b) => b.type)).toEqual(policy.body.filter((p) => p.yearly !== null).map((p) => p.type));
     expect(mine.balances[0]).toMatchObject({ taken: 0, pending: 0 });
     expect(res.body.some((r) => r.userId === gone.user.id)).toBe(false);
   });
