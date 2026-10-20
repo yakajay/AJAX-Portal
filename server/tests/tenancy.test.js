@@ -341,7 +341,7 @@ describe('delete requests', () => {
 
   it('rejecting leaves the record alone, needs a reason, and tells the requester', async () => {
     const sa = await makePlatformAdmin();
-    const admin = await makeSuperAdmin();
+    await makeSuperAdmin();
     const deleter = await makeAdmin({ permissions: 'read,users:delete' });
     const keep = await makeUser({ name: 'Keeper' });
     const asked = await api().post('/api/admin/delete-requests').set(deleter.auth).send({ targetType: 'user', targetId: keep.user.id, reason: 'Cleanup' }).expect(201);
