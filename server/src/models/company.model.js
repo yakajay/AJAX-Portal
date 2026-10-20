@@ -172,6 +172,7 @@ const companySchema = new mongoose.Schema(
 companySchema.tenantExempt = true; // it is the tenant registry itself
 
 companySchema.virtual('domain').get(function domain() {
+  if (env.tenancy.publicUrl) return new URL(env.tenancy.publicUrl).host;
   return `${this.slug}.${env.tenancy.baseDomain}`;
 });
 
@@ -179,6 +180,7 @@ export const Company = mongoose.model('Company', companySchema);
 
 // https://acme.ourhrms.com - what a company's users type into the browser
 export const companyOrigin = (company) => {
+  if (env.tenancy.publicUrl) return env.tenancy.publicUrl;
   const { publicScheme, publicPort, baseDomain } = env.tenancy;
   return `${publicScheme}://${company.slug}.${baseDomain}${publicPort ? `:${publicPort}` : ''}`;
 };

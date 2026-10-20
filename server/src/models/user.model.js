@@ -76,8 +76,9 @@ const userSchema = new mongoose.Schema(
 
 // The same email can exist in different companies; within one it is unique
 userSchema.index({ companyId: 1, email: 1 }, { unique: true });
-// Employee IDs are optional on old accounts, but never shared once set
-userSchema.index({ companyId: 1, employeeId: 1 }, { unique: true, partialFilterExpression: { employeeId: { $type: 'string' } } });
+// Employee IDs are optional on old accounts, but never shared once set. Uniqueness is enforced in
+// the controllers (findByEmployeeId) because Firestore's Mongo compatibility has no partial indexes.
+userSchema.index({ companyId: 1, employeeId: 1 });
 
 // Platform staff live outside every company; company users can never hold the platform role
 userSchema.pre('validate', function checkPlatformRole() {

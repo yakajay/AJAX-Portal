@@ -16,6 +16,7 @@ const notificationSchema = new mongoose.Schema(
   schemaOptions()
 );
 notificationSchema.index({ userId: 1, createdAt: -1 });
-notificationSchema.index({ userId: 1, dedupeKey: 1 }, { unique: true, partialFilterExpression: { dedupeKey: { $type: 'string' } } });
+// Duplicates are filtered in utils/notify.js; Firestore's Mongo compatibility has no partial unique indexes
+notificationSchema.index({ userId: 1, dedupeKey: 1 });
 
 export const Notification = mongoose.model('Notification', notificationSchema);
