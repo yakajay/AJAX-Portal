@@ -21,6 +21,8 @@ const Expenses = lazy(() => import('./pages/Expenses'));
 const Performance = lazy(() => import('./pages/Performance'));
 const Onboarding = lazy(() => import('./pages/Onboarding'));
 const Recruitment = lazy(() => import('./pages/Recruitment'));
+const Offboarding = lazy(() => import('./pages/Offboarding'));
+const Reports = lazy(() => import('./pages/Reports'));
 const Announcements = lazy(() => import('./pages/Announcements'));
 const Notifications = lazy(() => import('./pages/Notifications'));
 const Preferences = lazy(() => import('./pages/Preferences'));
@@ -150,6 +152,8 @@ function App() {
                   <Route path="/performance" element={<Performance user={user} />} />
                   <Route path="/onboarding" element={<Onboarding user={user} />} />
                   <Route path="/recruitment" element={isAdmin ? <Recruitment user={user} /> : <Navigate to="/" replace />} />
+                  <Route path="/offboarding" element={<Offboarding user={user} />} />
+                  <Route path="/reports" element={isAdmin ? <Reports user={user} /> : <Navigate to="/" replace />} />
                   <Route path="/announcements" element={<Announcements user={user} />} />
                   <Route path="/notifications" element={<Notifications />} />
                   <Route path="/preferences" element={<Preferences user={user} onUserUpdate={handleUserUpdate} onLogout={handleLogout} />} />

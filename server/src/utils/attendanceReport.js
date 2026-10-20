@@ -19,7 +19,7 @@ export const localMinutes = (date, timeZone) => {
 const round1 = (n) => Math.round(n * 10) / 10;
 
 // One employee's month: per-day first in / last out / hours, plus late and early-out flags
-export const summarizeAttendance = (entries, { timeZone, month, lateAfter = env.attendance.lateAfter, earlyBefore = env.attendance.earlyBefore }) => {
+export const summarizeAttendance = (entries, { timeZone, month, lateAfter = env.attendance.lateAfter, earlyBefore = env.attendance.earlyBefore, standardHours = env.attendance.standardHours }) => {
   const byDay = new Map();
   for (const entry of entries) {
     if (NOT_COUNTED.includes(entry.status)) continue;
@@ -41,6 +41,7 @@ export const summarizeAttendance = (entries, { timeZone, month, lateAfter = env.
         firstIn,
         lastOut,
         hours: round1(hours),
+        overtime: round1(Math.max(0, hours - standardHours)),
         late: localMinutes(firstIn, timeZone) > toMinutes(lateAfter),
         // Only judged once the day is closed out; a still-open session isn't "early"
         earlyOut: !!lastOut && closed.length === list.length && localMinutes(lastOut, timeZone) < toMinutes(earlyBefore)
@@ -52,6 +53,7 @@ export const summarizeAttendance = (entries, { timeZone, month, lateAfter = env.
     month,
     daysPresent: days.length,
     totalHours,
+    overtimeHours: round1(days.reduce((sum, d) => sum + d.overtime, 0)),
     avgHours: days.length ? round1(totalHours / days.length) : 0,
     lateDays: days.filter((d) => d.late).length,
     earlyOutDays: days.filter((d) => d.earlyOut).length,

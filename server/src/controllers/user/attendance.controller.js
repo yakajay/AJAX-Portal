@@ -139,6 +139,7 @@ export const exportMine = async (req, res) => {
     { header: 'First in (UTC)', value: (d) => fmt(d.firstIn) },
     { header: 'Last out (UTC)', value: (d) => fmt(d.lastOut) },
     { header: 'Hours', value: (d) => d.hours },
+    { header: 'Overtime hours', value: (d) => d.overtime },
     { header: 'Late', value: (d) => (d.late ? 'Yes' : 'No') },
     { header: 'Early out', value: (d) => (d.earlyOut ? 'Yes' : 'No') }
   ]);
