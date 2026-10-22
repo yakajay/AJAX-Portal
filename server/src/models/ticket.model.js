@@ -1,7 +1,11 @@
 import mongoose from 'mongoose';
 import { schemaOptions, userRef, withUserVirtual } from './schemaOptions.js';
 
+// The assignee has done their part and needs an answer from whoever raised the ticket: reminders and the SLA clock pause
+export const WAITING = 'Waiting for response';
 export const TICKET_PRIORITIES = ['Low', 'Medium', 'High', 'Urgent'];
+// How people refer to them: P1 is the most urgent
+export const PRIORITY_CODE = { Urgent: 'P1', High: 'P2', Medium: 'P3', Low: 'P4' };
 // Hours allowed to resolve a ticket, by priority
 export const SLA_HOURS = { Low: 120, Medium: 48, High: 24, Urgent: 4 };
 
@@ -22,23 +26,43 @@ const ticketSchema = withUserVirtual(
       subject: { type: String, required: true, trim: true },
       category: { type: String, default: 'General Inquiry' },
       message: { type: String, required: true },
-      status: { type: String, enum: ['Open', 'In Progress', 'Closed'], default: 'Open' },
+      status: { type: String, enum: ['Open', 'In Progress', WAITING, 'Closed'], default: 'Open' },
       priority: { type: String, enum: TICKET_PRIORITIES, default: 'Medium' },
       assigneeId: userRef(false),
       comments: { type: [commentSchema], default: [] },
       dueAt: { type: Date, default: null },
-      closedAt: { type: Date, default: null }
+      closedAt: { type: Date, default: null },
+      // When the last status reminder email went out (see utils/ticketReminders.js)
+      lastReminderAt: { type: Date, default: null },
+      // While waiting for the requester: since when, and the total time spent waiting so far (the SLA clock does not run)
+      waitingSince: { type: Date, default: null },
+      pausedMs: { type: Number, default: 0 }
     },
     schemaOptions()
   )
 );
+ticketSchema.virtual('priorityCode').get(function () { return PRIORITY_CODE[this.priority] ?? 'P3'; });
 ticketSchema.virtual('assignee', { ref: 'User', localField: 'assigneeId', foreignField: '_id', justOne: true });
 
-export const slaDueAt = (createdAt, priority) =>
-  new Date(new Date(createdAt).getTime() + SLA_HOURS[priority] * 3600 * 1000);
+export const slaDueAt = (createdAt, priority, pausedMs = 0) =>
+  new Date(new Date(createdAt).getTime() + SLA_HOURS[priority] * 3600 * 1000 + pausedMs);
+
+/** Starts the pause (waiting for the requester). */
+export const pauseSla = (ticket, now = new Date()) => {
+  ticket.status = WAITING;
+  ticket.waitingSince = now;
+};
+/** Ends the pause: the time spent waiting is added back to the deadline. No-op when not waiting. */
+export const resumeSla = (ticket, now = new Date()) => {
+  if (!ticket.waitingSince) return;
+  ticket.pausedMs = (ticket.pausedMs || 0) + Math.max(0, now.getTime() - ticket.waitingSince.getTime());
+  ticket.waitingSince = null;
+  ticket.dueAt = slaDueAt(ticket.createdAt, ticket.priority, ticket.pausedMs);
+};
 
 // Met / Breached once closed; otherwise On Track, At Risk (< 25% of the window left) or Breached
 ticketSchema.virtual('slaState').get(function () {
+  if (this.waitingSince && !this.closedAt) return 'Paused';
   if (!this.dueAt) return 'On Track';
   if (this.closedAt) return this.closedAt <= this.dueAt ? 'Met' : 'Breached';
   const now = Date.now();

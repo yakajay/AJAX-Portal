@@ -137,6 +137,7 @@ router.get('/payroll/payslips', can('payroll').read, payroll.listPayslips);
 router.post('/payroll/payslips/mark-paid', can('payroll').write, payroll.markPaid);
 router.get('/payroll/payslips/:id/pdf', can('payroll').read, payroll.payslipPdf);
 
+router.get('/support/report', can('support').read, support.resolutionReport);
 router.get('/support/tickets', can('support').read, support.listTickets);
 router.get('/support/tickets/:id', can('support').read, support.getTicket);
 router.put('/support/tickets/:id', can('support').write, support.updateTicket);
@@ -191,6 +192,10 @@ router.post('/company/mail/test', requireSuperAdmin, company.testMail);
 // The logo is uploaded as the raw image body (the JSON parser would reject it)
 router.put('/company/logo', requireSuperAdmin, raw({ type: ['image/png', 'image/jpeg', 'image/webp'], limit: company.MAX_LOGO_BYTES }), company.uploadLogo);
 router.delete('/company/logo', requireSuperAdmin, company.removeLogo);
+router.put('/company/branding', requireSuperAdmin, company.updateBranding);
+// Admins can ask for their own sign-in address (or to give it up); the platform team decides. Each ask is a ticket.
+router.get('/company/address-requests', company.listAddressRequests);
+router.post('/company/address-requests', company.requestAddressChange);
 router.put('/company/letterhead', requireSuperAdmin, raw({ type: ['image/png', 'image/jpeg'], limit: company.MAX_LETTERHEAD_BYTES }), company.uploadLetterhead);
 router.get('/company/letterhead', requireSuperAdmin, company.getLetterhead);
 router.delete('/company/letterhead', requireSuperAdmin, company.removeLetterhead);

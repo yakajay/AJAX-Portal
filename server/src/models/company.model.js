@@ -14,7 +14,7 @@ export const PLANS = {
 // Subdomains that must never be handed to a company
 export const RESERVED_SLUGS = [
   'admin', 'www', 'api', 'app', 'platform', 'mail', 'smtp', 'ftp', 'static', 'assets', 'cdn',
-  'support', 'status', 'billing', 'login', 'sso', 'auth', 'docs', 'help', 'root', 'localhost'
+  'support', 'status', 'billing', 'login', 'crm', 'portal', 'sso', 'auth', 'docs', 'help', 'root', 'localhost'
 ];
 export const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/;
 
@@ -44,6 +44,9 @@ const companySchema = new mongoose.Schema(
       startedAt: { type: Date, default: Date.now },
       expiresAt: { type: Date, default: null }
     },
+    // Paid clients can have their own address (<slug>.<baseDomain>); everyone else signs in at the shared address
+    // (crm.<baseDomain>). Left unset on companies created before this existed, which keep their own address.
+    dedicatedAddress: { type: Boolean },
     modules: { type: [String], default: () => [...MODULES] },
     // Optional extras the platform switches on per company (part of what we provide to them)
     features: {
@@ -53,6 +56,11 @@ const companySchema = new mongoose.Schema(
     },
     // The company's own logo, shown instead of ours. The image bytes live in `logo` and are only loaded
     // by the logo endpoint; `logoUpdatedAt` tells everyone else whether one exists.
+    // Name shown beside (or instead of) the logo, and whether "Powered by" stays under it. Part of the custom-branding feature.
+    branding: {
+      displayName: { type: String, default: '', trim: true, maxlength: 40 },
+      showPoweredBy: { type: Boolean, default: true }
+    },
     logoUpdatedAt: { type: Date, default: null },
     logoContentType: { type: String, default: '' },
     logoData: { type: Buffer, select: false },
@@ -171,9 +179,12 @@ const companySchema = new mongoose.Schema(
 );
 companySchema.tenantExempt = true; // it is the tenant registry itself
 
+export const hasDedicatedAddress = (company) => company.dedicatedAddress !== false;
+export const sharedHost = () => `${env.tenancy.crmSubdomain}.${env.tenancy.baseDomain}`;
+
 companySchema.virtual('domain').get(function domain() {
   if (env.tenancy.publicUrl) return new URL(env.tenancy.publicUrl).host;
-  return `${this.slug}.${env.tenancy.baseDomain}`;
+  return hasDedicatedAddress(this) ? `${this.slug}.${env.tenancy.baseDomain}` : sharedHost();
 });
 
 export const Company = mongoose.model('Company', companySchema);
@@ -182,5 +193,5 @@ export const Company = mongoose.model('Company', companySchema);
 export const companyOrigin = (company) => {
   if (env.tenancy.publicUrl) return env.tenancy.publicUrl;
   const { publicScheme, publicPort, baseDomain } = env.tenancy;
-  return `${publicScheme}://${company.slug}.${baseDomain}${publicPort ? `:${publicPort}` : ''}`;
+  return `${publicScheme}://${hasDedicatedAddress(company) ? `${company.slug}.${baseDomain}` : sharedHost()}${publicPort ? `:${publicPort}` : ''}`;
 };

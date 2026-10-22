@@ -92,10 +92,19 @@ export const cleanFeatures = (features) => {
   return Object.fromEntries(Object.entries(features).map(([k, v]) => [k, !!v]));
 };
 
-export const createCompany = async ({ name, slug, primaryContact = {}, plan = 'trial', seatLimit, modules, features, profile = {} }) => {
+// Own address (<slug>.<baseDomain>) is for paid clients: trial companies always use the shared address. When the
+// platform does not say, business and enterprise clients get one and starter clients share.
+export const resolveDedicatedAddress = (plan, requested) => {
+  if (requested === undefined || requested === null) return plan === 'business' || plan === 'enterprise';
+  if (requested && plan === 'trial') throw new ServiceError(400, 'Trial companies use the shared address. Move them to a paid plan first.');
+  return !!requested;
+};
+
+export const createCompany = async ({ name, slug, primaryContact = {}, plan = 'trial', seatLimit, modules, features, profile = {}, dedicatedAddress }) => {
   const cleanName = String(name ?? '').trim();
   if (!cleanName) throw new ServiceError(400, 'Company name is required.');
   const subscription = cleanPlan(plan, seatLimit);
+  const dedicated = resolveDedicatedAddress(subscription.plan ?? 'trial', dedicatedAddress);
 
   const chosen = slug ? String(slug).trim().toLowerCase() : await freeSlugFor(cleanName);
   if (slug) await assertSlugAvailable(chosen);
@@ -107,6 +116,7 @@ export const createCompany = async ({ name, slug, primaryContact = {}, plan = 't
     primaryContact: { name: primaryContact.name ?? '', email: contactEmail, phone: primaryContact.phone ?? '' },
     profile: { industry: profile.industry ?? '', website: profile.website ?? '', address: profile.address ?? '', timezone: profile.timezone || 'UTC' },
     subscription,
+    dedicatedAddress: dedicated,
     ...(modules !== undefined ? { modules: cleanModules(modules) } : {}),
     ...(features !== undefined ? { features: cleanFeatures(features) } : {}),
     dataKey: generateWrappedCompanyKey()

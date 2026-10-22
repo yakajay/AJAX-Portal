@@ -55,7 +55,13 @@ const Login = ({ onLogin }) => {
         body: JSON.stringify({ email, otp })
       });
       if (!res.ok) throw new Error(await readError(res, 'Invalid or expired code'));
-      const { token, refreshToken, user } = await res.json();
+      const body = await res.json();
+      // A paid client has its own address: carry the sign-in over to it
+      if (body.redirect) {
+        window.location.assign(body.redirect);
+        return;
+      }
+      const { token, refreshToken, user } = body;
       setSession(token, refreshToken);
       onLogin(user, token, refreshToken);
       navigate('/');
@@ -94,6 +100,12 @@ const Login = ({ onLogin }) => {
             <>Welcome to <span className="text-emerald-600">{workspace?.name ?? 'YakFlow'}</span></>
           )}
         </h2>
+        {workspace?.kind === 'platform' && (
+          <p className="mt-2 text-sm text-slate-600">
+            Ajax staff without an account?{' '}
+            <Link to="/portal-signup" className="font-medium text-emerald-600 hover:text-emerald-500">Request portal access</Link>
+          </p>
+        )}
         {workspace?.kind === 'tenant' && workspace.allowSelfSignup && workspace.status === 'active' && (
           <p className="mt-2 text-sm text-slate-600">
             Or{' '}

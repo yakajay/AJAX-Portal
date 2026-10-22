@@ -75,7 +75,7 @@ export const Button = ({ variant = 'primary', small = false, className = '', ...
   />
 );
 
-type Tone = 'green' | 'amber' | 'rose' | 'slate' | 'blue';
+export type Tone = 'green' | 'amber' | 'rose' | 'slate' | 'blue';
 const tones: Record<Tone, string> = {
   green: 'bg-emerald-100 text-emerald-700',
   amber: 'bg-amber-100 text-amber-700',
@@ -93,6 +93,7 @@ export const Badge = ({ tone = 'slate', children }: { tone?: Tone; children: Rea
 export const statusTone = (status: string): Tone => {
   if (['Approved', 'Completed', 'Paid', 'Done', 'Met', 'Success', 'Reimbursed', 'On Track', 'Active', 'Closed'].includes(status)) return 'green';
   if (['Pending', 'Pending Self', 'Pending Manager', 'Submitted', 'Generated', 'Sent', 'In Progress', 'At Risk', 'Draft', 'Open', 'Processing', 'Regularization Pending'].includes(status)) return 'amber';
+  if (['Waiting for response', 'Paused'].includes(status)) return 'blue';
   if (['Rejected', 'Overdue', 'Breached', 'Failed', 'Cancelled', 'Ended'].includes(status)) return 'rose';
   return 'slate';
 };

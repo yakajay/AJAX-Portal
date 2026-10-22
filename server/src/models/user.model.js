@@ -24,6 +24,8 @@ const userSchema = new mongoose.Schema(
     department: { type: String, default: 'Engineering' },
     role: { type: String, enum: ROLES, default: 'USER' },
     permissions: { type: String, default: 'read' }, // comma separated: read,write,delete
+    // Platform staff only: what they may do in the client portal. Accounts made before roles existed count as 'super'.
+    platformRole: { type: String, enum: ['viewer', 'admin', 'super'], default: undefined },
     locked: { type: Boolean, default: false },
     emailVerified: { type: Boolean, default: true },
     password: { type: String, default: null }, // scrypt hash
@@ -66,6 +68,8 @@ const userSchema = new mongoose.Schema(
   schemaOptions((ret) => {
     delete ret.password;
     ret.totpEnabled = !!ret.totp?.enabled;
+    if (ret.role === PLATFORM_ROLE) ret.platformRole = ret.platformRole ?? 'super';
+    else delete ret.platformRole;
     ret.avatarVersion = ret.avatarUpdatedAt ? new Date(ret.avatarUpdatedAt).getTime() : null;
     delete ret.avatarData;
     delete ret.avatarType;
@@ -106,6 +110,7 @@ export const userModel = {
   // Atomically records a used TOTP step; false if that step (or a later one) was already used
   consumeTotpStep: async (id, step) =>
     (await User.updateOne({ _id: id, 'totp.lastStep': { $lt: step } }, { $set: { 'totp.lastStep': step } })).modifiedCount === 1,
+  findByRole: (role) => User.find({ role }).sort({ createdAt: 1 }),
   findByEmployeeId: (employeeId) => User.findOne({ employeeId }),
   findByEmail: (email) => User.findOne({ email: String(email).toLowerCase() }),
   create: async (data) => (await User.create(data)).populate(withManager),

@@ -31,9 +31,17 @@ const Preferences = lazy(() => import('./pages/Preferences'));
 const AuditLog = lazy(() => import('./pages/AuditLog'));
 const CompanySettings = lazy(() => import('./pages/CompanySettings'));
 const DeleteRequests = lazy(() => import('./pages/DeleteRequests'));
-const Companies = lazy(() => import('./pages/platform/Companies'));
-const PlatformRequests = lazy(() => import('./pages/platform/PlatformRequests'));
-const PlatformAudit = lazy(() => import('./pages/platform/PlatformAudit'));
+const PortalOverview = lazy(() => import('./pages/portal/PortalOverview'));
+const PortalClients = lazy(() => import('./pages/portal/PortalClients'));
+const PortalClientDetail = lazy(() => import('./pages/portal/PortalClientDetail'));
+const PortalOnboard = lazy(() => import('./pages/portal/PortalOnboard'));
+const PortalPlans = lazy(() => import('./pages/portal/PortalPlans'));
+const PortalSupport = lazy(() => import('./pages/portal/PortalSupport'));
+const PortalTeam = lazy(() => import('./pages/portal/PortalTeam'));
+const Handoff = lazy(() => import('./pages/Handoff'));
+const PortalSignup = lazy(() => import('./pages/portal/PortalSignup'));
+const CrmAddress = lazy(() => import('./pages/crm/CrmAddress'));
+const CrmBranding = lazy(() => import('./pages/crm/CrmBranding'));
 const Documents = lazy(() => import('./pages/Documents'));
 const CrmOverview = lazy(() => import('./pages/crm/CrmOverview'));
 const CrmEmployees = lazy(() => import('./pages/crm/CrmEmployees'));
@@ -43,11 +51,12 @@ const CrmHolidays = lazy(() => import('./pages/crm/CrmHolidays'));
 const CrmLeaveBalances = lazy(() => import('./pages/crm/CrmLeaveBalances'));
 const CrmPayroll = lazy(() => import('./pages/crm/CrmPayroll'));
 const CrmRoles = lazy(() => import('./pages/crm/CrmRoles'));
-import { Restricted } from './components/crm/shared';
+import { PortalRestricted, Restricted } from './components/crm/shared';
 import type { User } from './types';
 import { getToken, setSession, clearToken, apiFetch, UNAUTHORIZED_EVENT } from './lib/api';
 import { I18nProvider } from './lib/i18n';
 import { loadWorkspace } from './lib/workspace';
+import { portalCan } from './lib/permissions';
 
 function App() {
   const [user, setUser] = useState<User | null>(() => {
@@ -135,6 +144,8 @@ function App() {
         <Route path="/sso/callback" element={<SsoCallback onLogin={handleLogin} />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/portal-signup" element={<PortalSignup />} />
+        <Route path="/handoff" element={<Handoff onLogin={handleLogin} />} />
 
         {/* Protected App Routes */}
         <Route 
@@ -144,12 +155,18 @@ function App() {
               <Layout user={user} onLogout={handleLogout}>
                 {isPlatform ? (
                 <Routes>
-                  <Route path="/platform" element={<Companies />} />
-                  <Route path="/platform/requests" element={<PlatformRequests />} />
-                  <Route path="/platform/audit" element={<PlatformAudit />} />
+                  <Route path="/portal" element={<PortalOverview />} />
+                  <Route path="/portal/team" element={portalCan(user, 'super') ? <PortalTeam /> : <Navigate to="/portal" replace />} />
+                  <Route path="/portal/clients" element={<PortalClients />} />
+                  <Route path="/portal/clients/:id" element={<PortalClientDetail />} />
+                  <Route path="/portal/onboard" element={portalCan(user, 'admin') ? <PortalOnboard /> : <Navigate to="/portal" replace />} />
+                  <Route path="/portal/plans" element={<PortalPlans />} />
+                  <Route path="/platform/requests" element={<Navigate to="/portal/support" replace />} />
+                  <Route path="/platform/audit" element={<Navigate to="/portal/support" replace />} />
+                  <Route path="/portal/support" element={<PortalSupport />} />
                   <Route path="/profile" element={<Profile user={user} onUserUpdate={handleUserUpdate} />} />
                   <Route path="/preferences" element={<Preferences user={user} onUserUpdate={handleUserUpdate} onLogout={handleLogout} />} />
-                  <Route path="*" element={<Navigate to="/platform" replace />} />
+                  <Route path="*" element={<Navigate to="/portal" replace />} />
                 </Routes>
                 ) : (
                 <Routes>
@@ -166,6 +183,8 @@ function App() {
                   <Route path="/support" element={<Support user={user} />} />
                   <Route path="/payslips" element={<Payslips />} />
                   <Route path="/documents" element={<Documents />} />
+                  {/* Portal: Ajax platform staff only. Everyone else is told why instead of being bounced away. */}
+                  <Route path="/portal/*" element={<PortalRestricted isAdmin={isAdmin} />} />
                   {/* CRM: admin workspace. Employees who open these see why instead of being bounced away. */}
                   <Route path="/crm" element={isAdmin ? <CrmOverview /> : <Restricted superOnly={false} />} />
                   <Route path="/crm/employees" element={isAdmin ? <CrmEmployees user={user} /> : <Restricted superOnly={false} />} />
@@ -174,6 +193,8 @@ function App() {
                   <Route path="/crm/holidays" element={isAdmin ? <CrmHolidays user={user} /> : <Restricted superOnly={false} />} />
                   <Route path="/crm/leave-balances" element={isAdmin ? <CrmLeaveBalances user={user} /> : <Restricted superOnly={false} />} />
                   <Route path="/crm/payroll" element={isAdmin ? <CrmPayroll user={user} /> : <Restricted superOnly={false} />} />
+                  <Route path="/crm/address" element={isAdmin ? <CrmAddress /> : <Restricted superOnly={false} />} />
+                  <Route path="/crm/branding" element={user.role === 'SUPER_ADMIN' ? <CrmBranding /> : <Restricted superOnly={isAdmin} />} />
                   <Route path="/crm/roles" element={user.role === 'SUPER_ADMIN' ? <CrmRoles user={user} /> : <Restricted superOnly={isAdmin} />} />
                   <Route path="/expenses" element={<Expenses user={user} />} />
                   <Route path="/performance" element={<Performance user={user} />} />

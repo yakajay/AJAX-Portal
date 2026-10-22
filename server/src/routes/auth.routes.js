@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as auth from '../controllers/auth.controller.js';
 import * as sso from '../controllers/sso.controller.js';
+import * as portalTeam from '../controllers/platform/team.controller.js';
 import { authenticate } from '../middleware/auth.js';
 import { rateLimit } from '../middleware/rateLimit.js';
 
@@ -17,10 +18,14 @@ router.get('/sso/callback', limiter, sso.callback);
 router.post('/sso/saml/acs', limiter, sso.samlAcs);
 router.get('/sso/saml/metadata', sso.samlMetadata);
 
+router.post('/portal-access', limiter, portalTeam.requestAccess);
+router.get('/portal-access/status', limiter, portalTeam.requestStatus);
+
 router.post('/register', limiter, auth.register);
 router.post('/verify-email', limiter, auth.verifyEmail);
 router.post('/login', limiter, auth.login);
 router.post('/login/verify', limiter, auth.verifyLogin);
+router.post('/handoff', limiter, auth.handoff);
 router.post('/resend-otp', limiter, auth.resendOtp);
 router.post('/forgot-password', limiter, auth.forgotPassword);
 router.post('/reset-password', limiter, auth.resetPassword);
