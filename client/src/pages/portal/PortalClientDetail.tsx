@@ -1,123 +1,24 @@
 import { useState } from 'react';
-import { Building2, Plus, Users, Hourglass, Eye, EyeOff } from 'lucide-react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ChevronLeft, Eye, EyeOff } from 'lucide-react';
 import { apiJson, apiSend } from '../../lib/api';
 import { errorMessage, formatDateTime } from '../../lib/format';
 import { useAsync } from '../../lib/useAsync';
-import { MODULES } from '../../lib/permissions';
-import { Badge, Button, Card, Empty, ErrorNote, Field, Modal, PageHeader, Spinner, StatTile, Th, inputClass } from '../../components/ui';
+import { Badge, Button, Card, ErrorNote, Field, PageHeader, Spinner, Th, inputClass } from '../../components/ui';
+import { ModuleBoxes, statusTone, usePortalStats, type CompanySummary } from './shared';
 
-type Status = 'active' | 'suspended' | 'inactive' | 'deleted';
-interface CompanySummary {
-  id: string;
-  name: string;
-  slug: string;
-  domain: string;
-  origin: string;
-  status: Status;
-  statusReason: string;
-  primaryContact: { name: string; email: string; phone: string };
-  subscription: { plan: string; seatLimit: number; expiresAt: string | null };
-  modules: string[];
-  features: { customLogo: boolean; customEmail: boolean };
-  usage: { employees: number; admins: number; seatLimit: number; lastActiveAt: string | null };
-  pendingDeleteRequests?: number;
-  supportAccess?: { active: boolean; expiresAt?: string; reason?: string };
-}
-interface Stats {
-  companies: Record<Status, number>;
-  employees: number;
-  pendingDeleteRequests: number;
-  plans: Record<string, { label: string; seats: number }>;
-}
 interface EmployeeRow {
   id: string; name: string; email: string; role: string; department: string; designation: string;
   sensitive: { bankName: string | null; bankAccount: string | null; bankIfsc: string | null; governmentId: string | null; taxId: string | null; monthlyGross: string | number | null; currency: string | null };
 }
 interface EmployeeView { unmasked: boolean; accessExpiresAt: string | null; employees: EmployeeRow[] }
 
-const statusTone = (s: Status) => (s === 'active' ? 'green' : s === 'suspended' ? 'amber' : 'slate');
-
-const ModuleBoxes = ({ value, onChange }: { value: string[]; onChange: (next: string[]) => void }) => (
-  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-    {MODULES.map((m) => (
-      <label key={m} className="flex items-center gap-2 text-sm text-slate-700">
-        <input type="checkbox" checked={value.includes(m)} onChange={(e) => onChange(e.target.checked ? [...value, m] : value.filter((x) => x !== m))} />
-        {m}
-      </label>
-    ))}
-  </div>
-);
-
-// ---------------------------------------------------------------- Onboard a company
-const CreateCompany = ({ plans, onClose, onCreated }: { plans: Stats['plans']; onClose: () => void; onCreated: () => void }) => {
-  const [form, setForm] = useState({
-    name: '', slug: '', contactName: '', contactEmail: '', contactPhone: '', plan: 'trial', seatLimit: '',
-    modules: [...MODULES] as string[], customLogo: false, customEmail: false, adminName: '', adminEmail: ''
-  });
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const set = (changes: Partial<typeof form>) => setForm({ ...form, ...changes });
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      await apiSend('POST', '/platform/companies', {
-        name: form.name,
-        ...(form.slug ? { slug: form.slug } : {}),
-        primaryContact: { name: form.contactName, email: form.contactEmail, phone: form.contactPhone },
-        plan: form.plan,
-        ...(form.seatLimit ? { seatLimit: Number(form.seatLimit) } : {}),
-        modules: form.modules,
-        features: { customLogo: form.customLogo, customEmail: form.customEmail },
-        ...(form.adminEmail ? { firstAdmin: { name: form.adminName, email: form.adminEmail } } : {})
-      });
-      onCreated();
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <Modal open title="Onboard a company" onClose={onClose} wide>
-      <form onSubmit={submit} className="space-y-5">
-        <div className="grid sm:grid-cols-2 gap-4">
-          <Field label="Company name"><input required className={inputClass} value={form.name} onChange={(e) => set({ name: e.target.value })} /></Field>
-          <Field label="Subdomain" hint="Leave blank to create one from the name."><input className={inputClass} placeholder="acme" value={form.slug} onChange={(e) => set({ slug: e.target.value.toLowerCase() })} /></Field>
-          <Field label="Primary contact"><input className={inputClass} value={form.contactName} onChange={(e) => set({ contactName: e.target.value })} /></Field>
-          <Field label="Contact email"><input type="email" className={inputClass} value={form.contactEmail} onChange={(e) => set({ contactEmail: e.target.value })} /></Field>
-          <Field label="Plan">
-            <select className={inputClass} value={form.plan} onChange={(e) => set({ plan: e.target.value })}>
-              {Object.entries(plans).map(([id, p]) => <option key={id} value={id}>{p.label} ({p.seats} seats)</option>)}
-            </select>
-          </Field>
-          <Field label="Seat limit" hint="Defaults to the plan's seats."><input type="number" min={1} className={inputClass} value={form.seatLimit} onChange={(e) => set({ seatLimit: e.target.value })} /></Field>
-        </div>
-        <Field label="Enabled modules"><ModuleBoxes value={form.modules} onChange={(modules) => set({ modules })} /></Field>
-        <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={form.customLogo} onChange={(e) => set({ customLogo: e.target.checked })} />Custom company logo (they can upload their own instead of ours)</label>
-        <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={form.customEmail} onChange={(e) => set({ customEmail: e.target.checked })} />Own sender email (their admin can send OTPs and notifications from their own mailbox)</label>
-        <div className="rounded-2xl bg-slate-50 p-4 space-y-3">
-          <p className="text-xs font-extrabold text-slate-400">First admin (optional)</p>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <Field label="Name"><input className={inputClass} value={form.adminName} onChange={(e) => set({ adminName: e.target.value })} /></Field>
-            <Field label="Email" hint="We email an invitation to set a password."><input type="email" className={inputClass} value={form.adminEmail} onChange={(e) => set({ adminEmail: e.target.value })} /></Field>
-          </div>
-        </div>
-        <ErrorNote error={error} />
-        <div className="flex justify-end gap-3">
-          <Button variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button type="submit" disabled={busy}>{busy ? 'Creating…' : 'Create company'}</Button>
-        </div>
-      </form>
-    </Modal>
-  );
-};
-
-// ---------------------------------------------------------------- One company
-const CompanyDetail = ({ id, plans, onClose, onChanged }: { id: string; plans: Stats['plans']; onClose: () => void; onChanged: () => void }) => {
+/** One client company: status, plan and modules, admin invitations and (under support access) its people. */
+const PortalClientDetail = () => {
+  const { id = '' } = useParams();
+  const navigate = useNavigate();
+  const stats = usePortalStats();
+  const plans = stats.data?.plans ?? {};
   const { data, error, loading, reload } = useAsync(() => apiJson<CompanySummary>(`/platform/companies/${id}`), [id]);
   const [edit, setEdit] = useState<{ plan: string; seatLimit: string; modules: string[]; customLogo: boolean; customEmail: boolean; contactName: string; contactEmail: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -134,7 +35,6 @@ const CompanyDetail = ({ id, plans, onClose, onChanged }: { id: string; plans: S
       await fn();
       if (done) setNotice(done);
       await reload();
-      onChanged();
     } catch (err) {
       setActionError(errorMessage(err));
     } finally {
@@ -154,12 +54,14 @@ const CompanyDetail = ({ id, plans, onClose, onChanged }: { id: string; plans: S
 
   const loadPeople = () => run(async () => setPeople(await apiJson<EmployeeView>(`/platform/companies/${id}/employees`)));
 
-  if (loading && !data) return <Modal open title="Company" onClose={onClose}><Spinner /></Modal>;
-  if (!data) return <Modal open title="Company" onClose={onClose}><ErrorNote error={error} /></Modal>;
+  if (loading && !data) return <Spinner />;
+  if (!data) return <div className="space-y-4"><ErrorNote error={error} /><Button variant="secondary" onClick={() => navigate('/portal/clients')}>Back to clients</Button></div>;
   const startEdit = () => setEdit({ plan: data.subscription.plan, seatLimit: String(data.subscription.seatLimit), modules: data.modules, customLogo: data.features.customLogo, customEmail: !!data.features.customEmail, contactName: data.primaryContact.name, contactEmail: data.primaryContact.email });
 
   return (
-    <Modal open title={data.name} onClose={onClose} wide>
+    <div className="space-y-6">
+      <Link to="/portal/clients" className="inline-flex items-center gap-1 text-sm font-bold text-blue-800 hover:underline"><ChevronLeft size={16} />All clients</Link>
+      <PageHeader title={data.name} subtitle={`${data.domain} · client details`} />
       <div className="space-y-6">
         <div className="flex flex-wrap items-center gap-3">
           <Badge tone={statusTone(data.status)}>{data.status}</Badge>
@@ -266,63 +168,9 @@ const CompanyDetail = ({ id, plans, onClose, onChanged }: { id: string; plans: S
           )}
         </Card>
       </div>
-    </Modal>
-  );
-};
-
-// ---------------------------------------------------------------- List
-const Companies = () => {
-  const [q, setQ] = useState('');
-  const [status, setStatus] = useState('');
-  const stats = useAsync(() => apiJson<Stats>('/platform/stats'), []);
-  const list = useAsync(() => apiJson<CompanySummary[]>(`/platform/companies?${new URLSearchParams({ ...(q ? { q } : {}), ...(status ? { status } : {}) })}`), [q, status]);
-  const [creating, setCreating] = useState(false);
-  const [open, setOpen] = useState<string | null>(null);
-  const refresh = () => { void list.reload(); void stats.reload(); };
-
-  return (
-    <div className="space-y-6">
-      <PageHeader title="Companies" subtitle="Onboard client companies, manage their plan and status. You see platform-level details only." actions={<Button onClick={() => setCreating(true)}><Plus size={14} />Onboard a company</Button>} />
-      {stats.data && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatTile label="Active companies" value={stats.data.companies.active} icon={Building2} hint={`${stats.data.companies.suspended} suspended · ${stats.data.companies.inactive} inactive`} />
-          <StatTile label="Employees" value={stats.data.employees} icon={Users} />
-          <StatTile label="Delete requests" value={stats.data.pendingDeleteRequests} icon={Hourglass} hint="waiting for you" />
-        </div>
-      )}
-      <div className="flex flex-wrap gap-3">
-        <input aria-label="Search companies" className={`${inputClass} flex-1 min-w-56`} placeholder="Search by name or subdomain…" value={q} onChange={(e) => setQ(e.target.value)} />
-        <select aria-label="Filter by status" className={`${inputClass} w-48`} value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="">All (not deleted)</option>
-          <option value="active">Active</option><option value="suspended">Suspended</option><option value="inactive">Inactive</option><option value="deleted">Deleted</option>
-        </select>
-      </div>
-      <ErrorNote error={list.error} />
-      <Card flush>
-        {list.loading && !list.data ? <Spinner /> : !list.data?.length ? <Empty>No companies yet. Onboard your first one.</Empty> : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-slate-50"><tr><Th>Company</Th><Th>Plan</Th><Th>Seats</Th><Th>Status</Th><Th>Last active</Th><Th /></tr></thead>
-              <tbody className="divide-y divide-slate-100">
-                {list.data.map((c) => (
-                  <tr key={c.id} className="hover:bg-slate-50/50">
-                    <td className="px-6 py-3"><p className="font-bold text-slate-900">{c.name}</p><p className="font-mono text-xs text-slate-400">{c.domain}</p></td>
-                    <td className="px-6 py-3 text-sm text-slate-600">{stats.data?.plans[c.subscription.plan]?.label ?? c.subscription.plan}</td>
-                    <td className="px-6 py-3 text-sm text-slate-600">{c.usage.employees} / {c.usage.seatLimit}</td>
-                    <td className="px-6 py-3"><Badge tone={statusTone(c.status)}>{c.status}</Badge></td>
-                    <td className="px-6 py-3 text-xs text-slate-500">{c.usage.lastActiveAt ? formatDateTime(c.usage.lastActiveAt) : 'never'}</td>
-                    <td className="px-6 py-3 text-right"><Button small variant="secondary" onClick={() => setOpen(c.id)}>Manage</Button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
-      {creating && stats.data && <CreateCompany plans={stats.data.plans} onClose={() => setCreating(false)} onCreated={() => { setCreating(false); refresh(); }} />}
-      {open && stats.data && <CompanyDetail id={open} plans={stats.data.plans} onClose={() => setOpen(null)} onChanged={refresh} />}
     </div>
   );
 };
 
-export default Companies;
+
+export default PortalClientDetail;

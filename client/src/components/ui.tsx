@@ -75,7 +75,7 @@ export const Button = ({ variant = 'primary', small = false, className = '', ...
   />
 );
 
-type Tone = 'green' | 'amber' | 'rose' | 'slate' | 'blue';
+export type Tone = 'green' | 'amber' | 'rose' | 'slate' | 'blue';
 const tones: Record<Tone, string> = {
   green: 'bg-emerald-100 text-emerald-700',
   amber: 'bg-amber-100 text-amber-700',

@@ -7,7 +7,7 @@ import { useI18n } from '../../lib/i18n';
 import type { MessageKey } from '../../lib/locales';
 import { useWorkspace } from '../../lib/workspace';
 
-const GROUP_TITLES: Record<string, string | null> = { workspace: null, people: 'People & company', crm: null, admin: 'More admin tools', platform: 'Super Admin console' };
+const GROUP_TITLES: Record<string, string | null> = { workspace: null, people: 'People & company', crm: null, admin: 'More admin tools', platform: 'Client portal' };
 
 const TOOLS: { id: Tool; label: string; sub: string; to: string }[] = [
   { id: 'hrms', label: 'HRMS', sub: 'Portal', to: '/' },
