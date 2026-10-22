@@ -3,6 +3,7 @@ import { apiJson, apiSend } from '../../lib/api';
 import { errorMessage, formatDateTime } from '../../lib/format';
 import { useAsync } from '../../lib/useAsync';
 import { Badge, Button, Card, Empty, ErrorNote, PageHeader, Spinner, Tabs, Th, statusTone } from '../../components/ui';
+import { useCan } from './shared';
 import { TARGET_LABELS, type DeleteRequestRecord } from '../DeleteRequests';
 
 type PlatformRequest = DeleteRequestRecord & { company: { name: string; slug: string } | null };
@@ -15,6 +16,7 @@ const PortalRequests = () => {
     () => apiJson<PlatformRequest[]>(`/platform/delete-requests${filter === 'all' ? '' : `?status=${filter}`}`),
     [filter]
   );
+  const canDecide = useCan('super');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -62,7 +64,7 @@ const PortalRequests = () => {
                     <td className="px-6 py-3 text-sm text-slate-600">{r.reason || '—'}</td>
                     <td className="px-6 py-3"><Badge tone={statusTone(r.status)}>{r.status}</Badge>{r.decisionNote && <span className="block text-xs text-slate-400 mt-1">{r.decisionNote}</span>}</td>
                     <td className="px-6 py-3 text-right whitespace-nowrap">
-                      {r.status === 'Pending' && (
+                      {r.status === 'Pending' && canDecide && (
                         <div className="flex justify-end gap-2">
                           <Button small variant="danger" disabled={busyId === r.id} onClick={() => void decide(r, 'approve')}>Approve</Button>
                           <Button small variant="secondary" disabled={busyId === r.id} onClick={() => void decide(r, 'reject')}>Reject</Button>

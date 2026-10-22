@@ -38,6 +38,10 @@ export const env = {
   tenancy: {
     baseDomain,
     platformSubdomain: (process.env.PLATFORM_SUBDOMAIN || 'admin').trim().toLowerCase(),
+    // crm.<baseDomain> is the shared CRM address for company admins: the company is worked out from who signs in
+    crmSubdomain: (process.env.CRM_SUBDOMAIN || 'crm').trim().toLowerCase(),
+    // When set, only emails at this domain can ask for platform (Portal) access, e.g. ajaxhrms.com
+    platformStaffDomain: (process.env.PLATFORM_STAFF_DOMAIN || '').trim().toLowerCase().replace(/^@/, ''),
     // Public URL parts, used to show admins the redirect URIs to register with their identity provider
     publicScheme: process.env.PUBLIC_SCHEME || (isProduction ? 'https' : 'http'),
     publicPort: process.env.PUBLIC_PORT || '',

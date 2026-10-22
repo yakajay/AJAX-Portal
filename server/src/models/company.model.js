@@ -14,7 +14,7 @@ export const PLANS = {
 // Subdomains that must never be handed to a company
 export const RESERVED_SLUGS = [
   'admin', 'www', 'api', 'app', 'platform', 'mail', 'smtp', 'ftp', 'static', 'assets', 'cdn',
-  'support', 'status', 'billing', 'login', 'sso', 'auth', 'docs', 'help', 'root', 'localhost'
+  'support', 'status', 'billing', 'login', 'crm', 'portal', 'sso', 'auth', 'docs', 'help', 'root', 'localhost'
 ];
 export const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/;
 
@@ -53,6 +53,11 @@ const companySchema = new mongoose.Schema(
     },
     // The company's own logo, shown instead of ours. The image bytes live in `logo` and are only loaded
     // by the logo endpoint; `logoUpdatedAt` tells everyone else whether one exists.
+    // Name shown beside (or instead of) the logo, and whether "Powered by" stays under it. Part of the custom-branding feature.
+    branding: {
+      displayName: { type: String, default: '', trim: true, maxlength: 40 },
+      showPoweredBy: { type: Boolean, default: true }
+    },
     logoUpdatedAt: { type: Date, default: null },
     logoContentType: { type: String, default: '' },
     logoData: { type: Buffer, select: false },

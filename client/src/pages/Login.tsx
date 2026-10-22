@@ -94,6 +94,12 @@ const Login = ({ onLogin }) => {
             <>Welcome to <span className="text-emerald-600">{workspace?.name ?? 'YakFlow'}</span></>
           )}
         </h2>
+        {workspace?.kind === 'platform' && (
+          <p className="mt-2 text-sm text-slate-600">
+            Ajax staff without an account?{' '}
+            <Link to="/portal-signup" className="font-medium text-emerald-600 hover:text-emerald-500">Request portal access</Link>
+          </p>
+        )}
         {workspace?.kind === 'tenant' && workspace.allowSelfSignup && workspace.status === 'active' && (
           <p className="mt-2 text-sm text-slate-600">
             Or{' '}

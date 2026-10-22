@@ -213,6 +213,7 @@ export const workspace = (req, res) => {
     modules: company.modules,
     features: company.features,
     logoUrl: logoUrl(company),
+    brand: company.features.customLogo ? { name: company.branding?.displayName || '', showPoweredBy: company.branding?.showPoweredBy !== false } : null,
     allowSelfSignup: company.settings.allowSelfSignup,
     sso: { enabled: sso, providerName: sso ? company.sso.providerName : '', protocol: sso ? company.sso.protocol : null }
   });

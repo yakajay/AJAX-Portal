@@ -14,6 +14,8 @@ export interface Workspace {
   features?: { customLogo: boolean };
   /** The company's own logo (only when the platform enabled it for them); otherwise our logo is shown */
   logoUrl?: string | null;
+  /** The company's display name and whether "Powered by" shows (custom branding, when enabled) */
+  brand?: { name: string; showPoweredBy: boolean } | null;
   allowSelfSignup?: boolean;
   sso?: { enabled: boolean; providerName: string; protocol: 'oidc' | 'saml' | null };
 }

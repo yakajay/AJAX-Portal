@@ -5,7 +5,7 @@ import { apiJson, apiSend } from '../../lib/api';
 import { errorMessage, formatDateTime } from '../../lib/format';
 import { useAsync } from '../../lib/useAsync';
 import { Badge, Button, Card, ErrorNote, Field, PageHeader, Spinner, Th, inputClass } from '../../components/ui';
-import { ModuleBoxes, statusTone, usePortalStats, type CompanySummary } from './shared';
+import { ModuleBoxes, statusTone, useCan, usePortalStats, type CompanySummary } from './shared';
 
 interface EmployeeRow {
   id: string; name: string; email: string; role: string; department: string; designation: string;
@@ -18,6 +18,7 @@ const PortalClientDetail = () => {
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const stats = usePortalStats();
+  const canEdit = useCan('admin');
   const plans = stats.data?.plans ?? {};
   const { data, error, loading, reload } = useAsync(() => apiJson<CompanySummary>(`/platform/companies/${id}`), [id]);
   const [edit, setEdit] = useState<{ plan: string; seatLimit: string; modules: string[]; customLogo: boolean; customEmail: boolean; contactName: string; contactEmail: string } | null>(null);
@@ -72,13 +73,13 @@ const PortalClientDetail = () => {
         <ErrorNote error={actionError} />
         {notice && <p role="status" className="text-sm font-semibold text-emerald-700">{notice}</p>}
 
-        <div className="flex flex-wrap gap-2">
+        {canEdit && <div className="flex flex-wrap gap-2">
           {data.status !== 'active' && <Button small onClick={() => changeStatus('active')} disabled={busy}>Activate</Button>}
           {data.status === 'active' && <Button small variant="secondary" onClick={() => changeStatus('suspended')} disabled={busy}>Suspend</Button>}
           {data.status !== 'inactive' && <Button small variant="danger" onClick={() => changeStatus('inactive')} disabled={busy}>Deactivate</Button>}
-        </div>
+        </div>}
 
-        <Card title="Subscription & modules" actions={!edit && <Button small variant="secondary" onClick={startEdit}>Edit</Button>}>
+        <Card title="Subscription & modules" actions={canEdit && !edit && <Button small variant="secondary" onClick={startEdit}>Edit</Button>}>
           {edit ? (
             <form
               className="space-y-4"
@@ -115,7 +116,7 @@ const PortalClientDetail = () => {
           )}
         </Card>
 
-        <Card title="Invite a company admin">
+        {canEdit && <Card title="Invite a company admin">
           <form
             className="grid sm:grid-cols-[1fr_1fr_auto] gap-3 items-end"
             onSubmit={(e) => {
@@ -127,7 +128,7 @@ const PortalClientDetail = () => {
             <Field label="Email"><input required type="email" className={inputClass} value={admin.email} onChange={(e) => setAdmin({ ...admin, email: e.target.value })} /></Field>
             <Button type="submit" disabled={busy}>Invite</Button>
           </form>
-        </Card>
+        </Card>}
 
         <Card
           title="Employees"

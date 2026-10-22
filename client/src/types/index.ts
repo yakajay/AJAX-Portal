@@ -3,6 +3,8 @@ export interface User {
   name: string;
   email: string;
   role: string;
+  /** Platform staff only: what the person may do in the client portal (older accounts have none and count as 'super') */
+  platformRole?: 'viewer' | 'admin' | 'super';
   department?: string;
   designation?: string;
   employeeId?: string | null;

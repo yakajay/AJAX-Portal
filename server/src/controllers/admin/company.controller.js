@@ -92,6 +92,22 @@ export const uploadLogo = async (req, res) => {
   res.json({ hasLogo: true, logoUpdatedAt: new Date() });
 };
 
+// PUT /admin/company/branding  { displayName, showPoweredBy } - the name shown beside the logo (part of the custom-branding feature)
+export const updateBranding = async (req, res) => {
+  if (!requireLogoFeature(req, res)) return;
+  const { displayName, showPoweredBy } = req.body ?? {};
+  const set = {};
+  if (displayName !== undefined) {
+    const name = text(displayName, 40);
+    if (!name) return bad(res, 'Enter the company name to show to employees.');
+    set['branding.displayName'] = name;
+  }
+  if (showPoweredBy !== undefined) set['branding.showPoweredBy'] = !!showPoweredBy;
+  await Company.updateOne({ _id: req.company.id }, { $set: set });
+  await audit(req, { action: 'company.branding', entity: 'company', entityId: req.company.id, summary: 'Updated the company branding', meta: set });
+  res.json(await view(await Company.findById(req.company.id)));
+};
+
 // DELETE /admin/company/logo - goes back to the platform's logo (a setting, not a record, so it is immediate)
 export const removeLogo = async (req, res) => {
   if (!requireLogoFeature(req, res)) return;

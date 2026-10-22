@@ -8,13 +8,16 @@ import { hashRefreshToken } from '../models/session.model.js';
 
 // Decides which company (or the platform console) a request is for, from its Host header:
 //   admin.<baseDomain> or <baseDomain>   -> the platform console (Super Admin)
+//   crm.<baseDomain>                     -> the shared CRM address (company chosen at sign-in)
 //   <slug>.<baseDomain>                  -> that company's workspace
 // and runs the rest of the request inside that scope, so the data layer can only see that tenant.
 export const classifyHost = (hostname) => {
-  const { baseDomain, platformSubdomain, platformHost, defaultTenantSlug } = env.tenancy;
+  const { baseDomain, platformSubdomain, platformHost, defaultTenantSlug, crmSubdomain } = env.tenancy;
   const host = String(hostname || '').toLowerCase().replace(/\.$/, '');
   if (platformHost && host === platformHost) return { kind: 'platform' };
   if (host === baseDomain || host === `${platformSubdomain}.${baseDomain}`) return { kind: 'platform' };
+  // The shared CRM address names no company: single-company installs serve theirs, otherwise it follows the sign-in
+  if (host === `${crmSubdomain}.${baseDomain}`) return defaultTenantSlug ? { kind: 'tenant', slug: defaultTenantSlug } : { kind: 'unknown' };
   if (host.endsWith(`.${baseDomain}`)) {
     const slug = host.slice(0, -(baseDomain.length + 1));
     if (slug && !slug.includes('.')) return { kind: 'tenant', slug };

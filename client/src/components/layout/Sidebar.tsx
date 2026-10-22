@@ -6,6 +6,7 @@ import { isAdminRole } from '../../lib/api';
 import { useI18n } from '../../lib/i18n';
 import type { MessageKey } from '../../lib/locales';
 import { useWorkspace } from '../../lib/workspace';
+import { appUrl, crmUrl, isCrmHost } from '../../lib/host';
 
 const GROUP_TITLES: Record<string, string | null> = { workspace: null, people: 'People & company', crm: null, admin: 'More admin tools', platform: 'Client portal' };
 
@@ -18,7 +19,8 @@ const Sidebar = ({ isOpen, toggleSidebar, user }: { isOpen: boolean; toggleSideb
   const location = useLocation();
   const { t } = useI18n();
   const { workspace } = useWorkspace();
-  const tool = toolForPath(location.pathname);
+  // At crm.<domain> only the CRM is shown; HRMS pages like My Profile live on the employee address
+  const tool: Tool = isCrmHost() ? 'crm' : toolForPath(location.pathname);
   const platform = user?.role === 'PLATFORM_ADMIN';
   // Admins switch between the employee portal and the CRM; everyone else only has the portal
   const showSwitcher = !platform && isAdminRole(user?.role);
@@ -50,20 +52,24 @@ const Sidebar = ({ isOpen, toggleSidebar, user }: { isOpen: boolean; toggleSideb
             <div className="flex flex-col gap-2">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Workspace</span>
               <div role="group" aria-label="Switch tool" className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-slate-50 border border-slate-200">
-                {TOOLS.map((tl) => (
-                  <Link
-                    key={tl.id}
-                    to={tl.to}
-                    onClick={() => isOpen && toggleSidebar()}
-                    aria-current={tl.id === tool ? 'page' : undefined}
-                    className={`min-h-11 flex flex-col items-center justify-center rounded-[9px] text-center transition-colors ${
-                      tl.id === tool ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-blue-50'
-                    }`}
-                  >
-                    <span className="text-sm font-extrabold leading-tight">{tl.label}</span>
-                    <span className="text-[11px] font-semibold opacity-85 leading-tight">{tl.sub}</span>
-                  </Link>
-                ))}
+                {TOOLS.map((tl) => {
+                  const className = `min-h-11 flex flex-col items-center justify-center rounded-[9px] text-center transition-colors ${
+                    tl.id === tool ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-blue-50'
+                  }`;
+                  const label = (
+                    <>
+                      <span className="text-sm font-extrabold leading-tight">{tl.label}</span>
+                      <span className="text-[11px] font-semibold opacity-85 leading-tight">{tl.sub}</span>
+                    </>
+                  );
+                  // The two tools can live on different addresses (crm.<domain> and the employee portal)
+                  const external = tl.id === 'crm' ? crmUrl() && `${crmUrl()}/crm` : tl.id === 'hrms' ? appUrl() : '';
+                  return external ? (
+                    <a key={tl.id} href={external} aria-current={tl.id === tool ? 'page' : undefined} className={className}>{label}</a>
+                  ) : (
+                    <Link key={tl.id} to={tl.to} onClick={() => isOpen && toggleSidebar()} aria-current={tl.id === tool ? 'page' : undefined} className={className}>{label}</Link>
+                  );
+                })}
               </div>
             </div>
           )}

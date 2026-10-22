@@ -1,6 +1,7 @@
 import { apiJson } from '../../lib/api';
 import { useAsync } from '../../lib/useAsync';
-import { MODULES } from '../../lib/permissions';
+import { MODULES, portalLevel, type PortalLevel } from '../../lib/permissions';
+import type { User } from '../../types';
 import type { Tone } from '../../components/ui';
 
 export type Status = 'active' | 'suspended' | 'inactive' | 'deleted';
@@ -52,3 +53,17 @@ export const ModuleBoxes = ({ value, onChange }: { value: string[]; onChange: (n
     ))}
   </div>
 );
+
+/** The signed-in portal account (the app keeps it in the session), for screens that hide actions a role cannot use. */
+export const useMyPortalLevel = (): PortalLevel => {
+  try {
+    const stored = JSON.parse(sessionStorage.getItem('user') ?? 'null') as User | null;
+    return portalLevel(stored) ?? 'viewer';
+  } catch {
+    return 'viewer';
+  }
+};
+export const useCan = (needs: PortalLevel) => {
+  const level = useMyPortalLevel();
+  return level === 'super' || (needs === 'admin' && level === 'admin') || needs === 'viewer';
+};

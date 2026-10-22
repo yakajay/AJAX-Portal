@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { appUrl } from '../../lib/host';
 import { Avatar, initialsOf } from '../Avatar';
 import { Badge } from '../ui';
 import { apiJson } from '../../lib/api';
@@ -54,9 +55,13 @@ export const Restricted = ({ superOnly }: { superOnly: boolean }) => (
         ? 'Only Super Admins can assign roles and change access. Ask a Super Admin if someone needs a different role.'
         : 'The CRM is for Admins and Super Admins. Your account uses the HRMS portal for attendance, leave and payslips.'}
     </p>
-    <Link to={superOnly ? '/crm' : '/'} className="self-start mt-2 min-h-11 inline-flex items-center px-5 rounded-[10px] bg-blue-600 text-white font-bold text-[15px] hover:bg-blue-700">
-      {superOnly ? 'Back to CRM overview' : 'Go to HRMS portal'}
-    </Link>
+    {!superOnly && appUrl() ? (
+      <a href={appUrl()} className="self-start mt-2 min-h-11 inline-flex items-center px-5 rounded-[10px] bg-blue-600 text-white font-bold text-[15px] hover:bg-blue-700">Go to HRMS portal</a>
+    ) : (
+      <Link to={superOnly ? '/crm' : '/'} className="self-start mt-2 min-h-11 inline-flex items-center px-5 rounded-[10px] bg-blue-600 text-white font-bold text-[15px] hover:bg-blue-700">
+        {superOnly ? 'Back to CRM overview' : 'Go to HRMS portal'}
+      </Link>
+    )}
   </section>
 );
 
