@@ -62,6 +62,9 @@ export const remindSupportTickets = async (now = new Date()) => {
   const admins = await adminPeople('support');
   let sent = 0;
   for (const t of due) {
+    // Claim this reminder before sending: with several server copies, only the one whose update matches sends it
+    const claimed = await SupportTicket.updateOne({ _id: t._id, status: { $ne: 'Closed' }, lastReminderAt: t.lastReminderAt ?? null }, { lastReminderAt: now });
+    if (claimed.modifiedCount !== 1) continue;
     const summary = supportLine(t, now);
     const title = `${PRIORITY_CODE[t.priority]} reminder: ${t.subject}`;
     const people = [
@@ -73,7 +76,6 @@ export const remindSupportTickets = async (now = new Date()) => {
       p.role === 'requester'
         ? `Hi ${p.name},\n\nStatus of your ticket "${t.subject}":\n${summary}\n\nReply on the ticket if anything changed. We keep reminding until it is closed.\n`
         : `Hi ${p.name},\n\nOpen ticket "${t.subject}"${t.user ? ` raised by ${t.user.name}` : ''}:\n${summary}\n`);
-    await SupportTicket.updateOne({ _id: t._id }, { lastReminderAt: now });
   }
   return sent;
 };
@@ -157,13 +159,14 @@ export const remindAddressTickets = async (now = new Date()) => {
   const staff = (await platformStaff()).filter(canDecide);
   let sent = 0;
   for (const t of pending) {
+    const claimed = await AddressTicket.updateOne({ _id: t._id, status: 'Pending', lastReminderAt: t.lastReminderAt ?? null }, { lastReminderAt: now });
+    if (claimed.modifiedCount !== 1) continue;
     const line = `${t.ticketNo} · ${t.companyName} · ${t.action} · waiting ${ageText(t.createdAt, now)}`;
     const people = [{ name: t.requestedBy.name, email: t.requestedBy.email, role: 'requester' }, ...staff.map((s) => ({ ...s.toObject(), role: 'staff' }))];
     sent += await emailPeople(people, `Reminder ${t.ticketNo}: sign-in address request`, (p) =>
       p.role === 'requester'
         ? `Hi ${p.name},\n\nYour request ${line} is still waiting for the platform team.\n`
         : `Hi ${p.name},\n\nStill waiting for a decision: ${line}\nReason given: ${t.reason}\n`);
-    await AddressTicket.updateOne({ _id: t._id }, { lastReminderAt: now });
   }
   return sent;
 };

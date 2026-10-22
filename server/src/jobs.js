@@ -8,6 +8,7 @@ import { logger } from './utils/logger.js';
 import { env } from './config/env.js';
 import { forEachActiveCompany } from './utils/tenants.js';
 import { runAsPlatform } from './utils/tenantContext.js';
+import { claimJob } from './models/jobRun.model.js';
 import { remindSupportTickets, remindAddressTickets, sendSupportReports } from './utils/ticketReminders.js';
 
 // Alerts admins once per contractor/end-date when a contract is within the alert window
@@ -57,17 +58,16 @@ export const contractAlertsAllCompanies = async (now) => sum(await forEachActive
 export const sendDigestsAllCompanies = async () => sum(await forEachActiveCompany(() => sendDigests()));
 
 // Status reminders for open tickets (P1/P2 every 30 minutes, the rest hourly) and the daily manager report.
-// Each ticket remembers when it was last reminded, so running this often (or after a restart) never repeats an email.
-const lastReportDay = new Map(); // companyId -> day the report last went out
+// Each reminder and each daily report is claimed in the database before it is sent, so several server copies, a restart or a
+// cron run alongside never repeat an email.
 export const runTicketCycle = async (now = new Date()) => {
   const results = { reminders: sum(await forEachActiveCompany(() => remindSupportTickets(now))), addressReminders: 0, reports: 0 };
   results.addressReminders = await runAsPlatform(() => remindAddressTickets(now));
   if (now.getHours() === env.jobs.ticketReportHour) {
     const day = isoDate(now);
     results.reports = sum(await forEachActiveCompany(async (company) => {
-      if (lastReportDay.get(company.id) === day) return 0;
-      lastReportDay.set(company.id, day);
-      return sendSupportReports(now);
+      // One claim per company per day, shared by every server copy
+      return (await claimJob('ticket-report', company.id, day)) ? sendSupportReports(now) : 0;
     }));
   }
   return results;

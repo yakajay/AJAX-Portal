@@ -143,3 +143,21 @@ describe('address tickets', () => {
     await Company.updateOne({ _id: testCompany._id }, { 'subscription.plan': 'enterprise', dedicatedAddress: true });
   });
 });
+
+describe('several server copies', () => {
+  it('send each reminder once, however many run at the same moment', async () => {
+    const employee = await makeUser();
+    const t = await raise(employee, 'Urgent');
+    outbox.length = 0;
+    const at = new Date(new Date(t.createdAt).getTime() + min(31));
+    await Promise.all([1, 2, 3].map(() => inTenant(() => remindSupportTickets(at))));
+    expect(to(employee.user.email)).toHaveLength(1);
+  });
+
+  it('claim the daily report once per company per day', async () => {
+    const { claimJob } = await import('../src/models/jobRun.model.js');
+    const results = await Promise.all([1, 2, 3].map(() => claimJob('ticket-report', 'company-x', '2030-01-01')));
+    expect(results.filter(Boolean)).toHaveLength(1);
+    expect(await claimJob('ticket-report', 'company-x', '2030-01-02')).toBe(true);
+  });
+});
