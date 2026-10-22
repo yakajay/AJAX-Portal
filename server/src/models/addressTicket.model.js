@@ -29,7 +29,8 @@ const addressTicketSchema = new mongoose.Schema(
     // What the company's address was before and after, filled in when the change is applied
     before: { dedicated: { type: Boolean, default: null }, slug: { type: String, default: '' } },
     after: { dedicated: { type: Boolean, default: null }, slug: { type: String, default: '' } },
-    appliedAt: { type: Date, default: null }
+    appliedAt: { type: Date, default: null },
+    lastReminderAt: { type: Date, default: null }
   },
   schemaOptions()
 );

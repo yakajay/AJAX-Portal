@@ -2,6 +2,8 @@ import mongoose from 'mongoose';
 import { schemaOptions, userRef, withUserVirtual } from './schemaOptions.js';
 
 export const TICKET_PRIORITIES = ['Low', 'Medium', 'High', 'Urgent'];
+// How people refer to them: P1 is the most urgent
+export const PRIORITY_CODE = { Urgent: 'P1', High: 'P2', Medium: 'P3', Low: 'P4' };
 // Hours allowed to resolve a ticket, by priority
 export const SLA_HOURS = { Low: 120, Medium: 48, High: 24, Urgent: 4 };
 
@@ -27,11 +29,14 @@ const ticketSchema = withUserVirtual(
       assigneeId: userRef(false),
       comments: { type: [commentSchema], default: [] },
       dueAt: { type: Date, default: null },
-      closedAt: { type: Date, default: null }
+      closedAt: { type: Date, default: null },
+      // When the last status reminder email went out (see utils/ticketReminders.js)
+      lastReminderAt: { type: Date, default: null }
     },
     schemaOptions()
   )
 );
+ticketSchema.virtual('priorityCode').get(function () { return PRIORITY_CODE[this.priority] ?? 'P3'; });
 ticketSchema.virtual('assignee', { ref: 'User', localField: 'assigneeId', foreignField: '_id', justOne: true });
 
 export const slaDueAt = (createdAt, priority) =>

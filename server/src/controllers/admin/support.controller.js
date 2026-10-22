@@ -3,6 +3,8 @@ import { userModel } from '../../models/user.model.js';
 import { ADMIN_ROLES } from '../../utils/format.js';
 import { notify } from '../../utils/notify.js';
 import { audit } from '../../utils/audit.js';
+import { buildSupportReport } from '../../utils/ticketReminders.js';
+import { sendCsv } from '../../utils/csv.js';
 
 const STATUSES = ['Open', 'In Progress', 'Closed'];
 
@@ -87,4 +89,18 @@ export const addComment = async (req, res) => {
     });
   }
   res.status(201).json(await ticketModel.findById(ticket.id));
+};
+
+// GET /admin/support/report[?format=csv] - open tickets grouped by the person resolving them, with SLA state
+export const resolutionReport = async (req, res) => {
+  const report = await buildSupportReport();
+  if (req.query.format === 'csv') {
+    const rows = report.groups.flatMap((g) => g.tickets.map((t) => ({ resolver: g.assignee?.name ?? 'Unassigned', ...t })));
+    return sendCsv(res, 'ticket-resolution-report.csv', rows, [
+      { header: 'Resolver', value: (r) => r.resolver }, { header: 'Priority', value: (r) => r.code }, { header: 'Subject', value: (r) => r.subject },
+      { header: 'Status', value: (r) => r.status }, { header: 'SLA', value: (r) => r.slaState }, { header: 'Raised by', value: (r) => r.raisedBy },
+      { header: 'Open (min)', value: (r) => r.ageMinutes }
+    ]);
+  }
+  res.json(report);
 };

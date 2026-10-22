@@ -137,6 +137,7 @@ router.get('/payroll/payslips', can('payroll').read, payroll.listPayslips);
 router.post('/payroll/payslips/mark-paid', can('payroll').write, payroll.markPaid);
 router.get('/payroll/payslips/:id/pdf', can('payroll').read, payroll.payslipPdf);
 
+router.get('/support/report', can('support').read, support.resolutionReport);
 router.get('/support/tickets', can('support').read, support.listTickets);
 router.get('/support/tickets/:id', can('support').read, support.getTicket);
 router.put('/support/tickets/:id', can('support').write, support.updateTicket);

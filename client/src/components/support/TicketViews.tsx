@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Send } from 'lucide-react';
 import type { User } from '../../types';
-import { apiJson, apiSend } from '../../lib/api';
+import { apiJson, apiSend, downloadFile } from '../../lib/api';
 import { can } from '../../lib/permissions';
 import { errorMessage, formatDateTime } from '../../lib/format';
 import { useAsync } from '../../lib/useAsync';
@@ -16,6 +16,8 @@ export interface Ticket {
 }
 interface Person { id: string; name: string; role: string }
 
+/** How people refer to priorities: P1 is the most urgent */
+export const PRIORITY_CODE = { Urgent: 'P1', High: 'P2', Medium: 'P3', Low: 'P4' } as const;
 const PRIORITY_TONE = { Low: 'slate', Medium: 'blue', High: 'amber', Urgent: 'rose' } as const;
 
 const dueText = (t: Ticket) => {
@@ -57,7 +59,7 @@ const TicketDetail = ({ ticketId, staff, canWrite, onClose, onChanged }: {
         <div className="space-y-5">
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone={statusTone(ticket.status)}>{ticket.status}</Badge>
-            <Badge tone={PRIORITY_TONE[ticket.priority]}>{ticket.priority}</Badge>
+            <Badge tone={PRIORITY_TONE[ticket.priority]}>{PRIORITY_CODE[ticket.priority]} · {ticket.priority}</Badge>
             <Badge tone={statusTone(ticket.slaState)}>SLA {ticket.slaState}</Badge>
             {dueText(ticket) && <span className="text-xs text-slate-500">{dueText(ticket)}</span>}
             <span className="text-xs text-slate-400 ml-auto">{ticket.category} · opened {formatDateTime(ticket.createdAt)}{ticket.user ? ` by ${ticket.user.name}` : ''}</span>
@@ -118,6 +120,12 @@ export const TicketList = ({ user, scope }: { user: User; scope: 'mine' | 'queue
           </button>
         ))}
       </div>
+      {staff && (
+        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+          <Button small variant="secondary" onClick={() => void downloadFile('/admin/support/report?format=csv', 'ticket-resolution-report.csv')}>Download resolution report</Button>
+          <span>P1 and P2 tickets remind everyone involved every 30 minutes, the rest every hour, until closed. Managers get the report daily.</span>
+        </div>
+      )}
       <ErrorNote error={error} />
       <Card flush>
         {loading && !data ? <Spinner /> : !rows.length ? <Empty>No tickets here.</Empty> : (
@@ -132,7 +140,7 @@ export const TicketList = ({ user, scope }: { user: User; scope: 'mine' | 'queue
                       <p className="text-xs text-slate-400">{t.category} · {formatDateTime(t.createdAt)}{t.comments.length ? ` · ${t.comments.length} repl${t.comments.length === 1 ? 'y' : 'ies'}` : ''}</p>
                     </td>
                     {staff && <td className="px-6 py-3 text-sm text-slate-600">{t.user?.name ?? '—'}</td>}
-                    <td className="px-6 py-3"><Badge tone={PRIORITY_TONE[t.priority]}>{t.priority}</Badge></td>
+                    <td className="px-6 py-3"><Badge tone={PRIORITY_TONE[t.priority]}>{PRIORITY_CODE[t.priority]} · {t.priority}</Badge></td>
                     <td className="px-6 py-3"><Badge tone={statusTone(t.status)}>{t.status}</Badge></td>
                     <td className="px-6 py-3"><Badge tone={statusTone(t.slaState)}>{t.slaState}</Badge><span className="block text-xs text-slate-400 mt-0.5">{dueText(t)}</span></td>
                     {staff && <td className="px-6 py-3 text-sm text-slate-600">{t.assignee?.name ?? <span className="text-slate-300">Unassigned</span>}</td>}

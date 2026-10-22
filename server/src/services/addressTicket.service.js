@@ -5,6 +5,9 @@ import { audit } from '../utils/audit.js';
 import { sendMail } from '../utils/mailer.js';
 import { logger } from '../utils/logger.js';
 import { env } from '../config/env.js';
+import { User } from '../models/user.model.js';
+import { ADMIN_ROLES } from '../utils/format.js';
+import { announceAddressTicket, emailPeople } from '../utils/ticketReminders.js';
 
 const actor = (user) => ({ id: user?.id ?? null, name: user?.name ?? 'System', email: user?.email ?? '', role: user?.role ?? '' });
 
@@ -67,6 +70,11 @@ export const openCompanyRequest = async (req, company, { action, slug, reason })
     requestedSlug: String(slug ?? '').trim().toLowerCase(), reason: why.slice(0, 1000), requestedBy: actor(req.user)
   });
   await auditFor(req, company, ticket, 'request');
+  // Raised: the platform's Portal Admins and Super Admins, and this company's own admins, are told by email
+  await announceAddressTicket(ticket);
+  const own = await User.find({ role: { $in: ADMIN_ROLES }, locked: false });
+  await emailPeople(own, `Address request ${ticket.ticketNo} sent`, (p) =>
+    `Hi ${p.name},\n\n${ticket.requestedBy.name} asked the platform team to ${ticket.action} ${company.name}'s sign-in address (${ticket.ticketNo}).\n\nReason: ${ticket.reason}\n\nNothing changes until the platform team decides. We will remind you of the status every hour.\n`);
   return ticket;
 };
 
