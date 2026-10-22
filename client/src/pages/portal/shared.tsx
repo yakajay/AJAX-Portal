@@ -34,7 +34,8 @@ export const statusTone = (s: Status): Tone => (s === 'active' ? 'green' : s ===
 export const usePortalStats = () => useAsync(() => apiJson<PortalStats>('/platform/stats'), []);
 
 /** Every client that is not deleted; the Overview, Plans and Clients screens all summarise this one list. */
-export const useClients = () => useAsync(() => apiJson<CompanySummary[]>('/platform/companies'), []);
+export const useClients = (status = '') =>
+  useAsync(() => apiJson<CompanySummary[]>(`/platform/companies${status ? `?status=${status}` : ''}`), [status]);
 
 export const daysUntil = (iso: string | null | undefined) =>
   iso ? Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000) : null;

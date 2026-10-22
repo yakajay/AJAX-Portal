@@ -152,6 +152,8 @@ function App() {
                   <Route path="/portal/clients/:id" element={<PortalClientDetail />} />
                   <Route path="/portal/onboard" element={<PortalOnboard />} />
                   <Route path="/portal/plans" element={<PortalPlans />} />
+                  <Route path="/platform/requests" element={<Navigate to="/portal/support" replace />} />
+                  <Route path="/platform/audit" element={<Navigate to="/portal/support" replace />} />
                   <Route path="/portal/support" element={<PortalSupport />} />
                   <Route path="/profile" element={<Profile user={user} onUserUpdate={handleUserUpdate} />} />
                   <Route path="/preferences" element={<Preferences user={user} onUserUpdate={handleUserUpdate} onLogout={handleLogout} />} />

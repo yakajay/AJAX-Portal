@@ -11,7 +11,7 @@ const PortalClients = () => {
   const [status, setStatus] = useState('');
   const [plan, setPlan] = useState('');
   const stats = usePortalStats();
-  const clients = useClients();
+  const clients = useClients(status === 'deleted' ? 'deleted' : '');
   const plans = stats.data?.plans ?? {};
 
   const rows = useMemo(() => {
@@ -36,7 +36,7 @@ const PortalClients = () => {
         <input aria-label="Search clients" className={`${inputClass} flex-1 min-w-56`} placeholder="Search by name, subdomain or contact…" value={q} onChange={(e) => setQ(e.target.value)} />
         <select aria-label="Filter by status" className={`${inputClass} w-44`} value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">All statuses</option>
-          <option value="active">Active</option><option value="suspended">Suspended</option><option value="inactive">Inactive</option>
+          <option value="active">Active</option><option value="suspended">Suspended</option><option value="inactive">Inactive</option><option value="deleted">Deleted</option>
         </select>
         <select aria-label="Filter by plan" className={`${inputClass} w-44`} value={plan} onChange={(e) => setPlan(e.target.value)}>
           <option value="">All plans</option>
