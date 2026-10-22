@@ -10,7 +10,7 @@ interface Page { items: Entry[]; total: number; page: number; pages: number }
 interface CompanyOption { id: string; name: string }
 
 /** Everything the platform did on companies, including each unmasked support view. Companies see their own part of it. */
-const PlatformAudit = () => {
+const PortalAudit = () => {
   const [q, setQ] = useState('');
   const [companyId, setCompanyId] = useState('');
   const [page, setPage] = useState(1);
@@ -71,4 +71,4 @@ const PlatformAudit = () => {
   );
 };
 
-export default PlatformAudit;
+export default PortalAudit;

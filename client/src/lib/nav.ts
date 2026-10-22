@@ -60,10 +60,12 @@ export const NAV_ITEMS: NavItem[] = [
   { path: '/company', label: 'nav.companySettings', icon: Building, group: 'admin', keywords: 'company profile domain subdomain sso single sign-on saml oidc support access', visible: (u) => u?.role === 'SUPER_ADMIN' },
   { path: '/delete-requests', label: 'nav.deleteRequests', icon: Trash2, group: 'admin', keywords: 'approval pending approved rejected remove', visible: (u) => isAdminRole(u?.role) },
   { path: '/audit', label: 'nav.auditLog', icon: ScrollText, group: 'admin', keywords: 'history changes security', visible: (u) => u?.role === 'SUPER_ADMIN' },
-  // Super Admin console (platform account only)
-  { path: '/platform', label: 'nav.companies', icon: Building2, group: 'platform', keywords: 'tenants onboard subscription plan suspend', visible: (u) => isPlatformRole(u?.role) },
-  { path: '/platform/requests', label: 'nav.deleteRequests', icon: Trash2, group: 'platform', keywords: 'approve reject deletion', visible: (u) => isPlatformRole(u?.role) },
-  { path: '/platform/audit', label: 'nav.platformAudit', icon: ScrollText, group: 'platform', keywords: 'history support access', visible: (u) => isPlatformRole(u?.role) }
+  // Portal (Ajax platform staff only)
+  { path: '/portal', label: 'nav.portalOverview', icon: LayoutGrid, group: 'platform', keywords: 'platform clients home overview', visible: (u) => isPlatformRole(u?.role) },
+  { path: '/portal/clients', label: 'nav.clients', icon: Building2, group: 'platform', keywords: 'companies tenants subscription plan suspend manage', visible: (u) => isPlatformRole(u?.role) },
+  { path: '/portal/onboard', label: 'nav.onboardClient', icon: UserPlus, group: 'platform', keywords: 'new company tenant create subdomain', visible: (u) => isPlatformRole(u?.role) },
+  { path: '/portal/plans', label: 'nav.plansBilling', icon: CreditCard, group: 'platform', keywords: 'seats subscription renewal billing invoices', visible: (u) => isPlatformRole(u?.role) },
+  { path: '/portal/support', label: 'nav.supportActivity', icon: LifeBuoy, group: 'platform', keywords: 'delete requests approve reject audit history support access', visible: (u) => isPlatformRole(u?.role) }
 ];
 
 /** The platform account only sees its console; company people see their workspace, minus modules their plan lacks. */

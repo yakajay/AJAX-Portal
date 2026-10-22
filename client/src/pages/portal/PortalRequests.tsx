@@ -9,7 +9,7 @@ type PlatformRequest = DeleteRequestRecord & { company: { name: string; slug: st
 type Filter = 'Pending' | 'Approved' | 'Rejected' | 'all';
 
 /** The Super Admin's queue: approve (carries out the deletion) or reject (with a reason the company sees). */
-const PlatformRequests = () => {
+const PortalRequests = () => {
   const [filter, setFilter] = useState<Filter>('Pending');
   const { data, error, loading, reload } = useAsync(
     () => apiJson<PlatformRequest[]>(`/platform/delete-requests${filter === 'all' ? '' : `?status=${filter}`}`),
@@ -80,4 +80,4 @@ const PlatformRequests = () => {
   );
 };
 
-export default PlatformRequests;
+export default PortalRequests;

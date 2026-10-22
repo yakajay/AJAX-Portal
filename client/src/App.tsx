@@ -31,9 +31,12 @@ const Preferences = lazy(() => import('./pages/Preferences'));
 const AuditLog = lazy(() => import('./pages/AuditLog'));
 const CompanySettings = lazy(() => import('./pages/CompanySettings'));
 const DeleteRequests = lazy(() => import('./pages/DeleteRequests'));
-const Companies = lazy(() => import('./pages/platform/Companies'));
-const PlatformRequests = lazy(() => import('./pages/platform/PlatformRequests'));
-const PlatformAudit = lazy(() => import('./pages/platform/PlatformAudit'));
+const PortalOverview = lazy(() => import('./pages/portal/PortalOverview'));
+const PortalClients = lazy(() => import('./pages/portal/PortalClients'));
+const PortalClientDetail = lazy(() => import('./pages/portal/PortalClientDetail'));
+const PortalOnboard = lazy(() => import('./pages/portal/PortalOnboard'));
+const PortalPlans = lazy(() => import('./pages/portal/PortalPlans'));
+const PortalSupport = lazy(() => import('./pages/portal/PortalSupport'));
 const Documents = lazy(() => import('./pages/Documents'));
 const CrmOverview = lazy(() => import('./pages/crm/CrmOverview'));
 const CrmEmployees = lazy(() => import('./pages/crm/CrmEmployees'));
@@ -43,7 +46,7 @@ const CrmHolidays = lazy(() => import('./pages/crm/CrmHolidays'));
 const CrmLeaveBalances = lazy(() => import('./pages/crm/CrmLeaveBalances'));
 const CrmPayroll = lazy(() => import('./pages/crm/CrmPayroll'));
 const CrmRoles = lazy(() => import('./pages/crm/CrmRoles'));
-import { Restricted } from './components/crm/shared';
+import { PortalRestricted, Restricted } from './components/crm/shared';
 import type { User } from './types';
 import { getToken, setSession, clearToken, apiFetch, UNAUTHORIZED_EVENT } from './lib/api';
 import { I18nProvider } from './lib/i18n';
@@ -144,12 +147,15 @@ function App() {
               <Layout user={user} onLogout={handleLogout}>
                 {isPlatform ? (
                 <Routes>
-                  <Route path="/platform" element={<Companies />} />
-                  <Route path="/platform/requests" element={<PlatformRequests />} />
-                  <Route path="/platform/audit" element={<PlatformAudit />} />
+                  <Route path="/portal" element={<PortalOverview />} />
+                  <Route path="/portal/clients" element={<PortalClients />} />
+                  <Route path="/portal/clients/:id" element={<PortalClientDetail />} />
+                  <Route path="/portal/onboard" element={<PortalOnboard />} />
+                  <Route path="/portal/plans" element={<PortalPlans />} />
+                  <Route path="/portal/support" element={<PortalSupport />} />
                   <Route path="/profile" element={<Profile user={user} onUserUpdate={handleUserUpdate} />} />
                   <Route path="/preferences" element={<Preferences user={user} onUserUpdate={handleUserUpdate} onLogout={handleLogout} />} />
-                  <Route path="*" element={<Navigate to="/platform" replace />} />
+                  <Route path="*" element={<Navigate to="/portal" replace />} />
                 </Routes>
                 ) : (
                 <Routes>
@@ -166,6 +172,8 @@ function App() {
                   <Route path="/support" element={<Support user={user} />} />
                   <Route path="/payslips" element={<Payslips />} />
                   <Route path="/documents" element={<Documents />} />
+                  {/* Portal: Ajax platform staff only. Everyone else is told why instead of being bounced away. */}
+                  <Route path="/portal/*" element={<PortalRestricted isAdmin={isAdmin} />} />
                   {/* CRM: admin workspace. Employees who open these see why instead of being bounced away. */}
                   <Route path="/crm" element={isAdmin ? <CrmOverview /> : <Restricted superOnly={false} />} />
                   <Route path="/crm/employees" element={isAdmin ? <CrmEmployees user={user} /> : <Restricted superOnly={false} />} />

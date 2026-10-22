@@ -61,3 +61,17 @@ export const Restricted = ({ superOnly }: { superOnly: boolean }) => (
 );
 
 export const DEPARTMENT_FALLBACK = 'Unassigned';
+
+/** What anyone but Ajax platform staff sees on a Portal page. */
+export const PortalRestricted = ({ isAdmin }: { isAdmin: boolean }) => (
+  <section className="max-w-xl p-8 rounded-2xl bg-white border border-slate-200 flex flex-col gap-3">
+    <span className="text-[13px] font-bold uppercase tracking-wider text-rose-700">Restricted</span>
+    <h1 className="text-2xl font-extrabold text-slate-900">Portal admins only</h1>
+    <p className="text-[15px] leading-relaxed text-slate-600">
+      The client portal is for Ajax platform staff. Company Admins and Super Admins manage their own organisation in the CRM.
+    </p>
+    <Link to={isAdmin ? '/crm' : '/'} className="self-start mt-2 min-h-11 inline-flex items-center px-5 rounded-[10px] bg-blue-600 text-white font-bold text-[15px] hover:bg-blue-700">
+      {isAdmin ? 'Go to CRM' : 'Go to HRMS portal'}
+    </Link>
+  </section>
+);
