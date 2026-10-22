@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Users, UserCheck, CreditCard, Clock, FileText, Calendar, Receipt, Target, ClipboardCheck,
   Megaphone, Bell, Settings, ScrollText, LifeBuoy, SlidersHorizontal, WalletCards, UserPlus, Building2, Trash2, Building, UserMinus, BarChart3, ShieldCheck, Landmark,
-  UserCircle, FolderOpen, Palette, ShieldPlus, Inbox, CalendarDays, CalendarCheck, KeyRound, LayoutGrid, type LucideIcon
+  UserCircle, FolderOpen, Palette, ShieldPlus, Globe, Inbox, CalendarDays, CalendarCheck, KeyRound, LayoutGrid, type LucideIcon
 } from 'lucide-react';
 import type { User } from '../types';
 import { isAdminRole, isPlatformRole } from './api';
@@ -49,6 +49,7 @@ export const NAV_ITEMS: NavItem[] = [
   { path: '/crm/holidays', label: 'nav.holidays', icon: CalendarDays, group: 'crm', module: 'hr', keywords: 'public holiday calendar festival', visible: isAdmin },
   { path: '/crm/leave-balances', label: 'nav.leaveBalances', icon: CalendarCheck, group: 'crm', module: 'leave', keywords: 'entitlement policy accrual days left', visible: isAdmin },
   { path: '/crm/payroll', label: 'nav.payroll', icon: CreditCard, group: 'crm', module: 'payroll', keywords: 'salary run payslips generate month', visible: isAdmin },
+  { path: '/crm/address', label: 'nav.signInAddress', icon: Globe, group: 'crm', keywords: 'subdomain domain url link own address shared ticket', visible: isAdmin },
   { path: '/crm/branding', label: 'nav.branding', icon: Palette, group: 'crm', keywords: 'logo company name white label custom brand powered by', visible: (u) => u?.role === 'SUPER_ADMIN' },
   { path: '/crm/roles', label: 'nav.rolesAccess', icon: KeyRound, group: 'crm', keywords: 'permissions admin super admin assign role', visible: (u) => u?.role === 'SUPER_ADMIN' },
   { path: '/payroll', label: 'nav.payrollTools', icon: CreditCard, group: 'admin', module: 'payroll', keywords: 'salary structure bank file accounting journal checks tax', visible: (u) => isAdminRole(u?.role) },

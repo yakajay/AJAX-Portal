@@ -45,7 +45,7 @@ const PortalOverview = () => {
         <StatTile label="Active clients" value={stats.data.companies.active} icon={Building2} hint={`${stats.data.companies.suspended} suspended · ${stats.data.companies.inactive} inactive`} />
         <StatTile label="On trial" value={trials} icon={FlaskConical} hint="Active clients on the trial plan" />
         <StatTile label="Employees on platform" value={stats.data.employees.toLocaleString()} icon={Users} />
-        <StatTile label="Delete requests" value={stats.data.pendingDeleteRequests} icon={Hourglass} hint="waiting for you" />
+        <StatTile label="Waiting for you" value={stats.data.pendingDeleteRequests + (stats.data.pendingAddressRequests ?? 0)} icon={Hourglass} hint={`${stats.data.pendingDeleteRequests} delete requests · ${stats.data.pendingAddressRequests ?? 0} address tickets`} />
       </div>
       <div className="grid lg:grid-cols-[2fr_1fr] gap-6">
         <Card title="Needs attention" actions={<Link to="/portal/clients" className="text-sm font-bold text-blue-800 hover:underline">All clients</Link>} flush>

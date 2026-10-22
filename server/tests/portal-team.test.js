@@ -157,7 +157,7 @@ describe('own address for paid clients', () => {
     expect(co.dedicatedAddress).toBe(true);
     const down = (await platformApi().put(`/api/platform/companies/${co.id}`).set(boss.auth).send({ plan: 'trial' }).expect(200)).body;
     expect(down.dedicatedAddress).toBe(false);
-    await platformApi().put(`/api/platform/companies/${co.id}`).set(boss.auth).send({ dedicatedAddress: true }).expect(400);
+    await platformApi().put(`/api/platform/companies/${co.id}`).set(boss.auth).send({ dedicatedAddress: true, addressReason: 'x' }).expect(400);
   });
 
   it('sends a paid client\'s people to their own address after sign-in, and lets basic clients stay', async () => {
@@ -195,5 +195,73 @@ describe('own address for paid clients', () => {
     await api('wealth.localhost').post('/api/auth/login').send({ email: 'wanda@wealth.test', password: 'Password@1' }).expect(200);
     const direct = (await api('wealth.localhost').post('/api/auth/login/verify').send({ email: 'wanda@wealth.test', otp: code() }).expect(200)).body;
     expect(direct.token).toBeTruthy();
+  });
+});
+
+describe('address tickets', () => {
+  let boss;
+  beforeAll(async () => { boss = await makePlatformAdmin(); });
+  const company = async (slug, plan) => (await platformApi().post('/api/platform/companies').set(boss.auth).send({ name: `${slug} Ltd`, slug, plan, dedicatedAddress: false }).expect(201)).body;
+  const adminOf = async (co) => {
+    const { makeUser } = await import('./helpers/fixtures.js');
+    const { Company: C } = await import('../src/models/company.model.js');
+    return makeUser({ role: 'ADMIN', permissions: 'read,write' }, await C.findById(co.id));
+  };
+
+  it('records a ticket and an audit entry when the platform changes an address, and needs a reason', async () => {
+    const co = await company('tkt-direct', 'business');
+    await platformApi().put(`/api/platform/companies/${co.id}`).set(boss.auth).send({ dedicatedAddress: true }).expect(400);
+    const done = await platformApi().put(`/api/platform/companies/${co.id}`).set(boss.auth).send({ dedicatedAddress: true, addressReason: 'Contract clause 4' }).expect(200);
+    expect(done.body.dedicatedAddress).toBe(true);
+    const tickets = (await platformApi().get('/api/platform/address-requests').query({ companyId: co.id }).set(boss.auth).expect(200)).body;
+    expect(tickets).toHaveLength(1);
+    expect(tickets[0]).toMatchObject({ ticketNo: expect.stringMatching(/^ADR-\d{4}$/), action: 'enable', source: 'platform', status: 'Approved', reason: 'Contract clause 4' });
+    expect(tickets[0].before.dedicated).toBe(false);
+    expect(tickets[0].after.dedicated).toBe(true);
+    const log = (await platformApi().get('/api/platform/audit').query({ q: tickets[0].ticketNo }).set(boss.auth).expect(200)).body;
+    expect(log.items.some((e) => e.action === 'company.address.enable')).toBe(true);
+  });
+
+  it('lets a company admin ask, and applies the change only when the platform approves', async () => {
+    const co = await company('tkt-ask', 'business');
+    const admin = await adminOf(co);
+    const host = 'tkt-ask.localhost';
+    await api(host).post('/api/admin/company/address-requests').set(admin.auth).send({ action: 'enable' }).expect(400); // reason required
+    const ticket = (await api(host).post('/api/admin/company/address-requests').set(admin.auth).send({ action: 'enable', reason: 'We want our own link' }).expect(201)).body;
+    expect(ticket.status).toBe('Pending');
+    await api(host).post('/api/admin/company/address-requests').set(admin.auth).send({ action: 'enable', reason: 'again' }).expect(409); // one at a time
+    expect((await platformApi().get(`/api/platform/companies/${co.id}`).set(boss.auth)).body.dedicatedAddress).toBe(false);
+
+    const queue = (await platformApi().get('/api/platform/stats').set(boss.auth)).body;
+    expect(queue.pendingAddressRequests).toBeGreaterThanOrEqual(1);
+    await platformApi().patch(`/api/platform/address-requests/${ticket.id}`).set(boss.auth).send({ decision: 'approve' }).expect(200);
+    expect((await platformApi().get(`/api/platform/companies/${co.id}`).set(boss.auth)).body.dedicatedAddress).toBe(true);
+    await platformApi().patch(`/api/platform/address-requests/${ticket.id}`).set(boss.auth).send({ decision: 'approve' }).expect(409); // decided once
+    const mine = (await api(host).get('/api/admin/company/address-requests').set(admin.auth).expect(200)).body;
+    expect(mine.current.dedicated).toBe(true);
+    expect(mine.tickets[0]).toMatchObject({ ticketNo: ticket.ticketNo, status: 'Approved' });
+  });
+
+  it('needs a reason to reject, leaves the address alone, and keeps trial companies on the shared address', async () => {
+    const co = await company('tkt-no', 'business');
+    const admin = await adminOf(co);
+    const ticket = (await api('tkt-no.localhost').post('/api/admin/company/address-requests').set(admin.auth).send({ action: 'enable', reason: 'please' }).expect(201)).body;
+    await platformApi().patch(`/api/platform/address-requests/${ticket.id}`).set(boss.auth).send({ decision: 'reject' }).expect(400);
+    await platformApi().patch(`/api/platform/address-requests/${ticket.id}`).set(boss.auth).send({ decision: 'reject', note: 'Not on this plan' }).expect(200);
+    expect((await platformApi().get(`/api/platform/companies/${co.id}`).set(boss.auth)).body.dedicatedAddress).toBe(false);
+
+    const trial = await company('tkt-trial', 'trial');
+    const trialAdmin = await adminOf(trial);
+    await api('tkt-trial.localhost').post('/api/admin/company/address-requests').set(trialAdmin.auth).send({ action: 'enable', reason: 'x' }).expect(400);
+  });
+
+  it('keeps a Portal Viewer from deciding tickets and employees from asking', async () => {
+    const co = await company('tkt-roles', 'business');
+    const { makeUser } = await import('./helpers/fixtures.js');
+    const { Company: C } = await import('../src/models/company.model.js');
+    const employee = await makeUser({}, await C.findById(co.id));
+    await api('tkt-roles.localhost').post('/api/admin/company/address-requests').set(employee.auth).send({ action: 'enable', reason: 'x' }).expect(403);
+    const viewer = await makePlatformAdmin({ platformRole: 'viewer' });
+    await platformApi().patch('/api/platform/address-requests/507f1f77bcf86cd799439011').set(viewer.auth).send({ decision: 'approve' }).expect(403);
   });
 });

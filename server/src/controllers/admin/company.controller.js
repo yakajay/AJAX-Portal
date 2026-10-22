@@ -1,5 +1,7 @@
 import mongoose from 'mongoose';
-import { Company, companyOrigin } from '../../models/company.model.js';
+import { Company, companyOrigin, hasDedicatedAddress, sharedHost } from '../../models/company.model.js';
+import { AddressTicket } from '../../models/addressTicket.model.js';
+import { openCompanyRequest } from '../../services/addressTicket.service.js';
 import { DeleteRequest, DELETE_TARGETS } from '../../models/deleteRequest.model.js';
 import { SupportAccess } from '../../models/supportAccess.model.js';
 import { userModel } from '../../models/user.model.js';
@@ -491,4 +493,24 @@ export const testMail = async (req, res) => {
   });
   if (!ok) return res.status(422).json({ message: `Test email failed: ${reason}` });
   res.json({ ...mailView(company), sentTo: req.user.email });
+};
+
+// ---------------------------------------------------------------- Sign-in address tickets
+// GET /admin/company/address-requests - the company's current sign-in address and its tickets, newest first
+export const listAddressRequests = async (req, res) => {
+  const { company } = req;
+  res.json({
+    current: {
+      dedicated: hasDedicatedAddress(company), slug: company.slug, address: companyOrigin(company), shared: sharedHost(),
+      plan: company.subscription.plan, baseDomain: env.tenancy.baseDomain
+    },
+    tickets: await AddressTicket.find({ company: company._id }).sort({ createdAt: -1 }).limit(100)
+  });
+};
+
+// POST /admin/company/address-requests { action: 'enable' | 'disable' | 'rename', slug?, reason }
+// Only asks: the platform team approves or rejects, and nothing changes until then.
+export const requestAddressChange = async (req, res) => {
+  const ticket = await openCompanyRequest(req, req.company, req.body ?? {});
+  res.status(201).json(ticket);
 };

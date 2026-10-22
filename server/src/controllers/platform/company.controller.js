@@ -14,6 +14,8 @@ import { env } from '../../config/env.js';
 import {
   ServiceError, createCompany, resolveDedicatedAddress, cleanFeatures, inviteCompanyAdmin, assertSlugAvailable, cleanModules, cleanPlan, cleanEmail, usageByCompany
 } from '../../services/company.service.js';
+import { AddressTicket } from '../../models/addressTicket.model.js';
+import { recordPlatformChange } from '../../services/addressTicket.service.js';
 import { executeDeleteRequest } from '../../services/deletion.service.js';
 
 // The platform Super Admin's console. It manages companies and sees platform-level facts only: profile,
@@ -39,17 +41,18 @@ const summary = (company, usage = {}) => ({
 
 // GET /platform/stats
 export const stats = async (req, res) => {
-  const [companies, usage, pendingDeletes] = await runAcrossTenants(() =>
+  const [companies, usage, pendingDeletes, pendingAddress] = await runAcrossTenants(() =>
     Promise.all([
       Company.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
       usageByCompany(),
-      DeleteRequest.countDocuments({ status: 'Pending' })
+      DeleteRequest.countDocuments({ status: 'Pending' }),
+      AddressTicket.countDocuments({ status: 'Pending' })
     ])
   );
   const byStatus = Object.fromEntries(COMPANY_STATUSES.map((s) => [s, 0]));
   for (const row of companies) byStatus[row._id] = row.count;
   const employees = [...usage.values()].reduce((sum, u) => sum + u.employees, 0);
-  res.json({ companies: byStatus, employees, pendingDeleteRequests: pendingDeletes, plans: PLANS, modules: MODULES, addresses: { shared: sharedHost(), baseDomain: env.tenancy.baseDomain } });
+  res.json({ companies: byStatus, employees, pendingDeleteRequests: pendingDeletes, pendingAddressRequests: pendingAddress, plans: PLANS, modules: MODULES, addresses: { shared: sharedHost(), baseDomain: env.tenancy.baseDomain } });
 };
 
 // GET /platform/companies?status=&q=
@@ -72,6 +75,12 @@ export const create = async (req, res) => {
   const adminEmail = firstAdmin?.email ? cleanEmail(firstAdmin.email, 'admin email') : null;
 
   const company = await createCompany({ name, slug, primaryContact, plan, seatLimit, modules, features, profile, dedicatedAddress });
+  if (hasDedicatedAddress(company)) {
+    await recordPlatformChange(req, company, {
+      action: 'enable', reason: text(req.body?.addressReason, 1000) || 'Set when the company was onboarded',
+      before: { dedicated: false, slug: '' }, after: { dedicated: true, slug: company.slug }
+    });
+  }
   let admin = null;
   if (adminEmail) admin = (await inviteCompanyAdmin(company, { name: firstAdmin.name, email: adminEmail }, 'The platform team')).user;
 
@@ -107,6 +116,8 @@ export const update = async (req, res) => {
   if (company.status === 'deleted') return res.status(409).json({ message: 'This company has been deleted.' });
   const { name, slug, primaryContact, plan, seatLimit, modules, features, expiresAt, dedicatedAddress } = req.body ?? {};
   const changed = [];
+  const addressReason = text(req.body?.addressReason, 1000);
+  const addressBefore = { dedicated: hasDedicatedAddress(company), slug: company.slug };
 
   if (name !== undefined) {
     if (!text(name)) return res.status(400).json({ message: 'Company name is required.' });
@@ -149,11 +160,23 @@ export const update = async (req, res) => {
   if (plan !== undefined || dedicatedAddress !== undefined) {
     // Trial companies always share the address; for paid ones the platform decides (unchanged when not said)
     const wanted = dedicatedAddress !== undefined ? dedicatedAddress : hasDedicatedAddress(company);
-    const next = company.subscription.plan === 'trial' ? false : resolveDedicatedAddress(company.subscription.plan, wanted);
-    if (next !== hasDedicatedAddress(company)) changed.push('address');
-    company.dedicatedAddress = next;
+    company.dedicatedAddress = company.subscription.plan === 'trial' ? false : resolveDedicatedAddress(company.subscription.plan, wanted);
   }
+  // Any change to the sign-in address is a ticket, so it needs a reason (except the automatic move to shared on a trial plan)
+  const addressAfter = { dedicated: hasDedicatedAddress(company), slug: company.slug };
+  const addressChanged = addressAfter.dedicated !== addressBefore.dedicated || (addressAfter.dedicated && addressAfter.slug !== addressBefore.slug);
+  const forcedByTrial = addressChanged && !addressAfter.dedicated && company.subscription.plan === 'trial';
+  if (addressChanged && !addressReason && !forcedByTrial) {
+    return res.status(400).json({ message: 'Give a reason for changing the sign-in address; it is kept in the audit trail.' });
+  }
+  if (addressChanged) changed.push('address');
   await company.save();
+  if (addressChanged) {
+    await recordPlatformChange(req, company, {
+      action: addressAfter.dedicated !== addressBefore.dedicated ? (addressAfter.dedicated ? 'enable' : 'disable') : 'rename',
+      reason: addressReason || 'The company moved to the trial plan', planned: addressAfter, before: addressBefore, after: addressAfter
+    });
+  }
   await audit(req, { action: 'company.update', entity: 'company', entityId: company.id, companyId: company._id, summary: `Updated ${company.name}`, meta: [...new Set(changed)] });
   res.json(summary(company));
 };

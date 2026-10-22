@@ -32,6 +32,7 @@ export interface PortalStats {
   plans: Record<string, { label: string; seats: number }>;
   /** Where people sign in: the shared address, and the base that company addresses hang from */
   addresses?: { shared: string; baseDomain: string };
+  pendingAddressRequests?: number;
 }
 
 export const statusTone = (s: Status): Tone => (s === 'active' ? 'green' : s === 'suspended' ? 'amber' : 'slate');
@@ -71,3 +72,25 @@ export const useCan = (needs: PortalLevel) => {
   const level = useMyPortalLevel();
   return level === 'super' || (needs === 'admin' && level === 'admin') || needs === 'viewer';
 };
+
+/** A numbered ticket for a change to a company's own sign-in address; kept for audits. */
+export interface AddressTicket {
+  id: string;
+  ticketNo: string;
+  company: string;
+  companyName: string;
+  action: 'enable' | 'disable' | 'rename';
+  source: 'company' | 'platform';
+  status: 'Pending' | 'Approved' | 'Rejected';
+  requestedSlug: string;
+  reason: string;
+  requestedBy: { name: string; email: string; role: string };
+  decidedBy: { name: string };
+  decisionNote: string;
+  decidedAt: string | null;
+  before: { dedicated: boolean | null; slug: string };
+  after: { dedicated: boolean | null; slug: string };
+  createdAt: string;
+}
+export const ACTION_LABEL: Record<AddressTicket['action'], string> = { enable: 'Own address on', disable: 'Back to shared address', rename: 'Rename subdomain' };
+export const ticketTone = (s: AddressTicket['status']): Tone => (s === 'Approved' ? 'green' : s === 'Rejected' ? 'rose' : 'amber');

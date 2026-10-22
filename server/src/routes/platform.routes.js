@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authenticate, requirePlatformAdmin, requirePlatformLevel, platformReadWrite } from '../middleware/auth.js';
 import * as companies from '../controllers/platform/company.controller.js';
+import * as address from '../controllers/platform/address.controller.js';
 import * as team from '../controllers/platform/team.controller.js';
 
 // The Super Admin console: only reachable on the platform host, only for platform accounts.
@@ -19,6 +20,9 @@ router.get('/companies/:id/employees', companies.employees);
 
 router.get('/delete-requests', companies.listDeleteRequests);
 router.patch('/delete-requests/:id', requirePlatformLevel('super'), companies.decideDeleteRequest);
+
+router.get('/address-requests', address.list);
+router.patch('/address-requests/:id', address.decide);
 
 router.get('/team', requirePlatformLevel('super'), team.team);
 router.patch('/team/requests/:id', requirePlatformLevel('super'), team.decideRequest);

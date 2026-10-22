@@ -40,6 +40,7 @@ const PortalSupport = lazy(() => import('./pages/portal/PortalSupport'));
 const PortalTeam = lazy(() => import('./pages/portal/PortalTeam'));
 const Handoff = lazy(() => import('./pages/Handoff'));
 const PortalSignup = lazy(() => import('./pages/portal/PortalSignup'));
+const CrmAddress = lazy(() => import('./pages/crm/CrmAddress'));
 const CrmBranding = lazy(() => import('./pages/crm/CrmBranding'));
 const Documents = lazy(() => import('./pages/Documents'));
 const CrmOverview = lazy(() => import('./pages/crm/CrmOverview'));
@@ -192,6 +193,7 @@ function App() {
                   <Route path="/crm/holidays" element={isAdmin ? <CrmHolidays user={user} /> : <Restricted superOnly={false} />} />
                   <Route path="/crm/leave-balances" element={isAdmin ? <CrmLeaveBalances user={user} /> : <Restricted superOnly={false} />} />
                   <Route path="/crm/payroll" element={isAdmin ? <CrmPayroll user={user} /> : <Restricted superOnly={false} />} />
+                  <Route path="/crm/address" element={isAdmin ? <CrmAddress /> : <Restricted superOnly={false} />} />
                   <Route path="/crm/branding" element={user.role === 'SUPER_ADMIN' ? <CrmBranding /> : <Restricted superOnly={isAdmin} />} />
                   <Route path="/crm/roles" element={user.role === 'SUPER_ADMIN' ? <CrmRoles user={user} /> : <Restricted superOnly={isAdmin} />} />
                   <Route path="/expenses" element={<Expenses user={user} />} />

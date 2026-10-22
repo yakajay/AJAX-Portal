@@ -192,6 +192,9 @@ router.post('/company/mail/test', requireSuperAdmin, company.testMail);
 router.put('/company/logo', requireSuperAdmin, raw({ type: ['image/png', 'image/jpeg', 'image/webp'], limit: company.MAX_LOGO_BYTES }), company.uploadLogo);
 router.delete('/company/logo', requireSuperAdmin, company.removeLogo);
 router.put('/company/branding', requireSuperAdmin, company.updateBranding);
+// Admins can ask for their own sign-in address (or to give it up); the platform team decides. Each ask is a ticket.
+router.get('/company/address-requests', company.listAddressRequests);
+router.post('/company/address-requests', company.requestAddressChange);
 router.put('/company/letterhead', requireSuperAdmin, raw({ type: ['image/png', 'image/jpeg'], limit: company.MAX_LETTERHEAD_BYTES }), company.uploadLetterhead);
 router.get('/company/letterhead', requireSuperAdmin, company.getLetterhead);
 router.delete('/company/letterhead', requireSuperAdmin, company.removeLetterhead);
