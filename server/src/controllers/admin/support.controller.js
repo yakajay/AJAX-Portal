@@ -1,4 +1,4 @@
-import { ticketModel, slaDueAt, TICKET_PRIORITIES } from '../../models/ticket.model.js';
+import { ticketModel, slaDueAt, pauseSla, resumeSla, WAITING, TICKET_PRIORITIES } from '../../models/ticket.model.js';
 import { userModel } from '../../models/user.model.js';
 import { ADMIN_ROLES } from '../../utils/format.js';
 import { notify } from '../../utils/notify.js';
@@ -6,7 +6,7 @@ import { audit } from '../../utils/audit.js';
 import { buildSupportReport } from '../../utils/ticketReminders.js';
 import { sendCsv } from '../../utils/csv.js';
 
-const STATUSES = ['Open', 'In Progress', 'Closed'];
+const STATUSES = ['Open', 'In Progress', WAITING, 'Closed'];
 
 export const listTickets = async (req, res) => {
   const filter = {};
@@ -25,8 +25,9 @@ export const getTicket = async (req, res) => {
 // Update status, priority and/or assignee in one call
 export const updateTicket = async (req, res) => {
   const { status, priority, assigneeId } = req.body;
+  const comment = String(req.body.comment ?? '').trim();
   if (status !== undefined && !STATUSES.includes(status)) {
-    return res.status(400).json({ message: 'Status must be Open, In Progress or Closed.' });
+    return res.status(400).json({ message: `Status must be one of ${STATUSES.join(', ')}.` });
   }
   if (priority !== undefined && !TICKET_PRIORITIES.includes(priority)) {
     return res.status(400).json({ message: `Priority must be one of ${TICKET_PRIORITIES.join(', ')}.` });
@@ -38,7 +39,7 @@ export const updateTicket = async (req, res) => {
   if (priority !== undefined && priority !== ticket.priority) {
     ticket.priority = priority;
     // The SLA window is measured from when the ticket was raised
-    ticket.dueAt = slaDueAt(ticket.createdAt, priority);
+    ticket.dueAt = slaDueAt(ticket.createdAt, priority, ticket.pausedMs);
     changes.push(`priority ${priority}`);
   }
   if (assigneeId !== undefined) {
@@ -55,12 +56,26 @@ export const updateTicket = async (req, res) => {
     }
   }
   if (status !== undefined && status !== ticket.status) {
-    ticket.status = status;
-    ticket.closedAt = status === 'Closed' ? new Date() : null;
+    const now = new Date();
+    if (status === WAITING) {
+      // Only whoever is resolving the ticket (or a Super Admin) can say they are waiting on the requester
+      const owner = String(ticket.assigneeId?._id ?? ticket.assigneeId ?? '');
+      if (!owner) return res.status(400).json({ message: 'Assign the ticket to someone before waiting for the requester.' });
+      if (owner !== req.user.id && req.user.role !== 'SUPER_ADMIN') return res.status(403).json({ message: 'Only the person this ticket is assigned to can wait for the requester and pause reminders.' });
+      if (!comment) return res.status(400).json({ message: 'Tell the requester what you need from them; it is sent with the status change.' });
+      if (!ticket.userId) return res.status(400).json({ message: 'This ticket has no requester to wait for.' });
+      ticket.comments.push({ authorId: req.user.id, authorName: req.user.name, authorRole: req.user.role, message: comment });
+      pauseSla(ticket, now);
+    } else {
+      resumeSla(ticket, now);
+      ticket.status = status;
+    }
+    ticket.closedAt = status === 'Closed' ? now : null;
     changes.push(`status ${status}`);
     if (ticket.userId) {
       await notify(ticket.userId._id ?? ticket.userId, {
-        type: 'ticket', title: `Your ticket "${ticket.subject}" is now ${status}`, link: '/support'
+        type: 'ticket', title: status === WAITING ? `Your reply is needed on "${ticket.subject}"` : `Your ticket "${ticket.subject}" is now ${status}`,
+        body: status === WAITING ? comment.slice(0, 300) : '', link: '/support'
       });
     }
   }

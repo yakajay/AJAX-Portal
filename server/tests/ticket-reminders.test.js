@@ -161,3 +161,42 @@ describe('several server copies', () => {
     expect(await claimJob('ticket-report', 'company-x', '2030-01-02')).toBe(true);
   });
 });
+
+describe('waiting for the requester', () => {
+  const setup = async () => {
+    const boss = await makeSuperAdmin();
+    const assignee = await makeAdmin();
+    const other = await makeAdmin();
+    const employee = await makeUser();
+    const t = await raise(employee, 'Urgent', 'VPN access');
+    await api().put(`/api/admin/support/tickets/${t.id}`).set(boss.auth).send({ assigneeId: assignee.user.id }).expect(200);
+    return { boss, assignee, other, employee, t };
+  };
+
+  it('lets only the assignee (or a Super Admin) wait, and asks what is needed', async () => {
+    const { assignee, other, t } = await setup();
+    await api().put(`/api/admin/support/tickets/${t.id}`).set(other.auth).send({ status: 'Waiting for response', comment: 'Which laptop?' }).expect(403);
+    await api().put(`/api/admin/support/tickets/${t.id}`).set(assignee.auth).send({ status: 'Waiting for response' }).expect(400); // needs a message
+    const done = (await api().put(`/api/admin/support/tickets/${t.id}`).set(assignee.auth).send({ status: 'Waiting for response', comment: 'Which laptop?' }).expect(200)).body;
+    expect(done.status).toBe('Waiting for response');
+    expect(done.slaState).toBe('Paused');
+    expect(done.comments.at(-1).message).toBe('Which laptop?');
+  });
+
+  it('stops every reminder while waiting, and starts again when the requester replies, with the SLA clock paused', async () => {
+    const { assignee, employee, t } = await setup();
+    await api().put(`/api/admin/support/tickets/${t.id}`).set(assignee.auth).send({ status: 'Waiting for response', comment: 'Which laptop?' }).expect(200);
+    outbox.length = 0;
+    const t0 = new Date(t.createdAt).getTime();
+    expect(await inTenant(() => remindSupportTickets(new Date(t0 + min(120))))).toBe(0);
+    expect(outbox).toHaveLength(0);
+
+    const before = (await api().get(`/api/user/support/tickets/${t.id}`).set(employee.auth)).body;
+    await api().post(`/api/user/support/tickets/${t.id}/comments`).set(employee.auth).send({ message: 'The ThinkPad' }).expect(201);
+    const after = (await api().get(`/api/user/support/tickets/${t.id}`).set(employee.auth)).body;
+    expect(after.status).toBe('In Progress');
+    expect(new Date(after.dueAt).getTime()).toBeGreaterThan(new Date(before.dueAt).getTime()); // waiting time is not counted
+    outbox.length = 0;
+    expect(await inTenant(() => remindSupportTickets(new Date(Date.now() + min(31))))).toBeGreaterThan(0);
+  });
+});

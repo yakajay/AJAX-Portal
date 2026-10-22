@@ -1,4 +1,4 @@
-import { SupportTicket, PRIORITY_CODE } from '../models/ticket.model.js';
+import { SupportTicket, PRIORITY_CODE, WAITING } from '../models/ticket.model.js';
 import { AddressTicket } from '../models/addressTicket.model.js';
 import { User } from '../models/user.model.js';
 import { sendMail } from './mailer.js';
@@ -56,14 +56,15 @@ export const announceNewTicket = async (ticket, raisedBy) => {
 };
 
 export const remindSupportTickets = async (now = new Date()) => {
-  const open = await SupportTicket.find({ status: { $ne: 'Closed' } }).populate([{ path: 'user', select: 'name email locked preferences' }, { path: 'assignee', select: 'name email locked preferences' }]);
+  // Tickets waiting for the requester are left alone: the assignee already did their part
+  const open = await SupportTicket.find({ status: { $nin: ['Closed', WAITING] } }).populate([{ path: 'user', select: 'name email locked preferences' }, { path: 'assignee', select: 'name email locked preferences' }]);
   const due = open.filter((t) => reminderDue(t, reminderMinutes(t.priority), now));
   if (!due.length) return 0;
   const admins = await adminPeople('support');
   let sent = 0;
   for (const t of due) {
     // Claim this reminder before sending: with several server copies, only the one whose update matches sends it
-    const claimed = await SupportTicket.updateOne({ _id: t._id, status: { $ne: 'Closed' }, lastReminderAt: t.lastReminderAt ?? null }, { lastReminderAt: now });
+    const claimed = await SupportTicket.updateOne({ _id: t._id, status: { $nin: ['Closed', WAITING] }, lastReminderAt: t.lastReminderAt ?? null }, { lastReminderAt: now });
     if (claimed.modifiedCount !== 1) continue;
     const summary = supportLine(t, now);
     const title = `${PRIORITY_CODE[t.priority]} reminder: ${t.subject}`;
@@ -81,7 +82,7 @@ export const remindSupportTickets = async (now = new Date()) => {
 };
 
 // ---------------------------------------------------------------- Resolution report for managers (inside one company)
-const OPEN_STATES = { 'On Track': 0, 'At Risk': 1, Breached: 2 };
+const OPEN_STATES = { Paused: 0, 'On Track': 0, 'At Risk': 1, Breached: 2 };
 
 /** Open tickets grouped by the person resolving them. The unassigned ones are listed under `assignee: null`. */
 export const buildSupportReport = async (now = new Date()) => {

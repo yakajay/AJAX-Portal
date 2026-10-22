@@ -1,4 +1,4 @@
-import { ticketModel, TICKET_PRIORITIES } from '../../models/ticket.model.js';
+import { ticketModel, resumeSla, WAITING, TICKET_PRIORITIES } from '../../models/ticket.model.js';
 import { notify, adminIdsFor } from '../../utils/notify.js';
 import { announceNewTicket } from '../../utils/ticketReminders.js';
 
@@ -45,6 +45,8 @@ export const addComment = async (req, res) => {
   ticket.comments.push({ authorId: req.user.id, authorName: req.user.name, authorRole: req.user.role, message });
   // Replying to a closed ticket re-opens it (and restarts its SLA clock is intentionally not done)
   if (ticket.status === 'Closed') { ticket.status = 'Open'; ticket.closedAt = null; }
+  // The requester answered: reminders and the SLA clock start again
+  if (ticket.status === WAITING) { resumeSla(ticket); ticket.status = 'In Progress'; ticket.lastReminderAt = new Date(); }
   await ticket.save();
 
   const recipients = ticket.assigneeId ? [ticket.assigneeId._id ?? ticket.assigneeId] : await adminIdsFor('support');

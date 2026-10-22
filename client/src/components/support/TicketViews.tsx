@@ -9,7 +9,7 @@ import { Badge, Button, Card, Empty, ErrorNote, Field, Modal, Spinner, Th, input
 
 export interface Ticket {
   id: string; subject: string; category: string; message: string;
-  status: 'Open' | 'In Progress' | 'Closed'; priority: 'Low' | 'Medium' | 'High' | 'Urgent';
+  status: 'Open' | 'In Progress' | 'Waiting for response' | 'Closed'; priority: 'Low' | 'Medium' | 'High' | 'Urgent';
   slaState: 'On Track' | 'At Risk' | 'Breached' | 'Met'; dueAt: string | null; createdAt: string;
   comments: { id: string; authorName: string; authorRole: string; message: string; createdAt: string }[];
   user?: { name: string; email?: string } | null; assignee?: { id?: string; name: string } | null; assigneeId?: string | null;
@@ -28,13 +28,14 @@ const dueText = (t: Ticket) => {
   return ms >= 0 ? `due in ${label}` : `overdue by ${label}`;
 };
 
-const TicketDetail = ({ ticketId, staff, canWrite, onClose, onChanged }: {
-  ticketId: string; staff: boolean; canWrite: boolean; onClose: () => void; onChanged: () => void;
+const TicketDetail = ({ ticketId, staff, canWrite, user, onClose, onChanged }: {
+  ticketId: string; staff: boolean; canWrite: boolean; user: User; onClose: () => void; onChanged: () => void;
 }) => {
   const base = staff ? '/admin/support/tickets' : '/user/support/tickets';
   const { data: ticket, error, reload } = useAsync(() => apiJson<Ticket>(`${base}/${ticketId}`), [ticketId]);
   const people = useAsync(() => (staff ? apiJson<Person[]>('/user/directory') : Promise.resolve([] as Person[])), [staff]);
   const [reply, setReply] = useState('');
+  const [waitNote, setWaitNote] = useState<string | null>(null); // set while the assignee is writing what they need from the requester
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -67,12 +68,28 @@ const TicketDetail = ({ ticketId, staff, canWrite, onClose, onChanged }: {
 
           {staff && canWrite && (
             <div className="grid sm:grid-cols-3 gap-3 p-4 rounded-xl bg-slate-50 border border-slate-200">
-              <Field label="Status"><select disabled={busy} className={inputClass} value={ticket.status} onChange={(e) => update({ status: e.target.value })}><option>Open</option><option>In Progress</option><option>Closed</option></select></Field>
+              <Field label="Status"><select disabled={busy} className={inputClass} value={ticket.status} onChange={(e) => (e.target.value === 'Waiting for response' ? setWaitNote('') : void update({ status: e.target.value }))}><option>Open</option><option>In Progress</option>{(ticket.status === 'Waiting for response' || ticket.assigneeId === user.id || ticket.assignee?.id === user.id || user.role === 'SUPER_ADMIN') && <option>Waiting for response</option>}<option>Closed</option></select></Field>
               <Field label="Priority"><select disabled={busy} className={inputClass} value={ticket.priority} onChange={(e) => update({ priority: e.target.value })}><option>Low</option><option>Medium</option><option>High</option><option>Urgent</option></select></Field>
               <Field label="Assigned to"><select disabled={busy} className={inputClass} value={ticket.assigneeId ?? ''} onChange={(e) => update({ assigneeId: e.target.value || null })}><option value="">Unassigned</option>{admins.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></Field>
             </div>
           )}
 
+          {staff && canWrite && waitNote !== null && (
+            <form
+              className="space-y-3 p-4 rounded-xl border-2 border-blue-600 bg-blue-50"
+              onSubmit={(e) => { e.preventDefault(); void update({ status: 'Waiting for response', comment: waitNote }).then(() => setWaitNote(null)); }}
+            >
+              <Field label={`What do you need from ${ticket.user?.name ?? 'the requester'}?`} hint="They get this by email. Reminders and the SLA clock pause until they reply.">
+                <textarea required rows={3} className={inputClass} value={waitNote} onChange={(e) => setWaitNote(e.target.value)} />
+              </Field>
+              <div className="flex gap-2"><Button type="submit" disabled={busy || !waitNote.trim()}>Wait for response and pause reminders</Button><Button variant="secondary" onClick={() => setWaitNote(null)}>Cancel</Button></div>
+            </form>
+          )}
+          {ticket.status === 'Waiting for response' && (
+            <p role="status" className="p-3 rounded-xl bg-blue-50 text-sm font-semibold text-blue-900">
+              {staff ? 'Waiting for the requester. Reminders and the SLA clock are paused until they reply.' : 'We are waiting for your reply. Answer below and we will pick it up again.'}
+            </p>
+          )}
           <div className="rounded-xl border border-slate-200 p-4">
             <p className="text-sm text-slate-700 whitespace-pre-wrap">{ticket.message}</p>
           </div>
@@ -151,7 +168,7 @@ export const TicketList = ({ user, scope }: { user: User; scope: 'mine' | 'queue
           </div>
         )}
       </Card>
-      {openId && <TicketDetail ticketId={openId} staff={staff} canWrite={canWrite} onClose={() => setOpenId(null)} onChanged={() => void reload()} />}
+      {openId && <TicketDetail ticketId={openId} staff={staff} canWrite={canWrite} user={user} onClose={() => setOpenId(null)} onChanged={() => void reload()} />}
     </div>
   );
 };
