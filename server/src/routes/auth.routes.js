@@ -25,6 +25,7 @@ router.post('/register', limiter, auth.register);
 router.post('/verify-email', limiter, auth.verifyEmail);
 router.post('/login', limiter, auth.login);
 router.post('/login/verify', limiter, auth.verifyLogin);
+router.post('/handoff', limiter, auth.handoff);
 router.post('/resend-otp', limiter, auth.resendOtp);
 router.post('/forgot-password', limiter, auth.forgotPassword);
 router.post('/reset-password', limiter, auth.resetPassword);

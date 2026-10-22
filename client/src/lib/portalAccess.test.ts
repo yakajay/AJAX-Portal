@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { portalCan, portalLevel } from './permissions';
 import { visibleNav } from './nav';
 import type { User } from '../types';
@@ -34,20 +34,5 @@ describe('who sees which tool', () => {
     expect(paths(user('ADMIN'))).not.toContain('/crm/branding');
     expect(paths(user('SUPER_ADMIN'))).toContain('/crm/branding');
     expect(paths(user('SUPER_ADMIN'))).not.toContain('/portal');
-  });
-});
-
-describe('the CRM address', () => {
-  afterEach(() => vi.unstubAllGlobals());
-  const at = async (hostname: string) => {
-    vi.stubGlobal('location', { hostname });
-    vi.resetModules();
-    return import('./host');
-  };
-
-  it('is recognised as crm.<domain> only', async () => {
-    expect((await at('crm.example.com')).isCrmHost()).toBe(true);
-    expect((await at('acme.example.com')).isCrmHost()).toBe(false);
-    expect((await at('crm.localhost')).isCrmHost()).toBe(true);
   });
 });

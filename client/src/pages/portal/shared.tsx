@@ -18,6 +18,8 @@ export interface CompanySummary {
   subscription: { plan: string; seatLimit: number; expiresAt: string | null };
   modules: string[];
   features: { customLogo: boolean; customEmail: boolean };
+  /** True when the client signs in at its own address (<slug>.<base>) instead of the shared one */
+  dedicatedAddress?: boolean;
   usage: { employees: number; admins: number; seatLimit: number; lastActiveAt: string | null };
   pendingDeleteRequests?: number;
   supportAccess?: { active: boolean; expiresAt?: string; reason?: string };
@@ -28,6 +30,8 @@ export interface PortalStats {
   employees: number;
   pendingDeleteRequests: number;
   plans: Record<string, { label: string; seats: number }>;
+  /** Where people sign in: the shared address, and the base that company addresses hang from */
+  addresses?: { shared: string; baseDomain: string };
 }
 
 export const statusTone = (s: Status): Tone => (s === 'active' ? 'green' : s === 'suspended' ? 'amber' : 'slate');

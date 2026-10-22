@@ -55,7 +55,13 @@ const Login = ({ onLogin }) => {
         body: JSON.stringify({ email, otp })
       });
       if (!res.ok) throw new Error(await readError(res, 'Invalid or expired code'));
-      const { token, refreshToken, user } = await res.json();
+      const body = await res.json();
+      // A paid client has its own address: carry the sign-in over to it
+      if (body.redirect) {
+        window.location.assign(body.redirect);
+        return;
+      }
+      const { token, refreshToken, user } = body;
       setSession(token, refreshToken);
       onLogin(user, token, refreshToken);
       navigate('/');

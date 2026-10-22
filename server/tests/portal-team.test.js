@@ -134,3 +134,66 @@ describe('company branding', () => {
     }
   });
 });
+
+describe('own address for paid clients', () => {
+  const create = (body) => platformApi().post('/api/platform/companies').set(boss.auth).send(body);
+  let boss;
+  beforeAll(async () => { boss = await makePlatformAdmin(); });
+
+  it('gives business and enterprise clients their own address and everyone else the shared one', async () => {
+    const paid = (await create({ name: 'Angel One', slug: 'angelone', plan: 'business' }).expect(201)).body;
+    expect(paid.dedicatedAddress).toBe(true);
+    expect(paid.domain).toBe('angelone.localhost');
+    const basic = (await create({ name: 'Small Co', slug: 'smallco', plan: 'starter' }).expect(201)).body;
+    expect(basic.dedicatedAddress).toBe(false);
+    expect(basic.domain).toBe('crm.localhost');
+    const trial = (await create({ name: 'Trial Co', slug: 'trialco' }).expect(201)).body;
+    expect(trial.dedicatedAddress).toBe(false);
+  });
+
+  it('refuses an own address on a trial, and takes it away when a client drops to trial', async () => {
+    await create({ name: 'Bad Trial', slug: 'badtrial', plan: 'trial', dedicatedAddress: true }).expect(400);
+    const co = (await create({ name: 'Moves Co', slug: 'movesco', plan: 'starter', dedicatedAddress: true }).expect(201)).body;
+    expect(co.dedicatedAddress).toBe(true);
+    const down = (await platformApi().put(`/api/platform/companies/${co.id}`).set(boss.auth).send({ plan: 'trial' }).expect(200)).body;
+    expect(down.dedicatedAddress).toBe(false);
+    await platformApi().put(`/api/platform/companies/${co.id}`).set(boss.auth).send({ dedicatedAddress: true }).expect(400);
+  });
+
+  it('sends a paid client\'s people to their own address after sign-in, and lets basic clients stay', async () => {
+    const paid = (await create({ name: 'Wealth Ltd', slug: 'wealth', plan: 'enterprise', firstAdmin: { name: 'Wanda', email: 'wanda@wealth.test' } }).expect(201)).body;
+    const basic = (await create({ name: 'Plain Ltd', slug: 'plain', plan: 'starter', firstAdmin: { name: 'Pat', email: 'pat@plain.test' } }).expect(201)).body;
+    const { hashPassword } = await import('../src/utils/password.js');
+    const { runAsTenant } = await import('../src/utils/tenantContext.js');
+    const { User } = await import('../src/models/user.model.js');
+    for (const [co, email] of [[paid, 'wanda@wealth.test'], [basic, 'pat@plain.test']]) {
+      await runAsTenant(co.id, () => User.updateOne({ email }, { password: hashPassword('Password@1') }));
+    }
+    const code = () => outbox.at(-1).text.match(/code is (\d{6})/)[1];
+
+    // Paid: signing in on the shared address hands over to their own address
+    await api('crm.localhost').post('/api/auth/login').send({ email: 'wanda@wealth.test', password: 'Password@1' }).expect(200);
+    const verified = (await api('crm.localhost').post('/api/auth/login/verify').send({ email: 'wanda@wealth.test', otp: code() }).expect(200)).body;
+    expect(verified.token).toBeUndefined();
+    expect(verified.redirect).toMatch(/^http:\/\/wealth\.localhost.*\/handoff\?code=/);
+    const ticket = new URL(verified.redirect).searchParams.get('code');
+
+    // The ticket works once, only on that company's address
+    await api('plain.localhost').post('/api/auth/handoff').send({ code: ticket }).expect(400);
+    const session = (await api('wealth.localhost').post('/api/auth/handoff').send({ code: ticket }).expect(200)).body;
+    expect(session.token).toBeTruthy();
+    expect(session.user.email).toBe('wanda@wealth.test');
+    await api('wealth.localhost').post('/api/auth/handoff').send({ code: ticket }).expect(400);
+
+    // Basic: stays on the shared address with a normal session
+    await api('crm.localhost').post('/api/auth/login').send({ email: 'pat@plain.test', password: 'Password@1' }).expect(200);
+    const stay = (await api('crm.localhost').post('/api/auth/login/verify').send({ email: 'pat@plain.test', otp: code() }).expect(200)).body;
+    expect(stay.token).toBeTruthy();
+    expect(stay.redirect).toBeUndefined();
+
+    // Signing in directly on their own address needs no hand-over
+    await api('wealth.localhost').post('/api/auth/login').send({ email: 'wanda@wealth.test', password: 'Password@1' }).expect(200);
+    const direct = (await api('wealth.localhost').post('/api/auth/login/verify').send({ email: 'wanda@wealth.test', otp: code() }).expect(200)).body;
+    expect(direct.token).toBeTruthy();
+  });
+});

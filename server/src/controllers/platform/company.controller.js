@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { Company, COMPANY_STATUSES, PLANS, companyOrigin } from '../../models/company.model.js';
+import { Company, COMPANY_STATUSES, PLANS, companyOrigin, hasDedicatedAddress, sharedHost } from '../../models/company.model.js';
 import { DeleteRequest } from '../../models/deleteRequest.model.js';
 import { SupportAccess } from '../../models/supportAccess.model.js';
 import { AuditLog } from '../../models/auditLog.model.js';
@@ -10,8 +10,9 @@ import { runAsTenant, runAcrossTenants } from '../../utils/tenantContext.js';
 import { notify } from '../../utils/notify.js';
 import { audit } from '../../utils/audit.js';
 import { MODULES } from '../../utils/permissions.js';
+import { env } from '../../config/env.js';
 import {
-  ServiceError, createCompany, cleanFeatures, inviteCompanyAdmin, assertSlugAvailable, cleanModules, cleanPlan, cleanEmail, usageByCompany
+  ServiceError, createCompany, resolveDedicatedAddress, cleanFeatures, inviteCompanyAdmin, assertSlugAvailable, cleanModules, cleanPlan, cleanEmail, usageByCompany
 } from '../../services/company.service.js';
 import { executeDeleteRequest } from '../../services/deletion.service.js';
 
@@ -32,6 +33,7 @@ const summary = (company, usage = {}) => ({
   ...company.toJSON(),
   domain: company.domain,
   origin: companyOrigin(company),
+  dedicatedAddress: hasDedicatedAddress(company),
   usage: { employees: usage.employees ?? 0, admins: usage.admins ?? 0, seatLimit: company.subscription.seatLimit, lastActiveAt: usage.lastActiveAt ?? null }
 });
 
@@ -47,7 +49,7 @@ export const stats = async (req, res) => {
   const byStatus = Object.fromEntries(COMPANY_STATUSES.map((s) => [s, 0]));
   for (const row of companies) byStatus[row._id] = row.count;
   const employees = [...usage.values()].reduce((sum, u) => sum + u.employees, 0);
-  res.json({ companies: byStatus, employees, pendingDeleteRequests: pendingDeletes, plans: PLANS, modules: MODULES });
+  res.json({ companies: byStatus, employees, pendingDeleteRequests: pendingDeletes, plans: PLANS, modules: MODULES, addresses: { shared: sharedHost(), baseDomain: env.tenancy.baseDomain } });
 };
 
 // GET /platform/companies?status=&q=
@@ -65,11 +67,11 @@ export const list = async (req, res) => {
 
 // POST /platform/companies - onboard a company; its subdomain is created from the name unless one is given
 export const create = async (req, res) => {
-  const { name, slug, primaryContact, plan, seatLimit, modules, features, profile, firstAdmin } = req.body ?? {};
+  const { name, slug, primaryContact, plan, seatLimit, modules, features, profile, firstAdmin, dedicatedAddress } = req.body ?? {};
   // Validate the admin up front so a bad email doesn't leave a half-onboarded company behind
   const adminEmail = firstAdmin?.email ? cleanEmail(firstAdmin.email, 'admin email') : null;
 
-  const company = await createCompany({ name, slug, primaryContact, plan, seatLimit, modules, features, profile });
+  const company = await createCompany({ name, slug, primaryContact, plan, seatLimit, modules, features, profile, dedicatedAddress });
   let admin = null;
   if (adminEmail) admin = (await inviteCompanyAdmin(company, { name: firstAdmin.name, email: adminEmail }, 'The platform team')).user;
 
@@ -103,7 +105,7 @@ export const update = async (req, res) => {
   const company = await loadCompany(req, res);
   if (!company) return;
   if (company.status === 'deleted') return res.status(409).json({ message: 'This company has been deleted.' });
-  const { name, slug, primaryContact, plan, seatLimit, modules, features, expiresAt } = req.body ?? {};
+  const { name, slug, primaryContact, plan, seatLimit, modules, features, expiresAt, dedicatedAddress } = req.body ?? {};
   const changed = [];
 
   if (name !== undefined) {
@@ -143,6 +145,13 @@ export const update = async (req, res) => {
   if (features !== undefined) {
     Object.assign(company.features, cleanFeatures(features));
     changed.push('features');
+  }
+  if (plan !== undefined || dedicatedAddress !== undefined) {
+    // Trial companies always share the address; for paid ones the platform decides (unchanged when not said)
+    const wanted = dedicatedAddress !== undefined ? dedicatedAddress : hasDedicatedAddress(company);
+    const next = company.subscription.plan === 'trial' ? false : resolveDedicatedAddress(company.subscription.plan, wanted);
+    if (next !== hasDedicatedAddress(company)) changed.push('address');
+    company.dedicatedAddress = next;
   }
   await company.save();
   await audit(req, { action: 'company.update', entity: 'company', entityId: company.id, companyId: company._id, summary: `Updated ${company.name}`, meta: [...new Set(changed)] });

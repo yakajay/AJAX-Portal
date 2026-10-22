@@ -44,6 +44,9 @@ const companySchema = new mongoose.Schema(
       startedAt: { type: Date, default: Date.now },
       expiresAt: { type: Date, default: null }
     },
+    // Paid clients can have their own address (<slug>.<baseDomain>); everyone else signs in at the shared address
+    // (crm.<baseDomain>). Left unset on companies created before this existed, which keep their own address.
+    dedicatedAddress: { type: Boolean },
     modules: { type: [String], default: () => [...MODULES] },
     // Optional extras the platform switches on per company (part of what we provide to them)
     features: {
@@ -176,9 +179,12 @@ const companySchema = new mongoose.Schema(
 );
 companySchema.tenantExempt = true; // it is the tenant registry itself
 
+export const hasDedicatedAddress = (company) => company.dedicatedAddress !== false;
+export const sharedHost = () => `${env.tenancy.crmSubdomain}.${env.tenancy.baseDomain}`;
+
 companySchema.virtual('domain').get(function domain() {
   if (env.tenancy.publicUrl) return new URL(env.tenancy.publicUrl).host;
-  return `${this.slug}.${env.tenancy.baseDomain}`;
+  return hasDedicatedAddress(this) ? `${this.slug}.${env.tenancy.baseDomain}` : sharedHost();
 });
 
 export const Company = mongoose.model('Company', companySchema);
@@ -187,5 +193,5 @@ export const Company = mongoose.model('Company', companySchema);
 export const companyOrigin = (company) => {
   if (env.tenancy.publicUrl) return env.tenancy.publicUrl;
   const { publicScheme, publicPort, baseDomain } = env.tenancy;
-  return `${publicScheme}://${company.slug}.${baseDomain}${publicPort ? `:${publicPort}` : ''}`;
+  return `${publicScheme}://${hasDedicatedAddress(company) ? `${company.slug}.${baseDomain}` : sharedHost()}${publicPort ? `:${publicPort}` : ''}`;
 };

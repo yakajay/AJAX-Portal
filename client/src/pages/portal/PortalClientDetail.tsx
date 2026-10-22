@@ -5,6 +5,7 @@ import { apiJson, apiSend } from '../../lib/api';
 import { errorMessage, formatDateTime } from '../../lib/format';
 import { useAsync } from '../../lib/useAsync';
 import { Badge, Button, Card, ErrorNote, Field, PageHeader, Spinner, Th, inputClass } from '../../components/ui';
+import AddressChoice from './AddressChoice';
 import { ModuleBoxes, statusTone, useCan, usePortalStats, type CompanySummary } from './shared';
 
 interface EmployeeRow {
@@ -21,7 +22,7 @@ const PortalClientDetail = () => {
   const canEdit = useCan('admin');
   const plans = stats.data?.plans ?? {};
   const { data, error, loading, reload } = useAsync(() => apiJson<CompanySummary>(`/platform/companies/${id}`), [id]);
-  const [edit, setEdit] = useState<{ plan: string; seatLimit: string; modules: string[]; customLogo: boolean; customEmail: boolean; contactName: string; contactEmail: string } | null>(null);
+  const [edit, setEdit] = useState<{ plan: string; seatLimit: string; modules: string[]; customLogo: boolean; customEmail: boolean; contactName: string; contactEmail: string; dedicated: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -57,7 +58,7 @@ const PortalClientDetail = () => {
 
   if (loading && !data) return <Spinner />;
   if (!data) return <div className="space-y-4"><ErrorNote error={error} /><Button variant="secondary" onClick={() => navigate('/portal/clients')}>Back to clients</Button></div>;
-  const startEdit = () => setEdit({ plan: data.subscription.plan, seatLimit: String(data.subscription.seatLimit), modules: data.modules, customLogo: data.features.customLogo, customEmail: !!data.features.customEmail, contactName: data.primaryContact.name, contactEmail: data.primaryContact.email });
+  const startEdit = () => setEdit({ plan: data.subscription.plan, seatLimit: String(data.subscription.seatLimit), modules: data.modules, customLogo: data.features.customLogo, customEmail: !!data.features.customEmail, contactName: data.primaryContact.name, contactEmail: data.primaryContact.email, dedicated: !!data.dedicatedAddress });
 
   return (
     <div className="space-y-6">
@@ -87,7 +88,7 @@ const PortalClientDetail = () => {
                 e.preventDefault();
                 void run(async () => {
                   await apiSend('PUT', `/platform/companies/${id}`, {
-                    plan: edit.plan, seatLimit: Number(edit.seatLimit), modules: edit.modules, features: { customLogo: edit.customLogo, customEmail: edit.customEmail },
+                    plan: edit.plan, seatLimit: Number(edit.seatLimit), dedicatedAddress: edit.plan !== 'trial' && edit.dedicated, modules: edit.modules, features: { customLogo: edit.customLogo, customEmail: edit.customEmail },
                     primaryContact: { name: edit.contactName, email: edit.contactEmail, phone: data.primaryContact.phone }
                   });
                   setEdit(null);
@@ -100,6 +101,7 @@ const PortalClientDetail = () => {
                 <Field label="Contact name"><input className={inputClass} value={edit.contactName} onChange={(e) => setEdit({ ...edit, contactName: e.target.value })} /></Field>
                 <Field label="Contact email"><input type="email" className={inputClass} value={edit.contactEmail} onChange={(e) => setEdit({ ...edit, contactEmail: e.target.value })} /></Field>
               </div>
+              <AddressChoice plan={edit.plan} dedicated={edit.dedicated} onDedicated={(on) => setEdit({ ...edit, dedicated: on })} shared={stats.data?.addresses?.shared ?? 'crm'} base={stats.data?.addresses?.baseDomain ?? ''} slug={data.slug} slugLocked />
               <Field label="Modules"><ModuleBoxes value={edit.modules} onChange={(modules) => setEdit({ ...edit, modules })} /></Field>
               <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={edit.customLogo} onChange={(e) => setEdit({ ...edit, customLogo: e.target.checked })} />Custom company logo</label>
               <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={edit.customEmail} onChange={(e) => setEdit({ ...edit, customEmail: e.target.checked })} />Own sender email (their admin enters the mailbox that sends OTPs and notifications)</label>
@@ -108,6 +110,7 @@ const PortalClientDetail = () => {
           ) : (
             <dl className="grid sm:grid-cols-2 gap-3 text-sm">
               <div><dt className="text-xs font-extrabold text-slate-400">Plan</dt><dd className="text-slate-800">{plans[data.subscription.plan]?.label ?? data.subscription.plan}</dd></div>
+              <div><dt className="text-xs font-extrabold text-slate-400">Sign-in address</dt><dd className="text-slate-800">{data.dedicatedAddress ? 'Own address' : 'Shared address'} · <span className="font-mono">{data.domain}</span></dd></div>
               <div><dt className="text-xs font-extrabold text-slate-400">Primary contact</dt><dd className="text-slate-800">{data.primaryContact.name || '—'} {data.primaryContact.email && `· ${data.primaryContact.email}`}</dd></div>
               <div><dt className="text-xs font-extrabold text-slate-400">Custom logo</dt><dd className="text-slate-800">{data.features.customLogo ? 'Enabled' : 'Not enabled'}</dd></div>
               <div><dt className="text-xs font-extrabold text-slate-400">Own sender email</dt><dd className="text-slate-800">{data.features.customEmail ? 'Enabled' : 'Not enabled'}</dd></div>

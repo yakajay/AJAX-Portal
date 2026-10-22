@@ -38,6 +38,7 @@ const PortalOnboard = lazy(() => import('./pages/portal/PortalOnboard'));
 const PortalPlans = lazy(() => import('./pages/portal/PortalPlans'));
 const PortalSupport = lazy(() => import('./pages/portal/PortalSupport'));
 const PortalTeam = lazy(() => import('./pages/portal/PortalTeam'));
+const Handoff = lazy(() => import('./pages/Handoff'));
 const PortalSignup = lazy(() => import('./pages/portal/PortalSignup'));
 const CrmBranding = lazy(() => import('./pages/crm/CrmBranding'));
 const Documents = lazy(() => import('./pages/Documents'));
@@ -54,7 +55,6 @@ import type { User } from './types';
 import { getToken, setSession, clearToken, apiFetch, UNAUTHORIZED_EVENT } from './lib/api';
 import { I18nProvider } from './lib/i18n';
 import { loadWorkspace } from './lib/workspace';
-import { isCrmHost } from './lib/host';
 import { portalCan } from './lib/permissions';
 
 function App() {
@@ -132,8 +132,6 @@ function App() {
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
   // The platform owner's account manages companies and has no workspace of its own
   const isPlatform = user?.role === 'PLATFORM_ADMIN';
-  // crm.<domain> shows only the CRM: admins land on it, employees are told where their portal is
-  const crmOnly = isCrmHost() && !isPlatform;
 
   return (
     <I18nProvider initial={user?.preferences?.language}>
@@ -146,6 +144,7 @@ function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/portal-signup" element={<PortalSignup />} />
+        <Route path="/handoff" element={<Handoff onLogin={handleLogin} />} />
 
         {/* Protected App Routes */}
         <Route 
@@ -168,14 +167,9 @@ function App() {
                   <Route path="/preferences" element={<Preferences user={user} onUserUpdate={handleUserUpdate} onLogout={handleLogout} />} />
                   <Route path="*" element={<Navigate to="/portal" replace />} />
                 </Routes>
-                ) : crmOnly && !isAdmin ? (
-                <Routes>
-                  <Route path="/profile" element={<Profile user={user} onUserUpdate={handleUserUpdate} />} />
-                  <Route path="*" element={<Restricted superOnly={false} />} />
-                </Routes>
                 ) : (
                 <Routes>
-                  <Route path="/" element={crmOnly ? <Navigate to="/crm" replace /> : <Dashboard user={user} />} />
+                  <Route path="/" element={<Dashboard user={user} />} />
                   <Route path="/outsourcing" element={isAdmin ? <Outsourcing user={user} /> : <Navigate to="/" replace />} />
                   <Route path="/payroll" element={isAdmin ? <Payroll user={user} /> : <Navigate to="/" replace />} />
                   <Route path="/compliance" element={isAdmin ? <Compliance user={user} /> : <Navigate to="/" replace />} />
