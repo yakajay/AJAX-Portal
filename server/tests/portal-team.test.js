@@ -24,7 +24,7 @@ describe('the shared CRM address', () => {
 
   it('serves the default company on single-company installs', () => {
     env.tenancy.defaultTenantSlug = 'acme';
-    try { expect(classifyHost('crm.localhost')).toEqual({ kind: 'tenant', slug: 'acme' }); } finally { env.tenancy.defaultTenantSlug = ''; }
+    try { expect(classifyHost('crm.localhost')).toEqual({ kind: 'tenant', slug: 'acme', shared: true }); } finally { env.tenancy.defaultTenantSlug = ''; }
   });
 
   it('does not hand out the crm subdomain to a company', async () => {

@@ -15,6 +15,7 @@ const JobRun = mongoose.model('JobRun', jobRunSchema);
 
 /** True for exactly one caller per key, even across processes. */
 export const claimJob = async (...parts) => {
+  await JobRun.init(); // the unique index is what makes the claim exclusive, so make sure it exists first
   try {
     await JobRun.create({ key: parts.join(':') });
     return true;

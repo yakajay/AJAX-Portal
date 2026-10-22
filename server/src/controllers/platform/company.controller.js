@@ -159,6 +159,7 @@ export const update = async (req, res) => {
   }
   if (plan !== undefined || dedicatedAddress !== undefined) {
     // Trial companies always share the address; for paid ones the platform decides (unchanged when not said)
+    if (dedicatedAddress) resolveDedicatedAddress(company.subscription.plan, true); // refuses a trial company outright
     const wanted = dedicatedAddress !== undefined ? dedicatedAddress : hasDedicatedAddress(company);
     company.dedicatedAddress = company.subscription.plan === 'trial' ? false : resolveDedicatedAddress(company.subscription.plan, wanted);
   }
