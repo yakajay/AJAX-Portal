@@ -7,7 +7,10 @@ import { issueOtp, checkOtp, OTP_PURPOSE } from '../utils/otp.js';
 import { sanitizeUser } from '../utils/format.js';
 import { assertSeatAvailable } from '../services/company.service.js';
 import { ssoReady } from './sso.controller.js';
-import { Company } from '../models/company.model.js';
+import { Company, companyOrigin, hasDedicatedAddress } from '../models/company.model.js';
+import { LoginHandoff } from '../models/loginHandoff.model.js';
+import crypto from 'node:crypto';
+import { runAsTenant } from '../utils/tenantContext.js';
 
 const normalizeEmail = (email) => String(email ?? '').trim().toLowerCase();
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -127,6 +130,31 @@ export const verifyLogin = async (req, res) => {
     );
   }
 
+  // Signed in on the shared address, but the company has its own: carry the sign-in over instead of opening a session here
+  if (req.tenant?.shared && req.company && hasDedicatedAddress(req.company)) {
+    const code = crypto.randomBytes(32).toString('base64url');
+    await LoginHandoff.create({
+      codeHash: hashHandoff(code), userId: user.id, companyId: req.company._id, expiresAt: new Date(Date.now() + HANDOFF_TTL_MS)
+    });
+    return res.json({ redirect: `${companyOrigin(req.company)}/handoff?code=${code}` });
+  }
+
+  const tokens = await startSession(user, req);
+  res.json({ token: tokens.token, refreshToken: tokens.refreshToken, user: sanitizeUser(user) });
+};
+
+const HANDOFF_TTL_MS = 2 * 60 * 1000;
+const hashHandoff = (code) => crypto.createHash('sha256').update(String(code)).digest('hex');
+
+// POST /auth/handoff { code } - on the company's own address: trade the ticket for a session here
+export const handoff = async (req, res) => {
+  if (req.tenant?.kind !== 'tenant' || !req.company) return res.status(400).json(BAD_CODE);
+  const ticket = await LoginHandoff.findOneAndUpdate(
+    { codeHash: hashHandoff(req.body?.code), companyId: req.company._id, usedAt: null, expiresAt: { $gt: new Date() } },
+    { usedAt: new Date() }
+  );
+  const user = ticket ? await runAsTenant(req.company._id, () => userModel.findById(ticket.userId)) : null;
+  if (!user || user.locked) return res.status(400).json(BAD_CODE);
   const tokens = await startSession(user, req);
   res.json({ token: tokens.token, refreshToken: tokens.refreshToken, user: sanitizeUser(user) });
 };
@@ -213,6 +241,7 @@ export const workspace = (req, res) => {
     modules: company.modules,
     features: company.features,
     logoUrl: logoUrl(company),
+    brand: company.features.customLogo ? { name: company.branding?.displayName || '', showPoweredBy: company.branding?.showPoweredBy !== false } : null,
     allowSelfSignup: company.settings.allowSelfSignup,
     sso: { enabled: sso, providerName: sso ? company.sso.providerName : '', protocol: sso ? company.sso.protocol : null }
   });

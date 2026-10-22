@@ -1,11 +1,11 @@
 import {
   LayoutDashboard, Users, UserCheck, CreditCard, Clock, FileText, Calendar, Receipt, Target, ClipboardCheck,
   Megaphone, Bell, Settings, ScrollText, LifeBuoy, SlidersHorizontal, WalletCards, UserPlus, Building2, Trash2, Building, UserMinus, BarChart3, ShieldCheck, Landmark,
-  UserCircle, FolderOpen, Inbox, CalendarDays, CalendarCheck, KeyRound, LayoutGrid, type LucideIcon
+  UserCircle, FolderOpen, Palette, ShieldPlus, Globe, Inbox, CalendarDays, CalendarCheck, KeyRound, LayoutGrid, type LucideIcon
 } from 'lucide-react';
 import type { User } from '../types';
 import { isAdminRole, isPlatformRole } from './api';
-import type { Module } from './permissions';
+import { portalCan, type Module } from './permissions';
 import type { MessageKey } from './locales';
 
 export interface NavItem {
@@ -49,6 +49,8 @@ export const NAV_ITEMS: NavItem[] = [
   { path: '/crm/holidays', label: 'nav.holidays', icon: CalendarDays, group: 'crm', module: 'hr', keywords: 'public holiday calendar festival', visible: isAdmin },
   { path: '/crm/leave-balances', label: 'nav.leaveBalances', icon: CalendarCheck, group: 'crm', module: 'leave', keywords: 'entitlement policy accrual days left', visible: isAdmin },
   { path: '/crm/payroll', label: 'nav.payroll', icon: CreditCard, group: 'crm', module: 'payroll', keywords: 'salary run payslips generate month', visible: isAdmin },
+  { path: '/crm/address', label: 'nav.signInAddress', icon: Globe, group: 'crm', keywords: 'subdomain domain url link own address shared ticket', visible: isAdmin },
+  { path: '/crm/branding', label: 'nav.branding', icon: Palette, group: 'crm', keywords: 'logo company name white label custom brand powered by', visible: (u) => u?.role === 'SUPER_ADMIN' },
   { path: '/crm/roles', label: 'nav.rolesAccess', icon: KeyRound, group: 'crm', keywords: 'permissions admin super admin assign role', visible: (u) => u?.role === 'SUPER_ADMIN' },
   { path: '/payroll', label: 'nav.payrollTools', icon: CreditCard, group: 'admin', module: 'payroll', keywords: 'salary structure bank file accounting journal checks tax', visible: (u) => isAdminRole(u?.role) },
   { path: '/recruitment', label: 'nav.recruitment', icon: UserPlus, group: 'admin', module: 'recruitment', keywords: 'hiring jobs candidates interview applicants openings', visible: (u) => isAdminRole(u?.role) },
@@ -63,15 +65,16 @@ export const NAV_ITEMS: NavItem[] = [
   // Portal (Ajax platform staff only)
   { path: '/portal', label: 'nav.portalOverview', icon: LayoutGrid, group: 'platform', keywords: 'platform clients home overview', visible: (u) => isPlatformRole(u?.role) },
   { path: '/portal/clients', label: 'nav.clients', icon: Building2, group: 'platform', keywords: 'companies tenants subscription plan suspend manage', visible: (u) => isPlatformRole(u?.role) },
-  { path: '/portal/onboard', label: 'nav.onboardClient', icon: UserPlus, group: 'platform', keywords: 'new company tenant create subdomain', visible: (u) => isPlatformRole(u?.role) },
+  { path: '/portal/onboard', label: 'nav.onboardClient', icon: UserPlus, group: 'platform', keywords: 'new company tenant create subdomain', visible: (u) => portalCan(u, 'admin') },
   { path: '/portal/plans', label: 'nav.plansBilling', icon: CreditCard, group: 'platform', keywords: 'seats subscription renewal billing invoices', visible: (u) => isPlatformRole(u?.role) },
-  { path: '/portal/support', label: 'nav.supportActivity', icon: LifeBuoy, group: 'platform', keywords: 'delete requests approve reject audit history support access', visible: (u) => isPlatformRole(u?.role) }
+  { path: '/portal/support', label: 'nav.supportActivity', icon: LifeBuoy, group: 'platform', keywords: 'delete requests approve reject audit history support access', visible: (u) => isPlatformRole(u?.role) },
+  { path: '/portal/team', label: 'nav.platformTeam', icon: ShieldPlus, group: 'platform', keywords: 'portal admins staff access requests roles viewer super', visible: (u) => portalCan(u, 'super') }
 ];
 
 /** The platform account only sees its console; company people see their workspace, minus modules their plan lacks. */
 export const visibleNav = (user: User | null, modules?: readonly string[]) =>
   NAV_ITEMS.filter((item) => {
-    if (isPlatformRole(user?.role)) return item.group === 'platform';
+    if (isPlatformRole(user?.role)) return item.group === 'platform' && (!item.visible || item.visible(user));
     if (item.group === 'platform') return false;
     if (item.module && modules && !modules.includes(item.module)) return false;
     return !item.visible || item.visible(user);

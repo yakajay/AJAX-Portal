@@ -29,3 +29,13 @@ export const can = (user: Pick<User, 'role' | 'permissions'> | null | undefined,
   }
   return false;
 };
+
+/** What a platform (Portal) account may do in the client portal: view only, manage clients, or everything incl. the team. */
+export type PortalLevel = 'viewer' | 'admin' | 'super';
+const RANK: Record<PortalLevel, number> = { viewer: 0, admin: 1, super: 2 };
+export const portalLevel = (user: Pick<User, 'role' | 'platformRole'> | null | undefined): PortalLevel | null =>
+  user?.role === 'PLATFORM_ADMIN' ? user.platformRole ?? 'super' : null;
+export const portalCan = (user: Pick<User, 'role' | 'platformRole'> | null | undefined, needs: PortalLevel): boolean => {
+  const level = portalLevel(user);
+  return !!level && RANK[level] >= RANK[needs];
+};

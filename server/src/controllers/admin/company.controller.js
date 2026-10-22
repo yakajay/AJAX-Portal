@@ -1,5 +1,7 @@
 import mongoose from 'mongoose';
-import { Company, companyOrigin } from '../../models/company.model.js';
+import { Company, companyOrigin, hasDedicatedAddress, sharedHost } from '../../models/company.model.js';
+import { AddressTicket } from '../../models/addressTicket.model.js';
+import { openCompanyRequest } from '../../services/addressTicket.service.js';
 import { DeleteRequest, DELETE_TARGETS } from '../../models/deleteRequest.model.js';
 import { SupportAccess } from '../../models/supportAccess.model.js';
 import { userModel } from '../../models/user.model.js';
@@ -90,6 +92,22 @@ export const uploadLogo = async (req, res) => {
   await Company.updateOne({ _id: req.company.id }, { logoData: body, logoContentType: type, logoUpdatedAt: new Date() });
   await audit(req, { action: 'company.logo', entity: 'company', entityId: req.company.id, summary: 'Uploaded the company logo', meta: { type, bytes: body.length } });
   res.json({ hasLogo: true, logoUpdatedAt: new Date() });
+};
+
+// PUT /admin/company/branding  { displayName, showPoweredBy } - the name shown beside the logo (part of the custom-branding feature)
+export const updateBranding = async (req, res) => {
+  if (!requireLogoFeature(req, res)) return;
+  const { displayName, showPoweredBy } = req.body ?? {};
+  const set = {};
+  if (displayName !== undefined) {
+    const name = text(displayName, 40);
+    if (!name) return bad(res, 'Enter the company name to show to employees.');
+    set['branding.displayName'] = name;
+  }
+  if (showPoweredBy !== undefined) set['branding.showPoweredBy'] = !!showPoweredBy;
+  await Company.updateOne({ _id: req.company.id }, { $set: set });
+  await audit(req, { action: 'company.branding', entity: 'company', entityId: req.company.id, summary: 'Updated the company branding', meta: set });
+  res.json(await view(await Company.findById(req.company.id)));
 };
 
 // DELETE /admin/company/logo - goes back to the platform's logo (a setting, not a record, so it is immediate)
@@ -475,4 +493,24 @@ export const testMail = async (req, res) => {
   });
   if (!ok) return res.status(422).json({ message: `Test email failed: ${reason}` });
   res.json({ ...mailView(company), sentTo: req.user.email });
+};
+
+// ---------------------------------------------------------------- Sign-in address tickets
+// GET /admin/company/address-requests - the company's current sign-in address and its tickets, newest first
+export const listAddressRequests = async (req, res) => {
+  const { company } = req;
+  res.json({
+    current: {
+      dedicated: hasDedicatedAddress(company), slug: company.slug, address: companyOrigin(company), shared: sharedHost(),
+      plan: company.subscription.plan, baseDomain: env.tenancy.baseDomain
+    },
+    tickets: await AddressTicket.find({ company: company._id }).sort({ createdAt: -1 }).limit(100)
+  });
+};
+
+// POST /admin/company/address-requests { action: 'enable' | 'disable' | 'rename', slug?, reason }
+// Only asks: the platform team approves or rejects, and nothing changes until then.
+export const requestAddressChange = async (req, res) => {
+  const ticket = await openCompanyRequest(req, req.company, req.body ?? {});
+  res.status(201).json(ticket);
 };

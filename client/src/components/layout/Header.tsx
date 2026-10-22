@@ -15,6 +15,8 @@ const Header = ({ toggleSidebar, user, onLogout, onOpenPalette }: {
   const { t } = useI18n();
   const { workspace } = useWorkspace();
   const logoUrl = workspace?.logoUrl;
+  const brand = workspace?.brand;
+  const brandName = brand?.name || '';
   return (
     <header className="relative z-40 flex items-center justify-between h-[68px] px-4 sm:px-7 bg-white border-b border-slate-200">
       <div className="flex items-center gap-3">
@@ -26,14 +28,19 @@ const Header = ({ toggleSidebar, user, onLogout, onOpenPalette }: {
             // The company's own logo replaces ours (a feature the platform enables per company)
             <>
               <img src={logoUrl} alt={`${workspace?.name ?? 'Company'} logo`} className="h-10 max-w-[10rem] object-contain" />
-              <span className="hidden sm:block text-xs text-slate-500">{t('header.portal')}</span>
+              <div className="hidden sm:flex flex-col leading-tight">
+                {brandName && <span className="font-extrabold text-lg text-slate-900">{brandName}</span>}
+                <span className="text-xs text-slate-500">{t('header.portal')}</span>
+                {brand?.showPoweredBy && <span className="text-[11px] text-slate-400">Powered by Ajax HRMS</span>}
+              </div>
             </>
           ) : (
             <>
-              <div className="w-10 h-10 rounded-[10px] bg-blue-600 text-white flex items-center justify-center font-extrabold text-xl">A</div>
+              <div className="w-10 h-10 rounded-[10px] bg-blue-600 text-white flex items-center justify-center font-extrabold text-xl">{(brandName || 'A').charAt(0).toUpperCase()}</div>
               <div className="hidden sm:flex flex-col leading-tight">
-                <span className="font-extrabold text-lg text-slate-900">Ajax Portal</span>
+                <span className="font-extrabold text-lg text-slate-900">{brandName || 'Ajax Portal'}</span>
                 <span className="text-xs text-slate-500">{t('header.portal')}</span>
+                {brand?.showPoweredBy && <span className="text-[11px] text-slate-400">Powered by Ajax HRMS</span>}
               </div>
             </>
           )}

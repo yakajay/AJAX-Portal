@@ -7,6 +7,9 @@ import { addDays, isoDate } from './utils/dates.js';
 import { logger } from './utils/logger.js';
 import { env } from './config/env.js';
 import { forEachActiveCompany } from './utils/tenants.js';
+import { runAsPlatform } from './utils/tenantContext.js';
+import { claimJob } from './models/jobRun.model.js';
+import { remindSupportTickets, remindAddressTickets, sendSupportReports } from './utils/ticketReminders.js';
 
 // Alerts admins once per contractor/end-date when a contract is within the alert window
 export const contractAlerts = async (now = new Date()) => {
@@ -54,6 +57,22 @@ const sum = (counts) => counts.reduce((a, b) => a + b, 0);
 export const contractAlertsAllCompanies = async (now) => sum(await forEachActiveCompany(() => contractAlerts(now)));
 export const sendDigestsAllCompanies = async () => sum(await forEachActiveCompany(() => sendDigests()));
 
+// Status reminders for open tickets (P1/P2 every 30 minutes, the rest hourly) and the daily manager report.
+// Each reminder and each daily report is claimed in the database before it is sent, so several server copies, a restart or a
+// cron run alongside never repeat an email.
+export const runTicketCycle = async (now = new Date()) => {
+  const results = { reminders: sum(await forEachActiveCompany(() => remindSupportTickets(now))), addressReminders: 0, reports: 0 };
+  results.addressReminders = await runAsPlatform(() => remindAddressTickets(now));
+  if (now.getHours() === env.jobs.ticketReportHour) {
+    const day = isoDate(now);
+    results.reports = sum(await forEachActiveCompany(async (company) => {
+      // One claim per company per day, shared by every server copy
+      return (await claimJob('ticket-report', company.id, day)) ? sendSupportReports(now) : 0;
+    }));
+  }
+  return results;
+};
+
 let lastDigestDay = null;
 
 // Runs hourly; the digest goes out once a day at DIGEST_HOUR (server time)
@@ -73,5 +92,10 @@ export const startJobs = () => {
   setTimeout(tick, 15_000).unref();
   const timer = setInterval(tick, 60 * 60 * 1000);
   timer.unref();
-  return () => clearInterval(timer);
+  // Tickets are checked every 5 minutes so a 30-minute reminder lands on time
+  const ticketTick = () => runTicketCycle().then((r) => (r.reminders || r.addressReminders || r.reports) && logger.info(r, 'ticket reminders sent'), (e) => logger.error({ err: e }, 'ticket reminders failed'));
+  setTimeout(ticketTick, 30_000).unref();
+  const ticketTimer = setInterval(ticketTick, 5 * 60 * 1000);
+  ticketTimer.unref();
+  return () => { clearInterval(timer); clearInterval(ticketTimer); };
 };

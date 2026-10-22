@@ -1,5 +1,6 @@
-import { ticketModel, TICKET_PRIORITIES } from '../../models/ticket.model.js';
+import { ticketModel, resumeSla, WAITING, TICKET_PRIORITIES } from '../../models/ticket.model.js';
 import { notify, adminIdsFor } from '../../utils/notify.js';
+import { announceNewTicket } from '../../utils/ticketReminders.js';
 
 export const createTicket = async (req, res) => {
   const { subject, category, message, priority } = req.body;
@@ -12,9 +13,11 @@ export const createTicket = async (req, res) => {
   const ticket = await ticketModel.create({
     userId: req.user.id, subject: subject.trim(), category, message: message.trim(), priority: priority || 'Medium'
   });
-  await notify(await adminIdsFor('support'), {
-    type: 'ticket', title: `New ${ticket.priority} ticket: ${ticket.subject}`, body: `From ${req.user.name}`, link: '/support'
+  // Every admin and Super Admin hears about it in the app and by email; reminders follow (see utils/ticketReminders.js)
+  await notify(await adminIdsFor('support', 'read'), {
+    type: 'ticket', title: `New ${ticket.priority} ticket: ${ticket.subject}`, body: `From ${req.user.name}`, link: '/support', email: false
   });
+  await announceNewTicket(ticket, req.user);
   res.status(201).json(await ticketModel.populate(ticket));
 };
 
@@ -42,6 +45,8 @@ export const addComment = async (req, res) => {
   ticket.comments.push({ authorId: req.user.id, authorName: req.user.name, authorRole: req.user.role, message });
   // Replying to a closed ticket re-opens it (and restarts its SLA clock is intentionally not done)
   if (ticket.status === 'Closed') { ticket.status = 'Open'; ticket.closedAt = null; }
+  // The requester answered: reminders and the SLA clock start again
+  if (ticket.status === WAITING) { resumeSla(ticket); ticket.status = 'In Progress'; ticket.lastReminderAt = new Date(); }
   await ticket.save();
 
   const recipients = ticket.assigneeId ? [ticket.assigneeId._id ?? ticket.assigneeId] : await adminIdsFor('support');

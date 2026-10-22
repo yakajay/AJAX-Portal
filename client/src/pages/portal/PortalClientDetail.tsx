@@ -5,7 +5,9 @@ import { apiJson, apiSend } from '../../lib/api';
 import { errorMessage, formatDateTime } from '../../lib/format';
 import { useAsync } from '../../lib/useAsync';
 import { Badge, Button, Card, ErrorNote, Field, PageHeader, Spinner, Th, inputClass } from '../../components/ui';
-import { ModuleBoxes, statusTone, usePortalStats, type CompanySummary } from './shared';
+import AddressChoice from './AddressChoice';
+import { ACTION_LABEL, ticketTone, type AddressTicket } from './shared';
+import { ModuleBoxes, statusTone, useCan, usePortalStats, type CompanySummary } from './shared';
 
 interface EmployeeRow {
   id: string; name: string; email: string; role: string; department: string; designation: string;
@@ -18,9 +20,11 @@ const PortalClientDetail = () => {
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const stats = usePortalStats();
+  const canEdit = useCan('admin');
+  const tickets = useAsync(() => apiJson<AddressTicket[]>(`/platform/address-requests?companyId=${id}`), [id]);
   const plans = stats.data?.plans ?? {};
   const { data, error, loading, reload } = useAsync(() => apiJson<CompanySummary>(`/platform/companies/${id}`), [id]);
-  const [edit, setEdit] = useState<{ plan: string; seatLimit: string; modules: string[]; customLogo: boolean; customEmail: boolean; contactName: string; contactEmail: string } | null>(null);
+  const [edit, setEdit] = useState<{ plan: string; seatLimit: string; modules: string[]; customLogo: boolean; customEmail: boolean; contactName: string; contactEmail: string; dedicated: boolean; addressReason: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -35,6 +39,7 @@ const PortalClientDetail = () => {
       await fn();
       if (done) setNotice(done);
       await reload();
+      void tickets.reload();
     } catch (err) {
       setActionError(errorMessage(err));
     } finally {
@@ -56,7 +61,7 @@ const PortalClientDetail = () => {
 
   if (loading && !data) return <Spinner />;
   if (!data) return <div className="space-y-4"><ErrorNote error={error} /><Button variant="secondary" onClick={() => navigate('/portal/clients')}>Back to clients</Button></div>;
-  const startEdit = () => setEdit({ plan: data.subscription.plan, seatLimit: String(data.subscription.seatLimit), modules: data.modules, customLogo: data.features.customLogo, customEmail: !!data.features.customEmail, contactName: data.primaryContact.name, contactEmail: data.primaryContact.email });
+  const startEdit = () => setEdit({ plan: data.subscription.plan, seatLimit: String(data.subscription.seatLimit), modules: data.modules, customLogo: data.features.customLogo, customEmail: !!data.features.customEmail, contactName: data.primaryContact.name, contactEmail: data.primaryContact.email, dedicated: !!data.dedicatedAddress, addressReason: '' });
 
   return (
     <div className="space-y-6">
@@ -72,13 +77,13 @@ const PortalClientDetail = () => {
         <ErrorNote error={actionError} />
         {notice && <p role="status" className="text-sm font-semibold text-emerald-700">{notice}</p>}
 
-        <div className="flex flex-wrap gap-2">
+        {canEdit && <div className="flex flex-wrap gap-2">
           {data.status !== 'active' && <Button small onClick={() => changeStatus('active')} disabled={busy}>Activate</Button>}
           {data.status === 'active' && <Button small variant="secondary" onClick={() => changeStatus('suspended')} disabled={busy}>Suspend</Button>}
           {data.status !== 'inactive' && <Button small variant="danger" onClick={() => changeStatus('inactive')} disabled={busy}>Deactivate</Button>}
-        </div>
+        </div>}
 
-        <Card title="Subscription & modules" actions={!edit && <Button small variant="secondary" onClick={startEdit}>Edit</Button>}>
+        <Card title="Subscription & modules" actions={canEdit && !edit && <Button small variant="secondary" onClick={startEdit}>Edit</Button>}>
           {edit ? (
             <form
               className="space-y-4"
@@ -86,7 +91,7 @@ const PortalClientDetail = () => {
                 e.preventDefault();
                 void run(async () => {
                   await apiSend('PUT', `/platform/companies/${id}`, {
-                    plan: edit.plan, seatLimit: Number(edit.seatLimit), modules: edit.modules, features: { customLogo: edit.customLogo, customEmail: edit.customEmail },
+                    plan: edit.plan, seatLimit: Number(edit.seatLimit), dedicatedAddress: edit.plan !== 'trial' && edit.dedicated, addressReason: edit.addressReason, modules: edit.modules, features: { customLogo: edit.customLogo, customEmail: edit.customEmail },
                     primaryContact: { name: edit.contactName, email: edit.contactEmail, phone: data.primaryContact.phone }
                   });
                   setEdit(null);
@@ -99,6 +104,12 @@ const PortalClientDetail = () => {
                 <Field label="Contact name"><input className={inputClass} value={edit.contactName} onChange={(e) => setEdit({ ...edit, contactName: e.target.value })} /></Field>
                 <Field label="Contact email"><input type="email" className={inputClass} value={edit.contactEmail} onChange={(e) => setEdit({ ...edit, contactEmail: e.target.value })} /></Field>
               </div>
+              <AddressChoice plan={edit.plan} dedicated={edit.dedicated} onDedicated={(on) => setEdit({ ...edit, dedicated: on })} shared={stats.data?.addresses?.shared ?? 'crm'} base={stats.data?.addresses?.baseDomain ?? ''} slug={data.slug} slugLocked />
+              {(edit.plan !== 'trial' && edit.dedicated) !== !!data.dedicatedAddress && edit.plan !== 'trial' && (
+                <Field label="Reason for the address change" hint="Required. It is saved on a numbered ticket for audits.">
+                  <input required className={inputClass} value={edit.addressReason} onChange={(e) => setEdit({ ...edit, addressReason: e.target.value })} />
+                </Field>
+              )}
               <Field label="Modules"><ModuleBoxes value={edit.modules} onChange={(modules) => setEdit({ ...edit, modules })} /></Field>
               <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={edit.customLogo} onChange={(e) => setEdit({ ...edit, customLogo: e.target.checked })} />Custom company logo</label>
               <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={edit.customEmail} onChange={(e) => setEdit({ ...edit, customEmail: e.target.checked })} />Own sender email (their admin enters the mailbox that sends OTPs and notifications)</label>
@@ -107,6 +118,7 @@ const PortalClientDetail = () => {
           ) : (
             <dl className="grid sm:grid-cols-2 gap-3 text-sm">
               <div><dt className="text-xs font-extrabold text-slate-400">Plan</dt><dd className="text-slate-800">{plans[data.subscription.plan]?.label ?? data.subscription.plan}</dd></div>
+              <div><dt className="text-xs font-extrabold text-slate-400">Sign-in address</dt><dd className="text-slate-800">{data.dedicatedAddress ? 'Own address' : 'Shared address'} · <span className="font-mono">{data.domain}</span></dd></div>
               <div><dt className="text-xs font-extrabold text-slate-400">Primary contact</dt><dd className="text-slate-800">{data.primaryContact.name || '—'} {data.primaryContact.email && `· ${data.primaryContact.email}`}</dd></div>
               <div><dt className="text-xs font-extrabold text-slate-400">Custom logo</dt><dd className="text-slate-800">{data.features.customLogo ? 'Enabled' : 'Not enabled'}</dd></div>
               <div><dt className="text-xs font-extrabold text-slate-400">Own sender email</dt><dd className="text-slate-800">{data.features.customEmail ? 'Enabled' : 'Not enabled'}</dd></div>
@@ -115,7 +127,19 @@ const PortalClientDetail = () => {
           )}
         </Card>
 
-        <Card title="Invite a company admin">
+        {!!tickets.data?.length && (
+          <Card title="Address tickets" flush>
+            <ul className="divide-y divide-slate-100">
+              {tickets.data.map((t) => (
+                <li key={t.id} className="px-6 py-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <span><span className="font-mono font-bold text-slate-900">{t.ticketNo}</span> · {ACTION_LABEL[t.action]} · <span className="text-slate-500">{t.reason}</span></span>
+                  <span className="flex items-center gap-2 text-xs text-slate-400">{t.requestedBy.name} · {formatDateTime(t.createdAt)} <Badge tone={ticketTone(t.status)}>{t.status}</Badge></span>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
+        {canEdit && <Card title="Invite a company admin">
           <form
             className="grid sm:grid-cols-[1fr_1fr_auto] gap-3 items-end"
             onSubmit={(e) => {
@@ -127,7 +151,7 @@ const PortalClientDetail = () => {
             <Field label="Email"><input required type="email" className={inputClass} value={admin.email} onChange={(e) => setAdmin({ ...admin, email: e.target.value })} /></Field>
             <Button type="submit" disabled={busy}>Invite</Button>
           </form>
-        </Card>
+        </Card>}
 
         <Card
           title="Employees"

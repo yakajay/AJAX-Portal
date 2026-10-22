@@ -37,6 +37,11 @@ const PortalClientDetail = lazy(() => import('./pages/portal/PortalClientDetail'
 const PortalOnboard = lazy(() => import('./pages/portal/PortalOnboard'));
 const PortalPlans = lazy(() => import('./pages/portal/PortalPlans'));
 const PortalSupport = lazy(() => import('./pages/portal/PortalSupport'));
+const PortalTeam = lazy(() => import('./pages/portal/PortalTeam'));
+const Handoff = lazy(() => import('./pages/Handoff'));
+const PortalSignup = lazy(() => import('./pages/portal/PortalSignup'));
+const CrmAddress = lazy(() => import('./pages/crm/CrmAddress'));
+const CrmBranding = lazy(() => import('./pages/crm/CrmBranding'));
 const Documents = lazy(() => import('./pages/Documents'));
 const CrmOverview = lazy(() => import('./pages/crm/CrmOverview'));
 const CrmEmployees = lazy(() => import('./pages/crm/CrmEmployees'));
@@ -51,6 +56,7 @@ import type { User } from './types';
 import { getToken, setSession, clearToken, apiFetch, UNAUTHORIZED_EVENT } from './lib/api';
 import { I18nProvider } from './lib/i18n';
 import { loadWorkspace } from './lib/workspace';
+import { portalCan } from './lib/permissions';
 
 function App() {
   const [user, setUser] = useState<User | null>(() => {
@@ -138,6 +144,8 @@ function App() {
         <Route path="/sso/callback" element={<SsoCallback onLogin={handleLogin} />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/portal-signup" element={<PortalSignup />} />
+        <Route path="/handoff" element={<Handoff onLogin={handleLogin} />} />
 
         {/* Protected App Routes */}
         <Route 
@@ -148,9 +156,10 @@ function App() {
                 {isPlatform ? (
                 <Routes>
                   <Route path="/portal" element={<PortalOverview />} />
+                  <Route path="/portal/team" element={portalCan(user, 'super') ? <PortalTeam /> : <Navigate to="/portal" replace />} />
                   <Route path="/portal/clients" element={<PortalClients />} />
                   <Route path="/portal/clients/:id" element={<PortalClientDetail />} />
-                  <Route path="/portal/onboard" element={<PortalOnboard />} />
+                  <Route path="/portal/onboard" element={portalCan(user, 'admin') ? <PortalOnboard /> : <Navigate to="/portal" replace />} />
                   <Route path="/portal/plans" element={<PortalPlans />} />
                   <Route path="/platform/requests" element={<Navigate to="/portal/support" replace />} />
                   <Route path="/platform/audit" element={<Navigate to="/portal/support" replace />} />
@@ -184,6 +193,8 @@ function App() {
                   <Route path="/crm/holidays" element={isAdmin ? <CrmHolidays user={user} /> : <Restricted superOnly={false} />} />
                   <Route path="/crm/leave-balances" element={isAdmin ? <CrmLeaveBalances user={user} /> : <Restricted superOnly={false} />} />
                   <Route path="/crm/payroll" element={isAdmin ? <CrmPayroll user={user} /> : <Restricted superOnly={false} />} />
+                  <Route path="/crm/address" element={isAdmin ? <CrmAddress /> : <Restricted superOnly={false} />} />
+                  <Route path="/crm/branding" element={user.role === 'SUPER_ADMIN' ? <CrmBranding /> : <Restricted superOnly={isAdmin} />} />
                   <Route path="/crm/roles" element={user.role === 'SUPER_ADMIN' ? <CrmRoles user={user} /> : <Restricted superOnly={isAdmin} />} />
                   <Route path="/expenses" element={<Expenses user={user} />} />
                   <Route path="/performance" element={<Performance user={user} />} />

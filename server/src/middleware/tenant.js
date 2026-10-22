@@ -8,13 +8,16 @@ import { hashRefreshToken } from '../models/session.model.js';
 
 // Decides which company (or the platform console) a request is for, from its Host header:
 //   admin.<baseDomain> or <baseDomain>   -> the platform console (Super Admin)
+//   crm.<baseDomain>                     -> the shared CRM address (company chosen at sign-in)
 //   <slug>.<baseDomain>                  -> that company's workspace
 // and runs the rest of the request inside that scope, so the data layer can only see that tenant.
 export const classifyHost = (hostname) => {
-  const { baseDomain, platformSubdomain, platformHost, defaultTenantSlug } = env.tenancy;
+  const { baseDomain, platformSubdomain, platformHost, defaultTenantSlug, crmSubdomain } = env.tenancy;
   const host = String(hostname || '').toLowerCase().replace(/\.$/, '');
   if (platformHost && host === platformHost) return { kind: 'platform' };
   if (host === baseDomain || host === `${platformSubdomain}.${baseDomain}`) return { kind: 'platform' };
+  // The shared CRM address names no company: single-company installs serve theirs, otherwise it follows the sign-in
+  if (host === `${crmSubdomain}.${baseDomain}`) return defaultTenantSlug ? { kind: 'tenant', slug: defaultTenantSlug, shared: true } : { kind: 'unknown' };
   if (host.endsWith(`.${baseDomain}`)) {
     const slug = host.slice(0, -(baseDomain.length + 1));
     if (slug && !slug.includes('.')) return { kind: 'tenant', slug };
@@ -69,6 +72,7 @@ const inferTarget = async (req) => {
 
 export const resolveTenant = async (req, res, next) => {
   let target = classifyHost(requestHost(req));
+  const shared = target.kind === 'unknown' || (target.kind === 'tenant' && target.shared === true);
   if (target.kind === 'unknown') {
     target = await inferTarget(req);
     // With a dedicated console address, platform admins sign in there, never on the shared company address
@@ -104,7 +108,7 @@ export const resolveTenant = async (req, res, next) => {
   }
 
   primeCompanyKey(company.id, company.dataKey);
-  req.tenant = { kind: 'tenant' };
+  req.tenant = { kind: 'tenant', shared };
   req.company = company;
   enterScope({ scope: 'tenant', companyId: company._id }, next);
 };

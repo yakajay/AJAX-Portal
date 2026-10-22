@@ -38,6 +38,10 @@ export const env = {
   tenancy: {
     baseDomain,
     platformSubdomain: (process.env.PLATFORM_SUBDOMAIN || 'admin').trim().toLowerCase(),
+    // crm.<baseDomain> is the shared CRM address for company admins: the company is worked out from who signs in
+    crmSubdomain: (process.env.CRM_SUBDOMAIN || 'crm').trim().toLowerCase(),
+    // When set, only emails at this domain can ask for platform (Portal) access, e.g. ajaxhrms.com
+    platformStaffDomain: (process.env.PLATFORM_STAFF_DOMAIN || '').trim().toLowerCase().replace(/^@/, ''),
     // Public URL parts, used to show admins the redirect URIs to register with their identity provider
     publicScheme: process.env.PUBLIC_SCHEME || (isProduction ? 'https' : 'http'),
     publicPort: process.env.PUBLIC_PORT || '',
@@ -86,7 +90,12 @@ export const env = {
   jobs: {
     enabled: process.env.JOBS_ENABLED !== 'false' && process.env.NODE_ENV !== 'test',
     digestHour: parseInt(process.env.DIGEST_HOUR || '8'),
-    contractAlertDays: parseInt(process.env.CONTRACT_ALERT_DAYS || '30')
+    contractAlertDays: parseInt(process.env.CONTRACT_ALERT_DAYS || '30'),
+    // Status reminders on open tickets: P1/P2 (Urgent/High) every 30 minutes, everything else every hour
+    ticketFastMinutes: parseInt(process.env.TICKET_REMIND_FAST_MINUTES || '30'),
+    ticketSlowMinutes: parseInt(process.env.TICKET_REMIND_SLOW_MINUTES || '60'),
+    // The daily resolution report for managers goes out at this hour (server time)
+    ticketReportHour: parseInt(process.env.TICKET_REPORT_HOUR || '9')
   },
   sso: {
     // Identity providers are configured per company by its admins. Providers on private addresses are

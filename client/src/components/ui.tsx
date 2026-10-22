@@ -93,6 +93,7 @@ export const Badge = ({ tone = 'slate', children }: { tone?: Tone; children: Rea
 export const statusTone = (status: string): Tone => {
   if (['Approved', 'Completed', 'Paid', 'Done', 'Met', 'Success', 'Reimbursed', 'On Track', 'Active', 'Closed'].includes(status)) return 'green';
   if (['Pending', 'Pending Self', 'Pending Manager', 'Submitted', 'Generated', 'Sent', 'In Progress', 'At Risk', 'Draft', 'Open', 'Processing', 'Regularization Pending'].includes(status)) return 'amber';
+  if (['Waiting for response', 'Paused'].includes(status)) return 'blue';
   if (['Rejected', 'Overdue', 'Breached', 'Failed', 'Cancelled', 'Ended'].includes(status)) return 'rose';
   return 'slate';
 };
